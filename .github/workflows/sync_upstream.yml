@@ -1,0 +1,22 @@
+name: Sync Upstream Code()
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout Current Repository"
+        uses: actions/checkout@main
+        with:
+          ref: main
+          token: ${{secrets.ORGTOKEN}}
+      - name: "Merge Upstream Official Code"
+        run: |
+          git remote add upstream https://github.com/overleaf/overleaf.git
+          git fetch upstream
+          git merge upstream/main
+          git push
