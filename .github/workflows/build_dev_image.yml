@@ -1,0 +1,66 @@
+name: Build Development Image
+on:
+  workflow_dispatch:
+
+env:
+  GHCR_REGISTRY: ghcr.io
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image-name:
+          [
+            web,
+            webpack,
+            real-time,
+            project-history,
+            notifications,
+            history-v1,
+            filestore,
+            document-updater,
+            docstore,
+            contacts,
+            chat,
+            clsi
+          ]
+    steps:
+      - name: "Checkout Current Repository"
+        uses: actions/checkout@main
+        with:
+          ref: server-pro
+      - name: "Setup node environment"
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.x"
+      - name: "Sync package-lock.json"
+        run: |
+          npm install --package-lock-only --ignore-scripts
+      - name: "Login to GitHub Container Registry"
+        uses: docker/login-action@v3.0.0
+        with:
+          registry: ${{env.GHCR_REGISTRY}}
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+      - name: "Clone Overleaf And Build"
+        run: |
+          cd ./develop/
+          bin/build ${{matrix.image-name}}
+          docker tag develop-${{matrix.image-name}}:latest ${{env.GHCR_REGISTRY}}/ayaka-notes/overleaf-pro/dev/${{matrix.image-name}}:latest
+          docker push ${{env.GHCR_REGISTRY}}/ayaka-notes/overleaf-pro/dev/${{matrix.image-name}}:latest
+
+  clean-image:
+    runs-on: ubuntu-latest
+    needs: build-image
+    steps:
+      - name: Delete 'untaged' containers
+        uses: snok/container-retention-policy@v2
+        with:
+          image-names: overleaf-pro/dev/*
+          cut-off: 1 min ago UTC
+          account-type: org
+          org-name: ayaka-notes
+          untagged-only: true
+          token: ${{ secrets.ORGTOKEN }}
