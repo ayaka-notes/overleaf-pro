@@ -1,39 +1,39 @@
 services:
   chat:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/chat:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:chat
 
   clsi:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/clsi:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:clsi
 
   contacts:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/contacts:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:contacts
 
   docstore:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/docstore:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:docstore
 
   document-updater:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/document-updater:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:document-updater
 
   filestore:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/filestore:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:filestore
 
   history-v1:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/history-v1:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:history-v1
 
   notifications:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/notifications:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:notifications
 
   project-history:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/project-history:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:project-history
 
   real-time:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/real-time:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:real-time
 
   spelling:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/spelling:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:spelling
 
   web:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/web:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:web
 
   webpack:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev/webpack:latest
+    image: ghcr.io/ayaka-notes/overleaf-pro/dev:webpack
