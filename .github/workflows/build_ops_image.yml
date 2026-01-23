@@ -6,7 +6,7 @@
 #
 # ---------------------------------
 
-name: Overleaf Operations
+name: Build Operations Image
 on:
   push:
     branches:
