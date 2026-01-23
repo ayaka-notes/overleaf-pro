@@ -24,8 +24,13 @@ jobs:
   build-image:
     runs-on: ubuntu-latest
     steps:
+      # If the event is a pull request, checkout the head sha of the PR
       - name: "Checkout Current Repository"
         uses: actions/checkout@main
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
       - name: "Login to GitHub Container Registry"
         uses: docker/login-action@v3.0.0
         with:
@@ -44,6 +49,9 @@ jobs:
         run: |
           cd ./server-ce
           github_short_sha=$(echo ${{ github.sha }} | head -c7)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            github_short_sha=$(echo ${{ github.event.pull_request.head.sha }} | head -c7)
+          fi
           tag=$(TZ='Asia/Shanghai' date +'%Y%m%d%H%M')-$github_short_sha
           echo "Building tag: $tag"
           git log -1
