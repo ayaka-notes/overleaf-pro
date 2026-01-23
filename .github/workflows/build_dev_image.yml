@@ -1,3 +1,12 @@
+# ---------------------------------
+# This workflow is used to build development images
+# and push them to GitHub Container Registry
+#
+# Published at:
+#     ghcr.io/ayaka-notes/overleaf-pro/dev
+#
+# ---------------------------------
+
 name: Build Development Image
 on:
   workflow_dispatch:
@@ -56,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-image
     steps:
-      - name: Delete 'untaged' containers
+      - name: Delete old images
         uses: snok/container-retention-policy@v2
         with:
           image-names: overleaf-pro/dev/*

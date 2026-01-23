@@ -1,0 +1,58 @@
+# ---------------------------------
+# This workflow is used to build overleaf image automatically
+#
+# Published at:
+#     ghcr.io/ayaka-notes/overleaf-pro/ops
+#
+# ---------------------------------
+
+name: Overleaf Operations
+on:
+  push:
+    branches:
+      - server-pro
+  pull_request:
+    branches:
+      - server-pro
+  workflow_dispatch:
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ayaka-notes/overleaf-pro
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout Current Repository"
+        uses: actions/checkout@main
+        with:
+          ref: main
+      - name: "Login to GitHub Container Registry"
+        uses: docker/login-action@v3.0.0
+        with:
+          registry: ${{env.DOCKER_REGISTRY}}
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+    
+
+      - name: "Build Docker Image And Push"
+        run: |
+          cd ./overleaf/server-ce
+          make
+          docker tag sharelatex/sharelatex:latest ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:latest
+          tag=$(TZ='Asia/Shanghai' date +'%Y%m%d%H%M')-${{ github.sha }} | head -c7
+          echo "Tagging with: $tag"
+          docker tag sharelatex/sharelatex:latest ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:$tag
+          docker push ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:latest
+          docker push ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:$tag
+      
+      - name: Delete old images
+        uses: snok/container-retention-policy@v2
+        with:
+          image-names: overleaf-pro/ops/*
+          cut-off: A week ago UTC+8
+          account-type: org
+          org-name: ayaka-notes
+          untagged-only: false
+          token: ${{ secrets.ORGTOKEN }}
