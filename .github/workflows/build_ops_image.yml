@@ -45,7 +45,9 @@ jobs:
       - name: "Build Docker Image And Push"
         run: |
           cd ./server-ce
-          tag=$(TZ='Asia/Shanghai' date +'%Y%m%d%H%M')-${{ github.sha }} | head -c7
+          github_short_sha=$(echo ${{ github.sha }} | head -c7)
+          tag=$(TZ='Asia/Shanghai' date +'%Y%m%d%H%M')-$github_short_sha
+          echo "Building tag: $tag"
           OVERLEAF_TAG=sharelatex/sharelatex:latest make
           docker tag sharelatex/sharelatex:latest ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:latest
           docker tag sharelatex/sharelatex:latest ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:$tag
