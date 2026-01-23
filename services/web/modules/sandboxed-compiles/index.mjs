@@ -1,4 +1,8 @@
 import Settings from '@overleaf/settings'
+import logger from '@overleaf/logger'
+/** @import { WebModule } from "../../types/web-module" */
+
+logger.debug({}, 'Enable Sandboxed Compiles')
 
 const parseTextExtensions = function (extensions) {
   if (extensions) {
@@ -20,3 +24,7 @@ if (process.env.SANDBOXED_COMPILES === 'true') {
   }
   Settings.currentImageName = process.env.TEX_LIVE_DOCKER_IMAGE
 }
+
+/** @type {WebModule} */
+const sandboxedCompilesModule = {}
+export default sandboxedCompilesModule
