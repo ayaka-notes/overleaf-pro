@@ -44,7 +44,7 @@ jobs:
       - name: "Setup node environment"
         uses: actions/setup-node@v3
         with:
-          node-version: "20.x"
+          node-version: "22.x"
       - name: "Sync package-lock.json"
         run: |
           npm install --package-lock-only --ignore-scripts

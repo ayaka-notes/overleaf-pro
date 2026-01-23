@@ -34,19 +34,24 @@ jobs:
           registry: ${{env.DOCKER_REGISTRY}}
           username: ${{github.actor}}
           password: ${{secrets.GITHUB_TOKEN}}
-    
+      - name: "Setup node environment"
+        uses: actions/setup-node@v3
+        with:
+          node-version: "22.x"
+      - name: "Sync package-lock.json"
+        run: |
+          npm install --package-lock-only --ignore-scripts
 
       - name: "Build Docker Image And Push"
         run: |
           cd ./server-ce
-          make
-          docker tag sharelatex/sharelatex:latest ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:latest
           tag=$(TZ='Asia/Shanghai' date +'%Y%m%d%H%M')-${{ github.sha }} | head -c7
-          echo "Tagging with: $tag"
+          OVERLEAF_TAG=sharelatex/sharelatex:latest make
+          docker tag sharelatex/sharelatex:latest ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:latest
           docker tag sharelatex/sharelatex:latest ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:$tag
           docker push ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:latest
           docker push ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:$tag
-      
+
       - name: Delete old images
         uses: snok/container-retention-policy@v2
         with:
