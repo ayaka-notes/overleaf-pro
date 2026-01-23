@@ -38,7 +38,7 @@ jobs:
 
       - name: "Build Docker Image And Push"
         run: |
-          cd ./overleaf/server-ce
+          cd ./server-ce
           make
           docker tag sharelatex/sharelatex:latest ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:latest
           tag=$(TZ='Asia/Shanghai' date +'%Y%m%d%H%M')-${{ github.sha }} | head -c7
