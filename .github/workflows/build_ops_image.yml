@@ -26,8 +26,6 @@ jobs:
     steps:
       - name: "Checkout Current Repository"
         uses: actions/checkout@main
-        with:
-          ref: main
       - name: "Login to GitHub Container Registry"
         uses: docker/login-action@v3.0.0
         with:
@@ -48,6 +46,7 @@ jobs:
           github_short_sha=$(echo ${{ github.sha }} | head -c7)
           tag=$(TZ='Asia/Shanghai' date +'%Y%m%d%H%M')-$github_short_sha
           echo "Building tag: $tag"
+          git log -1
           OVERLEAF_TAG=sharelatex/sharelatex:latest make
           docker tag sharelatex/sharelatex:latest ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:latest
           docker tag sharelatex/sharelatex:latest ${{env.DOCKER_REGISTRY}}/${{env.IMAGE_NAME}}/ops:$tag
