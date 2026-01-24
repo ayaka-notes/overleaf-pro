@@ -73,7 +73,7 @@ jobs:
       - name: "Build Server image"
         uses: docker/build-push-action@v6
         with:
-          context: ./server-ce
+          context: ./
           file: ./server-ce/Dockerfile
           push: false
           pull: false
