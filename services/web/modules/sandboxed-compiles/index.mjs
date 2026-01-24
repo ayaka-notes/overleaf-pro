@@ -14,7 +14,7 @@ const parseTextExtensions = function (extensions) {
 
 if (process.env.SANDBOXED_COMPILES === 'true') {
   // Set default image root if not provided
-  imageRootPath = process.env.IMAGE_ROOT || "ghcr.io/ayaka-notes";
+  let imageRootPath = process.env.IMAGE_ROOT || "ghcr.io/ayaka-notes";
   // Export imageRoot to Settings
   Settings.imageRoot = imageRootPath
 
