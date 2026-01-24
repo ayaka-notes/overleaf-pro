@@ -97,7 +97,7 @@ jobs:
       # --- End of Server Image ---
 
       # --- Push Server Image ---
-      - name: "Build Docker Image And Push"
+      - name: "ReTag Docker Image And Push"
         run: |
           cd ./server-ce
           github_short_sha=$(echo ${{ github.sha }} | head -c7)
