@@ -75,6 +75,7 @@ jobs:
         with:
           context: ./
           file: ./server-ce/Dockerfile
+          load: true
           push: false
           pull: false
           tags: |
