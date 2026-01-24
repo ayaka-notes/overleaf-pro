@@ -1066,6 +1066,7 @@ module.exports = {
     'user-activate',
     'sandboxed-compiles',
     'symbol-palette',
+    'track-changes',
   ],
   viewIncludes: {},
 
