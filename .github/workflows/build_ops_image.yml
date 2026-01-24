@@ -48,6 +48,8 @@ jobs:
       # --- Set up Docker Buildx ---
       - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker # Must use docker driver, because we need the base image for later steps
 
       # --- Build Base Image ---
       - name: "Build base image (hash cache)"
