@@ -74,6 +74,8 @@ jobs:
             sharelatex/sharelatex-base:latest
           cache-from: type=gha,scope=base-${{ hashFiles('server-ce/Dockerfile-base') }}
           cache-to: type=gha,mode=max,scope=base-${{ hashFiles('server-ce/Dockerfile-base') }}
+          provenance: false
+          sbom: false
       # --- End of Base Image ---
       
       # --- Build Server Image ---
@@ -90,10 +92,12 @@ jobs:
           pull: false
           tags: |
             sharelatex/sharelatex:latest
-          labels: |
+          annotations: |
             com.overleaf.pro.revision=${{ steps.vars.outputs.MONOREPO_REVISION }}
           cache-from: type=gha,scope=ops-${{ github.ref_name }}
           cache-to: type=gha,mode=max,scope=ops-${{ github.ref_name }}
+          provenance: false
+          sbom: false
       # --- End of Server Image ---
 
       # --- Push Server Image ---
