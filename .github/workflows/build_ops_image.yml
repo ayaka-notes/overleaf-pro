@@ -53,7 +53,7 @@ jobs:
         with:
           # Makefile 在 server-ce 下构建时，context 是 ../（monorepo root）
           context: ./server-ce
-          file: ./Dockerfile-base
+          file: ./server-ce/Dockerfile-base
           load: true
           push: false
           pull: true
