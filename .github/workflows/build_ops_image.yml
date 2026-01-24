@@ -44,10 +44,12 @@ jobs:
           docker run --rm -v "$(pwd)":/workspace -w /workspace node:22.18.0 npm install --package-lock-only --ignore-scripts
           cd ./server-ce/
           cp .dockerignore ../
-      
-      # --- Build Base Image ---
+
+      # --- Set up Docker Buildx ---
       - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v3
+
+      # --- Build Base Image ---
       - name: "Build base image (hash cache)"
         uses: docker/build-push-action@v6
         with:
@@ -63,8 +65,6 @@ jobs:
       # --- End of Base Image ---
       
       # --- Build Server Image ---
-      - name: "Set up Docker Buildx"
-        uses: docker/setup-buildx-action@v3
       - name: "Get MONOREPO_REVISION"
         id: vars
         run: echo "MONOREPO_REVISION=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
