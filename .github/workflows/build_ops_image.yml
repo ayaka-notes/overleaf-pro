@@ -92,6 +92,8 @@ jobs:
             sharelatex/sharelatex:latest
           labels: |
             com.overleaf.pro.revision=${{ steps.vars.outputs.MONOREPO_REVISION }}
+          cache-from: type=gha,scope=ops-${{ github.ref_name }}
+          cache-to: type=gha,mode=max,scope=ops-${{ github.ref_name }}
       # --- End of Server Image ---
 
       # --- Push Server Image ---
