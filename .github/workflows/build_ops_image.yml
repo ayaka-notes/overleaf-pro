@@ -45,9 +45,21 @@ jobs:
           cd ./server-ce/
           cp .dockerignore ../
 
-      # --- Set up Docker Buildx ---
-      - name: "Set up Docker Buildx"
+      # --- Set up Docker ---
+      # See: https://docs.docker.com/build/ci/github-actions/multi-platform/
+      - name: Set up Docker (enable containerd image store)
+        uses: docker/setup-docker-action@v4
+        with:
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+      - name: Set up Buildx (docker driver)
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
       # --- Build Base Image ---
       - name: "Build base image (hash cache)"
@@ -80,8 +92,6 @@ jobs:
             sharelatex/sharelatex:latest
           labels: |
             com.overleaf.pro.revision=${{ steps.vars.outputs.MONOREPO_REVISION }}
-          cache-from: |
-            type=gha,scope=base-${{ hashFiles('server-ce/Dockerfile-base') }}
       # --- End of Server Image ---
 
       # --- Push Server Image ---
