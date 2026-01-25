@@ -744,6 +744,7 @@ module.exports = {
     // them to disk here).
     dumpFolder: Path.resolve(__dirname, '../data/dumpFolder'),
     uploadFolder: Path.resolve(__dirname, '../data/uploads'),
+    learnPagesDir: Path.resolve(__dirname, '../data/learnPages'),
   },
 
   // Automatic Snapshots
@@ -1062,6 +1063,7 @@ module.exports = {
   moduleImportSequence: [
     'history-v1',
     'launchpad',
+    'learn',
     'server-ce-scripts',
     'user-activate',
     'sandboxed-compiles',

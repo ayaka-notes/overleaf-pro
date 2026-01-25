@@ -1,0 +1,27 @@
+extends ../../../../app/views/layout-marketing
+
+block vars
+	- metadata = metadata || {}
+
+
+block content
+	#main-content.content.content-alt
+		.container.wiki
+			.row.template-page-header
+				.col-md-8
+
+			.row
+				.col-12.col-md-3.order-md-1.contents.card
+					.card-body
+						.mw-parser-output
+							!= sidebarHtml
+				.col-12.col-md-9.order-md-5.page
+					.card.row-spaced
+						.card-body
+							.page-header
+								h1 
+									!= pageTitle
+							div(data-ol-mathjax="")
+									.mw-parser-output
+										!= pageHtml
+
