@@ -33,3 +33,6 @@ chown www-data:www-data /var/lib/overleaf/tmp/uploads
 
 mkdir -p /var/lib/overleaf/tmp/dumpFolder
 chown www-data:www-data /var/lib/overleaf/tmp/dumpFolder
+
+mkdir -p /overleaf/services/web/data/learnPages
+chown www-data:www-data /overleaf/services/web/data/learnPages
