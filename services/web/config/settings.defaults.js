@@ -744,7 +744,7 @@ module.exports = {
     // them to disk here).
     dumpFolder: Path.resolve(__dirname, '../data/dumpFolder'),
     uploadFolder: Path.resolve(__dirname, '../data/uploads'),
-    learnPagesDir: Path.resolve(__dirname, '../data/learnPages'),
+    learnPagesFolder: Path.resolve(__dirname, '../data/learnPages'),
   },
 
   // Automatic Snapshots
