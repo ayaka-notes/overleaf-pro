@@ -1,0 +1,27 @@
+{
+	"name": "overleaf-dev-codespaces",
+	// The Docker image that you will be using as a development container
+	"image": "mcr.microsoft.com/devcontainers/base:dev-ubuntu24.04",
+	// Environment variables to set in the development container
+	"containerEnv": {
+		"SHELL": "/bin/bash"
+	},
+	// Available features: https://containers.dev/features
+	"features": { 
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {}
+	},
+	// Extenstions to install: separate lists for VS Code and Codespaces
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"github.copilot"
+			]
+		},
+		"codespaces": {
+			"extensions": [
+				"github.copilot"
+			]
+		}
+	},
+	"remoteUser": "vscode"
+}
