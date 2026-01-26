@@ -1,7 +1,7 @@
 import logger from '@overleaf/logger'
 import Settings from '@overleaf/settings'
 import LearnProxyController from './LearnProxy.mjs'
-
+import AuthenticationController from '../../../../app/src/Features/Authentication/AuthenticationController.mjs'
 
 export default {
   apply(webRouter) {
@@ -11,6 +11,8 @@ export default {
     }
 
     webRouter.get('/learn', LearnProxyController.learnPage)
+    AuthenticationController.addEndpointToLoginWhitelist('/learn/*')
     webRouter.use('/learn/latex', LearnProxyController.learnPage)
+    AuthenticationController.addEndpointToLoginWhitelist('/learn/latex/*')
   },
 }
