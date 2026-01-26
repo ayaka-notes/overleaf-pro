@@ -11,8 +11,6 @@ export default {
     }
 
     webRouter.get('/learn', LearnProxyController.learnPage)
-    AuthenticationController.addEndpointToLoginWhitelist('/learn/*')
     webRouter.use('/learn/latex', LearnProxyController.learnPage)
-    AuthenticationController.addEndpointToLoginWhitelist('/learn/latex/*')
   },
 }

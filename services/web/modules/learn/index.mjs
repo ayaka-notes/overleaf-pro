@@ -1,7 +1,7 @@
 import LearnRouter from './app/src/LearnRouter.mjs'
 import Settings from '@overleaf/settings'
 import logger from '@overleaf/logger'
-import scrape from '../../scripts/learn/checkSanitize/scrape.mjs'
+import scrape from './app/src/scrape.mjs'
 const { getAllPagesAndCache, scrapeAndCachePage } = scrape
 /** @import { WebModule } from "../../types/web-module" */
 
@@ -9,7 +9,7 @@ const { getAllPagesAndCache, scrapeAndCachePage } = scrape
 let LearnModule = {}
 
 if (process.env.OVERLEAF_PROXY_LEARN === 'true') {
-    logger.debug({}, 'Learn proxy enabled via OVERLEAF_PROXY_LEARN=true')
+    logger.info('Learn Proxy is enabled, please wait while we cache all pages...')
 
     // Get all page cache while starting up
     // Then no need to write script for pull all pages cache
@@ -19,7 +19,7 @@ if (process.env.OVERLEAF_PROXY_LEARN === 'true') {
     for (const page of pages) {
         await scrapeAndCachePage(BASE_URL, page)
     }
-
+    
     // Set learnPagesFolder
     Settings.proxyLearn = true
     // Add header_extras with Documentation link

@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import logger from '@overleaf/logger'
 import Path from 'node:path'
 import { expressify } from '@overleaf/promise-utils'
-import scrape from '../../../../scripts/learn/checkSanitize/scrape.mjs'
+import scrape from './scrape.mjs'
 const { scrapeAndCachePage } = scrape
 
 
