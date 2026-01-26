@@ -2,7 +2,7 @@ import LearnRouter from './app/src/LearnRouter.mjs'
 import Settings from '@overleaf/settings'
 import logger from '@overleaf/logger'
 import scrape from '../../scripts/learn/checkSanitize/scrape.mjs'
-const { getAllPagesAndCache } = scrape
+const { getAllPagesAndCache, scrapeAndCachePage } = scrape
 /** @import { WebModule } from "../../types/web-module" */
 
 /** @type {WebModule} */
@@ -15,9 +15,10 @@ if (process.env.OVERLEAF_PROXY_LEARN === 'true') {
     // Then no need to write script for pull all pages cache
     // Only ensure the pages are there, not latest content, we will update later.
     const BASE_URL = Settings.apis.wiki.url
-    getAllPagesAndCache(BASE_URL).catch((err) => {
-        logger.error({ err: err }, 'error caching learn pages on startup')
-    })
+    const pages = await getAllPagesAndCache(BASE_URL)
+    for (const page of pages) {
+        await scrapeAndCachePage(BASE_URL, page)
+    }
 
     // Set learnPagesFolder
     Settings.proxyLearn = true
