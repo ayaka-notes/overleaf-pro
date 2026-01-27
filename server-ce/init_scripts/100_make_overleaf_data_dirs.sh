@@ -19,6 +19,9 @@ chown www-data:www-data /var/lib/overleaf/data/template_files
 mkdir -p /var/lib/overleaf/data/history
 chown www-data:www-data /var/lib/overleaf/data/history
 
+mkdir -p /var/lib/overleaf/data/learnPages
+chown www-data:www-data /var/lib/overleaf/data/learnPages
+
 mkdir -p /var/lib/overleaf/tmp/projectHistories
 chown www-data:www-data /var/lib/overleaf/tmp/projectHistories
 
