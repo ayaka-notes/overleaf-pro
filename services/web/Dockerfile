@@ -79,7 +79,8 @@ COPY services/web/ /overleaf/services/web/
 COPY tools/migrations/ /overleaf/tools/migrations/
 
 # Build the latex parser
-RUN cd /overleaf/services/web && npm run 'lezer-latex:generate'
+RUN cd /overleaf/services/web && npm run 'lezer-latex:generate' \
+    && chown -R node:node /overleaf/services/web/data
 
 USER node
 
