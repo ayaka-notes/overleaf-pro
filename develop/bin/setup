@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+###########################################################
+# 1. This script setup environment for github codespaces
+#      and pulls necessary images directly from ghcr.io.
+# 2. Since the process of building images inside codespaces 
+#      is very slow, we avoid building them locally. 
+# 3. The latest development images are compatible with 
+#      `server-pro` branch only.
+###########################################################
+
+docker compose -f ./docker-compose.image.yml pull "$@"
+
+docker compose -f docker-compose.yml -f docker-compose.dev.yml \
+    -f ./docker-compose.image.yml up --no-deps --detach "$@"

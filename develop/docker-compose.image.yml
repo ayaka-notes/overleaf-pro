@@ -29,9 +29,6 @@ services:
   real-time:
     image: ghcr.io/ayaka-notes/overleaf-pro/dev:real-time
 
-  spelling:
-    image: ghcr.io/ayaka-notes/overleaf-pro/dev:spelling
-
   web:
     image: ghcr.io/ayaka-notes/overleaf-pro/dev:web
 
