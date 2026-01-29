@@ -1,0 +1,22 @@
+extends ../../../../app/views/layout-react
+
+block entrypointVar
+	- entrypoint = 'modules/template-gallery/pages/template'
+
+block vars
+	- const suppressNavContentLinks = true
+	- const suppressNavbar = true
+	- const suppressFooter = true
+	- bootstrap5PageStatus = 'enabled' // One of 'disabled', 'enabled', and 'queryStringOnly'
+	- isWebsiteRedesign = true
+
+
+
+block append meta
+	meta(name="ol-template" data-type="json" content=template)
+	meta(name="ol-languages" data-type="json" content=languages)
+	meta(name="ol-userIsAdmin" data-type="boolean" content=hasAdminAccess())
+
+block content
+	#template-root
+

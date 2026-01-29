@@ -1,0 +1,32 @@
+.gallery {
+
+  .gallery-search-form-control {
+    padding-top: 0px;
+    padding-bottom: 0px;
+  }
+
+
+  .gallery-header-sort-btn {
+    font-size: var(--font-size-02);
+    border: 0;
+    text-align: left;
+    color: var(--neutral-90);
+    background-color: transparent;
+    padding: 0;
+    font-weight: bold;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-decoration: none;
+
+    &:hover {
+      color: var(--neutral-90);
+      text-decoration: underline;
+    }
+
+    .material-symbols {
+      vertical-align: top;
+      font-size: var(--font-size-05);
+    }
+  }
+}
