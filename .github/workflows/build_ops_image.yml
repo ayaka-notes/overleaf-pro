@@ -93,9 +93,10 @@ jobs:
           tags: |
             sharelatex/sharelatex:latest
           annotations: |
-            com.overleaf.pro.revision=${{ steps.vars.outputs.MONOREPO_REVISION }}
-          cache-from: type=gha,scope=ops-${{ github.ref_name }}
-          cache-to: type=gha,mode=max,scope=ops-${{ github.ref_name }}
+            space.ayaka.overleaf-pro.ops.revision=${{ steps.vars.outputs.MONOREPO_REVISION }}
+          # We don't want -${{ github.ref_name }} limit, just more cache hit
+          cache-from: type=gha,scope=ops
+          cache-to: type=gha,mode=max,scope=ops
           provenance: false
           sbom: false
       # --- End of Server Image ---
