@@ -94,7 +94,7 @@ function EditTemplateModal({
   return (
     <TemplateActionModal
       action="edit"
-      title={t('edit_template')}
+      title={"Edit template"}
       template={editedTemplate}
       showModal={showModal}
       handleCloseModal={handleCloseModal}

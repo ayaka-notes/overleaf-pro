@@ -19,8 +19,8 @@ async function createTemplateFromProject(req, res, next) {
     })
     if (result.conflict) {
       const ownerName = (result.templateOwnerName === 'you') ? t('you') : result.templateOwnerName
-      const message = `${t('template_with_this_title_exists_and_owned_by_x', { x: ownerName })} `
-                    + t(result.canOverride ? 'do_you_want_to_overwrite_it' : 'you_cant_overwrite_it')
+      const message = "A template with this title already exists and is owned by " + ownerName + ". "
+                    + (result.canOverride ? "Do you want to overwrite it?" : "You can't overwrite it.")
       return res.status(409).json({ canOverride: result.canOverride, message })
     }
     return res.status(200).json({ template_id: result.templateId })
@@ -29,7 +29,7 @@ async function createTemplateFromProject(req, res, next) {
       return res.status(error.info?.status || 400).json({ message: error.message })
     }
 
-    const mainMessage = t('failed_to_publish_as_a_template')
+    const mainMessage = "failed_to_publish_as_a_template"
     if (error instanceof RecompileRequiredError) {
       return res.status(error.info?.status || 400).json({
         message: `${mainMessage} ${t('try_recompile_project')}`

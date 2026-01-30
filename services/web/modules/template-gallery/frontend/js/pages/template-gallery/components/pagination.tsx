@@ -41,7 +41,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
         {currentPage > 1 && (
           <li>
             <button aria-label={t('go_prev_page')} onClick={() => onPageChange(currentPage - 1)}>
-              &lt; {t('prev')}
+              &lt; {t('previous_page')}
             </button>
           </li>
         )}

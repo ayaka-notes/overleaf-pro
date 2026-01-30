@@ -20,12 +20,12 @@ function DeleteTemplateModal({
     <TemplateActionModal
       action="delete"
       actionHandler={actionHandler}
-      title={t('delete_template')}
+      title={"Delete template"}
       showModal={showModal}
       handleCloseModal={handleCloseModal}
       template={template}
     >
-      <p>{t('about_to_delete_template')}</p>
+      <p>You are about to delete the following template:</p>
       <ul>
         <li key={`template-action-list-${template.id}`}>
           <b>{template.name}</b>

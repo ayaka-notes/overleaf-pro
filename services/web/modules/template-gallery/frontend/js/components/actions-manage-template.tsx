@@ -43,7 +43,7 @@ export default function ActionsManageTemplate() {
       ) : (
         <OLTooltip
           id="disabled-publish-as-template"
-          description={t('please_compile_pdf_before_publish_as_template')}
+          description={"Please compile your project before publishing it as a template"}
           overlayProps={{
             placement: 'top',
           }}
@@ -53,9 +53,7 @@ export default function ActionsManageTemplate() {
             <LeftMenuButton
               icon='open_in_new'
               disabled
-              disabledAccesibilityText={t(
-                'please_compile_pdf_before_publish_as_template'
-              )}
+              disabledAccesibilityText={"Please compile your project before publishing it as a template"}
             >
               {t('publish_as_template')}
             </LeftMenuButton>
