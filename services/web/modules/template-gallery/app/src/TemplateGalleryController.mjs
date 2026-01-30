@@ -29,7 +29,7 @@ async function createTemplateFromProject(req, res, next) {
       return res.status(error.info?.status || 400).json({ message: error.message })
     }
 
-    const mainMessage = "failed_to_publish_as_a_template"
+    const mainMessage = "Failed to publish as a template."
     if (error instanceof RecompileRequiredError) {
       return res.status(error.info?.status || 400).json({
         message: `${mainMessage} ${t('try_recompile_project')}`
