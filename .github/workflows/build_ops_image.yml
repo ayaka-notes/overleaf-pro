@@ -38,10 +38,11 @@ jobs:
           username: ${{github.actor}}
           password: ${{secrets.GITHUB_TOKEN}}
       
-      # --- We need to sync package-lock.json to ensure consistency ---
+      # --- We need to sync package-lock.json/i18 to ensure consistency ---
       - name: "Sync package-lock.json And Prepare .dockerignore"
         run: |
           docker run --rm -v "$(pwd)":/workspace -w /workspace node:22.18.0 npm install --package-lock-only --ignore-scripts
+          docker run --rm -v "$(pwd)/services/web/":/overleaf/services/web -w /overleaf/services/web ghcr.io/ayaka-notes/overleaf-pro/dev:webpack npm run extract-translations
           cd ./server-ce/
           cp .dockerignore ../
 
