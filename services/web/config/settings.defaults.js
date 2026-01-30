@@ -1019,7 +1019,12 @@ module.exports = {
         '../modules/template-gallery/frontend/js/components/actions-manage-template.tsx'
       ),
     ],
-    menubarExtraComponents: [],
+    menubarExtraComponents: [
+      Path.resolve(
+        __dirname,
+        '../modules/template-gallery/frontend/js/components/menubar-manage-template.tsx'
+      ),
+    ],
     oauth2Server: [],
     managedGroupSubscriptionEnrollmentNotification: [],
     managedGroupEnrollmentInvite: [],
