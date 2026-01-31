@@ -1,6 +1,7 @@
 import Settings from '@overleaf/settings'
 import AdminAuthorizationHelper from '../../../../app/src/Features/Helpers/AdminAuthorizationHelper.mjs'
 import HttpErrorHandler from '../../../../app/src/Features/Errors/HttpErrorHandler.mjs'
+import SessionManager from '../../../../app/src/Features/Authentication/SessionManager.mjs' 
 
 const { hasAdminAccess } = AdminAuthorizationHelper
 
