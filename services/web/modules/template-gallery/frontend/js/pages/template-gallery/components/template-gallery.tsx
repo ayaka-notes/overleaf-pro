@@ -55,7 +55,7 @@ export default function TemplateGallery() {
           ))
         ) : (
           <OLRow>
-            <p className="text-center">{t('no_search_results')}</p>
+            <p className="text-center">{"No Templates."}</p>
           </OLRow>
         )}
       </OLRow>
