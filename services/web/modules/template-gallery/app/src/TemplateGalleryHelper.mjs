@@ -71,7 +71,7 @@ export async function canUserOverrideTemplate(template, userId) {
     userIsOwner = false
     try {
       userIsAdmin = (await UserGetter.promises.getUser(userId, { isAdmin: 1 })).isAdmin
-    } catch {
+    } catch (error) {
       logger.error({ error, userId }, 'Logged in user does not exist, strange...')
       userIsAdmin = false
     }

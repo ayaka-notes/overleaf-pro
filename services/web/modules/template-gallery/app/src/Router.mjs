@@ -1,11 +1,11 @@
 import logger from '@overleaf/logger'
-
 import AuthenticationController from '../../../../app/src/Features/Authentication/AuthenticationController.mjs'
 import RateLimiterMiddleware from '../../../../app/src/Features/Security/RateLimiterMiddleware.mjs'
 import { RateLimiter } from '../../../../app/src/infrastructure/RateLimiter.mjs'
 import TemplateGalleryController from './TemplateGalleryController.mjs'
 import TemplatesMiddleware from '../../../../app/src/Features/Templates/TemplatesMiddleware.mjs'
 import TemplatesController from './TemplatesController.mjs'
+import PermissionsMiddleware from './PermissionsMiddleware.mjs'
 
 const rateLimiterNewTemplate = new RateLimiter('create-template-from-project', {
   points: 20,
@@ -40,7 +40,8 @@ export default {
       TemplatesController.getProjectFromTemplate
     )
 
-    // /project/new/template/post_back
+    // Create a new project from a template (post back from template gallery)
+    // From common users, no need admin rights
     webRouter.post(
       '/project/new/template/post_back',
       AuthenticationController.requireLogin(),
@@ -49,9 +50,11 @@ export default {
     )
 
     // Template Gallery Routes
+    // Create a new template from an existing project, need Admin rights
     webRouter.post(
       '/template/new/:Project_id',
       AuthenticationController.requireLogin(),
+      PermissionsMiddleware.ensureUserCanManageTemplates,
       RateLimiterMiddleware.rateLimit(rateLimiterNewTemplate),
       TemplateGalleryController.createTemplateFromProject
     )
@@ -65,6 +68,7 @@ export default {
     webRouter.post(
       '/template/:template_id/edit',
       AuthenticationController.requireLogin(),
+      PermissionsMiddleware.ensureUserCanManageTemplates,
       RateLimiterMiddleware.rateLimit(rateLimiter),
       TemplateGalleryController.editTemplate
     )
@@ -72,6 +76,7 @@ export default {
     webRouter.delete(
       '/template/:template_id/delete',
       AuthenticationController.requireLogin(),
+      PermissionsMiddleware.ensureUserCanManageTemplates,
       RateLimiterMiddleware.rateLimit(rateLimiter),
       TemplateGalleryController.deleteTemplate
     )
