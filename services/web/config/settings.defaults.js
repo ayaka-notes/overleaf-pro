@@ -1079,7 +1079,8 @@ module.exports = {
     'sandboxed-compiles',
     'symbol-palette',
     'track-changes',
-    'template-gallery'
+    'template-gallery',
+    'registration'
   ],
   viewIncludes: {},
 
