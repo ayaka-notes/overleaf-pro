@@ -20,6 +20,7 @@ const FileHandler = {
     getFile,
     getRedirectUrl,
     insertFile,
+    deleteFile,
     getFileSize,
   },
 }
@@ -44,6 +45,25 @@ async function insertFile(bucket, key, stream) {
     })
   }
   await PersistorManager.sendStream(bucket, key, stream)
+}
+
+async function deleteFile(bucket, key) {
+  const convertedKey = KeyBuilder.getConvertedFolderKey(key)
+  if (!convertedKey.match(/^[0-9a-f]{24}\/([0-9a-f]{24}|v\/[0-9]+\/[a-z]+)/i)) {
+    throw new InvalidParametersError('key does not match validation regex', {
+      bucket,
+      key,
+      convertedKey,
+    })
+  }
+  const jobs = [PersistorManager.deleteObject(bucket, key)]
+  if (
+    Settings.enableConversions &&
+    bucket === Settings.filestore.stores.template_files
+  ) {
+    jobs.push(PersistorManager.deleteDirectory(bucket, convertedKey))
+  }
+  await Promise.all(jobs)
 }
 
 async function getFile(bucket, key, opts) {

@@ -1013,8 +1013,18 @@ module.exports = {
     importProjectFromGithubModalWrapper: [],
     importProjectFromGithubMenu: [],
     editorLeftMenuSync: [],
-    editorLeftMenuManageTemplate: [],
-    menubarExtraComponents: [],
+    editorLeftMenuManageTemplate: [
+      Path.resolve(
+        __dirname,
+        '../modules/template-gallery/frontend/js/components/actions-manage-template.tsx'
+      ),
+    ],
+    menubarExtraComponents: [
+      Path.resolve(
+        __dirname,
+        '../modules/template-gallery/frontend/js/components/menubar-manage-template.tsx'
+      ),
+    ],
     oauth2Server: [],
     managedGroupSubscriptionEnrollmentNotification: [],
     managedGroupEnrollmentInvite: [],
@@ -1069,6 +1079,7 @@ module.exports = {
     'sandboxed-compiles',
     'symbol-palette',
     'track-changes',
+    'template-gallery'
   ],
   viewIncludes: {},
 
