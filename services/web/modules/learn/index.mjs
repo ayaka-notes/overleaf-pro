@@ -23,7 +23,7 @@ if (process.env.OVERLEAF_PROXY_LEARN === 'true') {
     // Set learnPagesFolder
     Settings.proxyLearn = true
     // Add header_extras with Documentation link
-    Settings.nav.header_extras.push({text: "Documentation", url: "/learn", class: "nav-link"})
+    Settings.nav.header_extras.push({text: "Documentation", url: "/learn", class: "subdued"})
 
     // Export LearnModule
     LearnModule = {
