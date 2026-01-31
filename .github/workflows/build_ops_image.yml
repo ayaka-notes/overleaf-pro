@@ -121,7 +121,7 @@ jobs:
       - name: Delete old images
         uses: snok/container-retention-policy@v2
         with:
-          image-names: overleaf-pro/ops/*
+          image-names: overleaf-pro/ops*
           cut-off: A week ago UTC+8
           account-type: org
           org-name: ayaka-notes
