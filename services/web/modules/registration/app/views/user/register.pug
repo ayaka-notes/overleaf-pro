@@ -33,15 +33,17 @@ block content
 										autocomplete="username",
 										autofocus
 									)
-								.form-group
-									label(for='passwordField') #{translate("password")}
-									input.form-control(
-										aria-label="password"
-										type="password",
-										name="password",
-										placeholder=translate("password"),											required,
-										autocomplete="new-password"
-									)
+								if showPasswordField
+									.form-group
+										label(for='passwordField') #{translate("password")}
+										input.form-control(
+											aria-label="password"
+											type="password",
+											name="password",
+											placeholder=translate("password"),
+											required,
+											autocomplete="new-password"
+										)
 								.actions
 									button.btn.btn-primary.w-100(
 										type='submit',

@@ -22,12 +22,25 @@ export default  {
       RegisterController.registerPage
     )
 
-    webRouter.post(
-      '/register',
-      RateLimiterMiddleware.rateLimit(registrationRateLimiters.postRegister),
-      RegisterController.registerWithUsernameAndPassword
-    )
+    const allowedRegistrationDomain =
+      process.env.OVERLEAF_ALLOW_PUBLIC_REGISTRATION
 
+    // If set to 'true', allow registration via username and password
+    // If set to an email domain (e.g., '@example.com'), allow registration via email only for that domain
+    if (allowedRegistrationDomain != null && allowedRegistrationDomain == 'true') {
+      webRouter.post(
+        '/register',
+        RateLimiterMiddleware.rateLimit(registrationRateLimiters.postRegister),
+        RegisterController.registerWithUsernameAndPassword
+      )
+    }
+    else if (allowedRegistrationDomain != null && allowedRegistrationDomain.startsWith('@')) {
+      webRouter.post(
+        '/register',
+        RateLimiterMiddleware.rateLimit(registrationRateLimiters.postRegister),
+        RegisterController.registerWithEmail
+      )
+    }
     AuthenticationController.addEndpointToLoginWhitelist('/register')
   },
 }
