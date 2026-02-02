@@ -1,3 +1,5 @@
 /compiles/*
 !.gitkeep
 .env
+output
+compiles
