@@ -30,6 +30,9 @@ module.exports = [
     name: 'project-history',
   },
   {
+    name: 'references',
+  },
+  {
     name: 'history-v1',
   },
 ]

@@ -112,6 +112,17 @@ services:
       - ../services/real-time/app.js:/overleaf/services/real-time/app.js
       - ../services/real-time/config:/overleaf/services/real-time/config
 
+  references:
+    command: ["node", "--watch", "app.js"]
+    environment:
+      - NODE_OPTIONS=--inspect=0.0.0.0:9229
+    ports:
+      - "127.0.0.1:9238:9229"
+    volumes:
+      - ../services/references/app:/overleaf/services/references/app
+      - ../services/references/config:/overleaf/services/references/config
+      - ../services/references/app.js:/overleaf/services/references/app.js
+
   web:
     command: ["node", "--watch", "app.mjs", "--watch-locales"]
     environment:

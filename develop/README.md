@@ -77,6 +77,7 @@ each service:
 | `filestore`        | 9235 |
 | `notifications`    | 9236 |
 | `real-time`        | 9237 |
+| `references`       | 9238 |
 | `history-v1`       | 9239 |
 | `project-history`  | 9240 |
 

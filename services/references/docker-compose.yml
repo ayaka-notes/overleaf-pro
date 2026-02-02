@@ -1,0 +1,40 @@
+# This file was auto-generated, do not edit it directly.
+# Instead run bin/update_build_scripts from
+# https://github.com/overleaf/internal/
+
+services:
+  test_unit:
+    image: node:22.18.0
+    volumes:
+      - .:/overleaf/services/references
+      - ../../node_modules:/overleaf/node_modules
+      - ../../libraries:/overleaf/libraries
+    working_dir: /overleaf/services/references
+    environment:
+      MOCHA_GREP: ${MOCHA_GREP}
+      LOG_LEVEL: ${LOG_LEVEL:-}
+      NODE_ENV: test
+      NODE_OPTIONS: "--unhandled-rejections=strict"
+    command: npm run --silent test:unit
+    user: node
+
+  test_acceptance:
+    image: node:20.18.2
+    volumes:
+      - .:/overleaf/services/references
+      - ../../node_modules:/overleaf/node_modules
+      - ../../libraries:/overleaf/libraries
+    working_dir: /overleaf/services/references
+    environment:
+      ELASTIC_SEARCH_DSN: es:9200
+      MONGO_HOST: mongo
+      POSTGRES_HOST: postgres
+      MOCHA_GREP: ${MOCHA_GREP}
+      LOG_LEVEL: ${LOG_LEVEL:-}
+      NODE_ENV: test
+      NODE_OPTIONS: "--unhandled-rejections=strict"
+    user: node
+    depends_on:
+      mongo:
+        condition: service_started
+    command: npm run --silent test:acceptance
