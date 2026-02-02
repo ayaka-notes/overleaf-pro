@@ -36,7 +36,8 @@ jobs:
             docstore,
             contacts,
             chat,
-            clsi
+            clsi,
+            references
           ]
     steps:
       - name: "Checkout Current Repository"
