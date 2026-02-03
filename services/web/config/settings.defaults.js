@@ -1012,7 +1012,12 @@ module.exports = {
     referenceLinkingWidgets: [],
     importProjectFromGithubModalWrapper: [],
     importProjectFromGithubMenu: [],
-    editorLeftMenuSync: [],
+    editorLeftMenuSync: process.env.GIT_BRIDGE_ENABLED === 'true'? [
+      Path.resolve(
+        __dirname,
+        '../modules/git-bridge/frontend/js/components/git-bridge-modal.tsx'
+      ),
+    ]: [],
     editorLeftMenuManageTemplate: [
       Path.resolve(
         __dirname,
@@ -1025,7 +1030,12 @@ module.exports = {
         '../modules/template-gallery/frontend/js/components/menubar-manage-template.tsx'
       ),
     ],
-    oauth2Server: [],
+    oauth2Server: process.env.GIT_BRIDGE_ENABLED === 'true' ? [
+      Path.resolve(
+        __dirname,
+        '../modules/oauth2-server/frontend/js/components/git-integration.tsx'
+      )
+    ]: [],
     managedGroupSubscriptionEnrollmentNotification: [],
     managedGroupEnrollmentInvite: [],
     ssoCertificateInfo: [],
@@ -1081,7 +1091,9 @@ module.exports = {
     'symbol-palette',
     'track-changes',
     'template-gallery',
-    'registration'
+    'registration',
+    'oauth2-server',
+    'git-bridge',
   ],
   viewIncludes: {},
 
@@ -1095,7 +1107,7 @@ module.exports = {
       'app/views/project/ide-react': [`img-src 'self' data: blob:`],
     },
   },
-
+  enableGitBridge: process.env.GIT_BRIDGE_ENABLED === 'true',
   unsupportedBrowsers: {
     ie: '<=11',
     safari: '<=14',
