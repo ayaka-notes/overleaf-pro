@@ -3,7 +3,9 @@
     "architectures": [
         "SCMP_ARCH_X86_64",
         "SCMP_ARCH_X86",
-        "SCMP_ARCH_X32"
+        "SCMP_ARCH_X32",
+        "SCMP_ARCH_AARCH64",
+        "SCMP_ARCH_ARM"
     ],
     "syscalls": [
         {
@@ -851,6 +853,18 @@
           "name": "epoll_pwait",
           "action": "SCMP_ACT_ALLOW",
           "args": []
+        },
+        {
+        "name": "poll",
+        "action": "SCMP_ACT_ALLOW"
+        },
+        {
+        "name": "select",
+        "action": "SCMP_ACT_ALLOW"
+        },
+        {
+        "name": "ppoll",
+        "action": "SCMP_ACT_ALLOW"
         }
     ]
 }
