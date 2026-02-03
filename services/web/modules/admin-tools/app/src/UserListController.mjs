@@ -324,8 +324,8 @@ function _matchesFilters(user, filters) {
   if (
     filters.search?.length &&
     user.email.toLowerCase().indexOf(filters.search.toLowerCase()) === -1 &&
-    user.first_name.toLowerCase().indexOf(filters.search.toLowerCase()) === -1 &&
-    user.last_name.toLowerCase().indexOf(filters.search.toLowerCase()) === -1
+    (user.firstName ?? '').toLowerCase().indexOf(filters.search.toLowerCase()) === -1 &&
+    (user.lastName ?? '').toLowerCase().indexOf(filters.search.toLowerCase()) === -1
   ) { return false }
   // Deleted users only match the 'deleted' filter
   if (user.deleted) return Boolean(filters.deleted)
