@@ -25,7 +25,7 @@ import { db } from '../../../../app/src/infrastructure/mongodb.mjs'
 
 const __dirname = Path.dirname(fileURLToPath(import.meta.url))
 
-const externalAuth = process.env.EXTERNAL_AUTH ? process.env.EXTERNAL_AUTH.split(' ') : []
+const externalAuth = process.env.EXTERNAL_AUTH ? process.env.EXTERNAL_AUTH.split(/\s+/).filter(m => m && m !== 'none') : []
 const availableAuthMethods = ['local', ...externalAuth]
 
 const userIsAdminUpdatedOnLogin = Object.fromEntries(

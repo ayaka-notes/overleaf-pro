@@ -118,7 +118,7 @@ const SelectOwnerForm = React.forwardRef<
   return (
     <div className="tags-input tags-new">
       <OLFormLabel className="small" {...getLabelProps()}>
-        {t('their_projects_will_be_transferred_to_another_user')}
+        {t('select_a_new_owner_for_projects')}
         {loading && <OLSpinner size="sm" className="ms-2" />}
       </OLFormLabel>
 
