@@ -1075,11 +1075,12 @@ module.exports = {
     'launchpad',
     'learn',
     'server-ce-scripts',
+    'admin-tools',
     'user-activate',
     'sandboxed-compiles',
     'symbol-palette',
     'track-changes',
-    'template-gallery'
+    'template-gallery',    
   ],
   viewIncludes: {},
 
