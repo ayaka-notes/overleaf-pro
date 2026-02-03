@@ -27,7 +27,7 @@ function SearchForm({
 }: SearchFormProps) {
   const { t } = useTranslation()
   const placeholderMessage = t('search_projects')
-  const placeholder = `${placeholderMessage}…`
+  const placeholder = `${placeholderMessage} ID, title…`
 
   const handleChange: React.ComponentProps<
     typeof OLFormControl

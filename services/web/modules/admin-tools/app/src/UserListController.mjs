@@ -321,12 +321,21 @@ function _formatUserInfo(user, maxDate) {
 }
 
 function _matchesFilters(user, filters) {
-  if (
-    filters.search?.length &&
-    user.email.toLowerCase().indexOf(filters.search.toLowerCase()) === -1 &&
-    (user.firstName ?? '').toLowerCase().indexOf(filters.search.toLowerCase()) === -1 &&
-    (user.lastName ?? '').toLowerCase().indexOf(filters.search.toLowerCase()) === -1
-  ) { return false }
+  if (filters.search?.length) {
+    const searchTerm = filters.search.toLowerCase()
+    const email = (user.email ?? '').toLowerCase()
+    const firstName = (user.firstName ?? '').toLowerCase()
+    const ID = (user.id ?? '').toLowerCase()
+    const lastName = (user.lastName ?? '').toLowerCase()
+    if (
+      !email.includes(searchTerm) &&
+      !firstName.includes(searchTerm) &&
+      !lastName.includes(searchTerm) &&
+      !ID.includes(searchTerm)
+    ) {
+      return false
+    }
+  }
   // Deleted users only match the 'deleted' filter
   if (user.deleted) return Boolean(filters.deleted)
   if (filters.all) return true

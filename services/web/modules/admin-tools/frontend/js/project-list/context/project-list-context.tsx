@@ -157,7 +157,8 @@ export function ProjectListProvider({ projectsOwnerId, children }: ProjectListPr
     if (searchText.length) {
       const lower = searchText.toLowerCase()
       result = result.filter(project =>
-        project.name.toLowerCase().includes(lower)
+        project.name.toLowerCase().includes(lower) ||
+        (lower.length >= 6 && project.id.toString().toLowerCase().includes(lower))
       )
     }
 
