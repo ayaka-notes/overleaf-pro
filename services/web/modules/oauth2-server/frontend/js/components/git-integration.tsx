@@ -122,7 +122,7 @@ function LinkingGitBridgeTable() {
             }
 
             <Row className="small" highlighted>
-                <Col md={12} className="d-none d-sm-block">
+                <Col xs={12} md={12} lg={12} className="d-sm-block">
                     <EmailCell>
                         {
                             OAuthPersonalAccessTokens.length > 0 &&
@@ -185,7 +185,7 @@ function GitIntegrationSetting() {
                 <GitLogoOrange/>
             </div>
 
-            <div className="description-container">
+            <div className="description-container small">
                 <div className="title-row">
                     <h4>{t('git_integration')}</h4>
                 </div>

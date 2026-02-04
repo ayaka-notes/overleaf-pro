@@ -37,6 +37,11 @@ const PersonalAccessTokenController = {
 
         const userId = user._id
         let accessToken = await OAuthPersonalAccessTokenManager.createToken(userId)
+        
+        if (!accessToken) {
+            return res.status(500).json({ message: 'Failed to create personal access token' })
+        }
+        
         return res.json({
             accessToken: accessToken
         })

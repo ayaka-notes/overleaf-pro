@@ -72,6 +72,14 @@ function ModalGitBridgeSync({ handleHide, projectId }: Props) {
                 >
                     {t('close')}
                 </Button>
+                <Button
+                    variant="primary"
+                    className="btn-primary btn"
+                    href="/user/settings"
+                    target="_blank"
+                >
+                    {t('go_to_settings')}
+                </Button>
             </OLModalFooter>
         </>
     )
@@ -87,7 +95,7 @@ type GitBridgeSyncModalProps = {
 function GitBridgeSyncModal({ show, projectId, handleHide }: GitBridgeSyncModalProps) {
     return (
         <OLModal show={show} animation onHide={handleHide}
-            id="git-bridge-sync-modal" backdrop="static" bsSize="large"
+            id="git-bridge-sync-modal" backdrop="static" size="lg"
         >
             <ModalGitBridgeSync projectId={projectId} handleHide={handleHide}
             />
@@ -107,7 +115,7 @@ function GitBridgeSyncCard() {
             <IntegrationCard
                 title={t('git_integration')}
                 description={t('git_clone_this_project')}
-                icon={<GitLogoOrange size={25} />}
+                icon={<GitLogoOrange size={18} />}
                 showPaywallBadge={false}
                 onClick={() => setShowGitBridgeSyncModal(true)}
             >

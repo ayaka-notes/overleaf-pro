@@ -1072,7 +1072,12 @@ module.exports = {
         '../modules/full-project-search/frontend/js/components/full-project-search.tsx'
       ),
     ],
-    integrationPanelComponents: [],
+    integrationPanelComponents: process.env.GIT_BRIDGE_ENABLED === 'true'? [
+      Path.resolve(
+        __dirname,
+        '../modules/git-bridge/frontend/js/components/git-bridge-integration-card.tsx'
+      ),
+    ]: [],
     referenceSearchSetting: [],
     errorLogsComponents: [],
     referenceIndices: [],

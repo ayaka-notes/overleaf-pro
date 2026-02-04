@@ -2,6 +2,7 @@ import { db } from '../../../../app/src/infrastructure/mongodb.mjs'
 import SecretsHelper from './SecretsHelper.js'
 import { ObjectId } from 'mongodb';
 import { OauthAccessToken } from '../../../../app/src/models/OauthAccessToken.mjs';
+import { OauthApplication } from '../../../../app/src/models/OauthApplication.mjs';
 import logger from '@overleaf/logger';
 
 // OAuthPersonalAccessToken Length
@@ -51,6 +52,13 @@ const PersonalAccessTokenManager = {
     // Return token in the format olp_ + 32 random alphanumeric characters
     async createToken(userId) {
         let accessToken = "olp_" + SecretsHelper.createSecret(PAT_LENGTH)
+        let gitBridgeApp = await OauthApplication.findOne({ name: 'Overleaf Git Bridge' }).lean().exec()
+        const appId = gitBridgeApp ? gitBridgeApp._id : null
+        
+        if (!appId) {
+            logger.error({ userId }, 'Git Bridge OAuth application not found when creating PAT')
+            return null
+        }
 
         // Generate a new access token
         let createdAt = new Date()
@@ -63,6 +71,7 @@ const PersonalAccessTokenManager = {
         let accessTokenDoc = {
             accessToken: SecretsHelper.hashSecret(accessToken),
             accessTokenPartial: accessToken.substring(0, 8),
+            oauthApplication_id: appId,
             type: 'personal_access_token',
             scope: 'git_bridge',
             accessTokenExpiresAt: accessTokenExpiresAt,
