@@ -173,6 +173,21 @@ services:
     volumes:
       - ./webpack.config.dev-env.js:/overleaf/services/web/webpack.config.dev-env.js
 
+  git-bridge:
+    image: quay.io/sharelatex/git-bridge:latest
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000"
+    environment:
+      GIT_BRIDGE_API_BASE_URL: "http://web:3000/api/v0"
+      GIT_BRIDGE_OAUTH2_SERVER: "http://web:3000"
+      GIT_BRIDGE_POSTBACK_BASE_URL: "http://git-bridge:8000"
+      GIT_BRIDGE_ROOT_DIR: "/data/git-bridge"
+      LOG_LEVEL: "DEBUG"
+    volumes:
+      - ./data/git-bridge:/data/git-bridge
+  
 # services: 
   # Overleaf Dev Containers
   # ...

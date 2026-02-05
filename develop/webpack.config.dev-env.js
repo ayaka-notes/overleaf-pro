@@ -15,6 +15,11 @@ module.exports = merge(base, {
         ws: true,
       },
       {
+        context: '/git/**',
+        target: 'http://git-bridge:8000',
+        pathRewrite: { '^/git': '' }
+      },
+      {
         context: ['!**/*.js', '!**/*.css', '!**/*.json'],
         target: 'http://web:3000',
       },
