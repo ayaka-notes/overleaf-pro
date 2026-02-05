@@ -1,5 +1,5 @@
 import { db } from '../../../../app/src/infrastructure/mongodb.mjs'
-import SecretsHelper from './SecretsHelper.js'
+import SecretsHelper from './SecretsHelper.mjs'
 import { ObjectId } from 'mongodb';
 import { OauthAccessToken } from '../../../../app/src/models/OauthAccessToken.mjs';
 import { OauthApplication } from '../../../../app/src/models/OauthApplication.mjs';

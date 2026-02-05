@@ -1,6 +1,6 @@
 import logger from '@overleaf/logger'
 import { OauthApplication } from '../../app/src/models/OauthApplication.mjs'
-import SecretsHelper from '../oauth2-server/app/src/SecretsHelper.js'
+import SecretsHelper from '../oauth2-server/app/src/SecretsHelper.mjs'
 import GitBridgeRouter from './app/src/GitBridgeRouter.mjs'
 import Modules from '../../app/src/infrastructure/Modules.mjs'
 

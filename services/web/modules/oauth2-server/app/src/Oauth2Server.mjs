@@ -1,5 +1,5 @@
 import OAuth2Server from '@node-oauth/oauth2-server'
-import OAuth2Model from './OAuth2Model.js'
+import OAuth2Model from './OAuth2Model.mjs'
 
 const { Request, Response } = OAuth2Server
 

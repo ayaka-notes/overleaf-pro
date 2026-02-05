@@ -1,7 +1,7 @@
 import { OauthApplication } from '../../../../app/src/models/OauthApplication.mjs'
 import { OauthAccessToken } from '../../../../app/src/models/OauthAccessToken.mjs'
 import { OauthAuthorizationCode } from '../../../../app/src/models/OauthAuthorizationCode.mjs'
-import SecretsHelper from './SecretsHelper.js'
+import SecretsHelper from './SecretsHelper.mjs'
 import logger from '@overleaf/logger'
 
 
