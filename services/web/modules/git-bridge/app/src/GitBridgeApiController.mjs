@@ -341,7 +341,7 @@ async function postSnapshot(req, res, next) {
       )
 
       // Send response immediately
-      res.status(409).json({
+      return res.status(409).json({
         status: 409,
         code: 'outOfDate',
         message: 'Out of Date',
@@ -355,13 +355,6 @@ async function postSnapshot(req, res, next) {
       message: 'Accepted',
     })
 
-    // return NOT IMPLEMENTED for now
-    // res.status(501).json({
-    //   status: 501,
-    //   code: 'notImplemented',
-    //   message: 'Not Implemented',
-    // })
-      
     // Process the push asynchronously
     processSnapshotPush(projectId, files, postbackUrl, userId).catch(err => {
       logger.error({ err, projectId }, 'Error processing snapshot push')
