@@ -1012,12 +1012,12 @@ module.exports = {
     referenceLinkingWidgets: [],
     importProjectFromGithubModalWrapper: [],
     importProjectFromGithubMenu: [],
-    editorLeftMenuSync: process.env.GIT_BRIDGE_ENABLED === 'true'? [
+    editorLeftMenuSync: [
       Path.resolve(
         __dirname,
         '../modules/git-bridge/frontend/js/components/git-bridge-modal.tsx'
       ),
-    ]: [],
+    ],
     editorLeftMenuManageTemplate: [
       Path.resolve(
         __dirname,
@@ -1030,12 +1030,12 @@ module.exports = {
         '../modules/template-gallery/frontend/js/components/menubar-manage-template.tsx'
       ),
     ],
-    oauth2Server: process.env.GIT_BRIDGE_ENABLED === 'true' ? [
+    oauth2Server: [
       Path.resolve(
         __dirname,
         '../modules/oauth2-server/frontend/js/components/git-integration.tsx'
       )
-    ]: [],
+    ],
     managedGroupSubscriptionEnrollmentNotification: [],
     managedGroupEnrollmentInvite: [],
     ssoCertificateInfo: [],
@@ -1072,12 +1072,12 @@ module.exports = {
         '../modules/full-project-search/frontend/js/components/full-project-search.tsx'
       ),
     ],
-    integrationPanelComponents: process.env.GIT_BRIDGE_ENABLED === 'true'? [
+    integrationPanelComponents: [
       Path.resolve(
         __dirname,
         '../modules/git-bridge/frontend/js/components/git-bridge-integration-card.tsx'
       ),
-    ]: [],
+    ],
     referenceSearchSetting: [],
     errorLogsComponents: [],
     referenceIndices: [],

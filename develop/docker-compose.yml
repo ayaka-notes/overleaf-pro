@@ -167,8 +167,6 @@ services:
       context: ..
       dockerfile: services/web/Dockerfile
       target: webpack
-    env_file:
-      - dev.env
     command: ["npx", "webpack", "serve", "--config", "webpack.config.dev-env.js"]
     ports:
       - "127.0.0.1:80:3808"

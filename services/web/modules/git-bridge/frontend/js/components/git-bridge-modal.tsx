@@ -6,6 +6,7 @@ import { CopyToClipboard } from '@/shared/components/copy-to-clipboard'
 // import LeftMenuButton from '@/shared/components/left-menu/left-menu-button'
 import LeftMenuButton from '@/features/editor-left-menu/components/left-menu-button'
 import { useProjectContext } from '@/shared/context/project-context'
+import getMeta from '@/utils/meta'
 
 import {
   OLModalBody,
@@ -115,6 +116,12 @@ function GitBridgeSyncButton() {
     // 对话框
     const [showGitBridgeSyncModal, setShowGitBridgeSyncModal] = useState(false)
     const { project, tags: projectTags } = useProjectContext()
+    const gitBridgeEnabled = getMeta('ol-gitBridgeEnabled') || false
+
+    if (!gitBridgeEnabled) {
+        return null
+    }
+
     // https://fonts.google.com/icons?hl=zh-cn
     return (
         <>
