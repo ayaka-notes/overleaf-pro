@@ -47,6 +47,10 @@ export type UserApi = {
   inactive: boolean
   deleted?: boolean
   deletedAt?: Date
+  features?: {
+    collaborators?: number
+    compileTimeout?: number
+  }
 }
 
 export type User = MergeAndOverride<
