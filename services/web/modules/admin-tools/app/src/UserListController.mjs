@@ -580,7 +580,7 @@ async function updateUser(req, res, next) {
       }
       let isPasswordReused
       try {
-        isPasswordReused = await HaveIBeenPwned.promises.isPasswordReused(value)
+        isPasswordReused = await HaveIBeenPwned.promises.checkPasswordForReuse(value)
       } catch (err) {
         logger.warn({ err }, 'Failed to check password against HaveIBeenPwned')
       }
@@ -627,7 +627,9 @@ async function updateUser(req, res, next) {
   if (update.password) {
     delete update.password
   }
-
+  if (update.hashedPassword) {
+    delete update.hashedPassword
+  }
   return res.json(update)
 }
 
