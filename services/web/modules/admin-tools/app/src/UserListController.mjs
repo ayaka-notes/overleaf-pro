@@ -21,7 +21,9 @@ import OwnershipTransferHandler from '../../../../app/src/Features/Collaborators
 import HttpErrorHandler from '../../../../app/src/Features/Errors/HttpErrorHandler.mjs'
 import ErrorController from '../../../../app/src/Features/Errors/ErrorController.mjs'
 import Errors, { OError } from '../../../../app/src/Features/Errors/Errors.js'
+import HaveIBeenPwned from '../../../../app/src/Features/Authentication/HaveIBeenPwned.mjs'
 import { db } from '../../../../app/src/infrastructure/mongodb.mjs'
+import AuthenticationManager from '../../../../app/src/Features/Authentication/AuthenticationManager.mjs'
 
 const __dirname = Path.dirname(fileURLToPath(import.meta.url))
 
@@ -212,6 +214,8 @@ async function _getUsers(
     samlIdentifiers: 1,
     thirdPartyIdentifiers: 1,
     suspended: 1,
+    'features.collaborators': 1,
+    'features.compileTimeout': 1,
   }
   const projectionDeleted = {};
   for (const key of Object.keys(projection)) {
@@ -313,6 +317,10 @@ function _formatUserInfo(user, maxDate) {
     authMethods,
     allowUpdateDetails,
     allowUpdateIsAdmin,
+    features: user.features && {
+      collaborators: user.features.collaborators,
+      compileTimeout: user.features.compileTimeout,
+    },
     ...(user.suspended && { suspended: user.suspended }),
     inactive: !user.lastActive || user.lastActive < maxDate,
     ...(user.deletedAt && { deletedAt: user.deletedAt }),
@@ -543,6 +551,46 @@ async function updateUser(req, res, next) {
 
   for (let [key, value] of Object.entries(updatesInput)) {
     if (key === 'email') continue
+    // Update features if needed
+    if (key === 'features' && value && typeof value === 'object') {
+      const features = updatesInput.features
+      if (features && typeof features === 'object') {
+        if ('collaborators' in features && (!Number.isInteger(features.collaborators) || features.collaborators < -1)) {
+          return HttpErrorHandler.unprocessableEntity(req, res, 'invalid_collaborators')
+        }
+        if ('compileTimeout' in features && (!Number.isInteger(features.compileTimeout) || features.compileTimeout <= 0)) {
+          return HttpErrorHandler.unprocessableEntity(req, res, 'invalid_compile_timeout')
+        }
+      }
+      update.features = {
+        ...(user.features ?? {}),
+        ...value,
+      }
+      continue
+    }
+    // Update password if needed
+    if (key === 'password') {
+      // ignore empty password updates
+      if (value == null || value === '') {
+        continue
+      }
+      // validate password
+      if (typeof value !== 'string' || value.length < 8) {
+        return HttpErrorHandler.unprocessableEntity(req, res, 'Password must be at least 8 characters long')
+      }
+      let isPasswordReused
+      try {
+        isPasswordReused = await HaveIBeenPwned.promises.isPasswordReused(value)
+      } catch (err) {
+        logger.warn({ err }, 'Failed to check password against HaveIBeenPwned')
+      }
+      if (isPasswordReused) {
+        return HttpErrorHandler.unprocessableEntity(req, res, 'Password is too common, please choose a different one')
+      }
+      const hashedPassword = await AuthenticationManager.promises.hashPassword(value)
+      update.hashedPassword = hashedPassword
+      continue
+    }
 
     const newValue = typeof value === 'string' ? value.trim() : value
     if (newValue === user[key]) continue
@@ -573,6 +621,11 @@ async function updateUser(req, res, next) {
   if (update.last_name != null) {
     update.lastName = update.last_name
     delete update.last_name
+  }
+
+  // delete password from response for security reasons
+  if (update.password) {
+    delete update.password
   }
 
   return res.json(update)
