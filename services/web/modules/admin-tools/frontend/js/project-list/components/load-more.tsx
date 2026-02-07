@@ -34,13 +34,16 @@ export default function LoadMore() {
                 n: visibleProjects.length + hiddenProjectsCount,
               })}
             </span>{' '}
-            <OLButton
-              variant="link"
-              onClick={() => showAllProjects()}
-              className="btn-inline-link"
-            >
-              {t('show_all_projects')}
-            </OLButton>
+            {
+              hiddenProjectsCount <= 500 &&
+              <OLButton
+                variant="link"
+                onClick={() => showAllProjects()}
+                className="btn-inline-link"
+              >
+                {t('show_all_projects')}
+              </OLButton>
+            }
           </>
         ) : (
           <span aria-live="polite">
