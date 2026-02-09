@@ -17,7 +17,7 @@ import {
   Project,
   Sort,
 } from '../../../../types/project/api'
-import { getProjects } from '../util/api'
+import { getProjects, searchProjects } from '../util/api'
 import { useUserIdentityContext } from '../../user-list/context/user-identity-context'
 import sortProjects from '../util/sort-projects'
 
@@ -114,6 +114,7 @@ export function ProjectListProvider({ projectsOwnerId, children }: ProjectListPr
   const prevSortRef = useRef<Sort>(sort)
 
   const [searchText, setSearchText] = useState('')
+  const [searchResults, setSearchResults] = useState<Project[] | null>(null)
 
   const {
     isLoading: loading,
@@ -143,6 +144,32 @@ export function ProjectListProvider({ projectsOwnerId, children }: ProjectListPr
       })
   }, [projectsOwnerId, runAsync, prefetchedProjectsBlob])
 
+  useEffect(() => {
+    if (searchText.length === 0) {
+      setSearchResults(null)
+      return
+    }
+    const abortController = new AbortController()
+    const timer = setTimeout(() => {
+      searchProjects(searchText, projectsOwnerId, abortController.signal)
+        .then(data => {
+          setSearchResults(data.projects)
+        })
+        .catch(error => {
+          if (error.name === 'AbortError') {
+            debugConsole.log('Search aborted')
+            return
+          }
+          debugConsole.error('Error searching projects:', error)
+          setSearchResults(null)
+        })
+    }, 500)
+    return () => {
+      clearTimeout(timer)
+      abortController.abort()
+    }
+  }, [searchText])
+
   const sortedProjects = useMemo(() => {
     if (prevSortRef.current === sort) return loadedProjects
 
@@ -152,18 +179,10 @@ export function ProjectListProvider({ projectsOwnerId, children }: ProjectListPr
   }, [loadedProjects, sort, getUserById])
 
   const filteredProjects = useMemo(() => {
-    let result = sortedProjects
-
-    if (searchText.length) {
-      const lower = searchText.toLowerCase()
-      result = result.filter(project =>
-        project.name.toLowerCase().includes(lower) ||
-        (lower.length >= 6 && project.id.toString().toLowerCase().includes(lower))
-      )
-    }
-
-    return result.filter(filters[filter])
-  }, [sortedProjects, searchText, filter])
+    let result = searchResults !== null ? searchResults : sortedProjects
+    result = result.filter(filters[filter])
+    return sortProjects(result, sort, getUserById)
+  }, [sortedProjects, searchResults, filter])
 
   const visibleProjects = useMemo(() => {
     return filteredProjects.slice(0, maxVisibleProjects)

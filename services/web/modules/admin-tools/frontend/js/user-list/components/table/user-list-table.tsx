@@ -190,7 +190,7 @@ function UserListTable() {
         ) : (
           <tr className="no-users">
             <td className="text-center" colSpan={5}>
-              {t('no_users')}
+              {t('no_search_results')}
             </td>
           </tr>
         )}

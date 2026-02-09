@@ -35,13 +35,16 @@ export default function LoadMore() {
                 n: visibleUsers.length + hiddenUsersCount,
               })}
             </span>{' '}
-            <OLButton
-              variant="link"
-              onClick={() => showAllUsers()}
-              className="btn-inline-link"
-            >
-              {t('show_all_users')}
-            </OLButton>
+            {
+              hiddenUsersCount <= 200 &&
+              <OLButton
+                variant="link"
+                onClick={() => showAllUsers()}
+                className="btn-inline-link"
+              >
+                {t('view_all')}
+              </OLButton>
+            }
           </>
         ) : (
           <span aria-live="polite">
