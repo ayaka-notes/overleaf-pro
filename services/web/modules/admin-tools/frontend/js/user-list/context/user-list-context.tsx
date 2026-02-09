@@ -163,19 +163,26 @@ export function UserListProvider({ children }: UserListProviderProps) {
       setSearchResults(null)
       return
     }
-
+    const abortController = new AbortController()
     const timer = setTimeout(() => {
-      searchUsers(searchText)
+      searchUsers(searchText, abortController.signal)
         .then(data => {
           setSearchResults(data.users)
         })
         .catch(error => {
+          if (error.name === 'AbortError') {
+            debugConsole.log('Search aborted')
+            return
+          }
           debugConsole.error('Error searching users:', error)
           setSearchResults(null)
         })
     }, 300) // 300ms debounce
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      abortController.abort()
+    }
   }, [searchText])
 
   const addUserToView = useCallback((newUser: Partial<User>) => {

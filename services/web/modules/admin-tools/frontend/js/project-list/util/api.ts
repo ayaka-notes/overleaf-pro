@@ -19,8 +19,8 @@ export function getProjects(
   return postJSON(`/admin/user/${userId}/projects`, { body: { sort } })
 }
 
-export function searchProjects(search: string, userId?: string): Promise<GetProjectsResponseBody> {
-  return postJSON('/admin/projects/search', { body: { search, userId } })
+export function searchProjects(search: string, userId?: string, signal?: AbortSignal): Promise<GetProjectsResponseBody> {
+  return postJSON('/admin/projects/search', { body: { search, userId }, signal })
 }
 
 export function deleteProject(projectId: string) {

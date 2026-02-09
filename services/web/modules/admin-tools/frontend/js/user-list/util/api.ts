@@ -5,8 +5,8 @@ export function getUsers(sortBy: Sort): Promise<GetUsersResponseBody> {
   return postJSON('/admin/users', { body: { sort: sortBy } })
 }
 
-export function searchUsers(search: string): Promise<GetUsersResponseBody> {
-  return postJSON('/admin/users/search', { body: { search } })
+export function searchUsers(search: string, signal?: AbortSignal): Promise<GetUsersResponseBody> {
+  return postJSON('/admin/users/search', { body: { search }, signal })
 }
 
 export function updateUser(userId: string, userData: Partial<User>) {

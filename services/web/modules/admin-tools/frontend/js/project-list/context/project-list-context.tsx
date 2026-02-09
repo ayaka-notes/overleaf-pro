@@ -149,15 +149,25 @@ export function ProjectListProvider({ projectsOwnerId, children }: ProjectListPr
       setSearchResults(null)
       return
     }
-
+    const abortController = new AbortController()
     const timer = setTimeout(() => {
-      searchProjects(searchText, projectsOwnerId)
+      searchProjects(searchText, projectsOwnerId, abortController.signal)
         .then(data => {
           setSearchResults(data.projects)
         })
-        .catch(debugConsole.error)
+        .catch(error => {
+          if (error.name === 'AbortError') {
+            debugConsole.log('Search aborted')
+            return
+          }
+          debugConsole.error('Error searching projects:', error)
+          setSearchResults(null)
+        })
     }, 500)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      abortController.abort()
+    }
   }, [searchText])
 
   const sortedProjects = useMemo(() => {
