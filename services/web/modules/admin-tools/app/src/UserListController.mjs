@@ -269,12 +269,32 @@ async function _searchUsers(searchTerm) {
       { email: { $regex: searchTerm, $options: 'i' } },
       { first_name: { $regex: searchTerm, $options: 'i' } },
       { last_name: { $regex: searchTerm, $options: 'i' } },
+      { $expr: { $regexMatch: { input: { $toString: '$_id' }, regex: searchTerm, options: 'i' } } }
     ]
   }, projection)
   .limit(1000)
   .lean()
 
-  const formattedUsers = _formatUsers(activeUsers)
+  const projectionDeleted = {};
+  for (const key of Object.keys(projection)) {
+    projectionDeleted[key] = `$user.${key}`
+  }
+  projectionDeleted.deletedAt = '$deleterData.deletedAt'
+
+  const deletedUsers = await DeletedUser.aggregate([
+    { $match: { user: { $type: 'object' }, $or: [
+      { 'user.email': { $regex: searchTerm, $options: 'i' } },
+      { 'user.first_name': { $regex: searchTerm, $options: 'i' } },
+      { 'user.last_name': { $regex: searchTerm, $options: 'i' } },
+      { $expr: { $regexMatch: { input: { $toString: '$user._id' }, regex: searchTerm, options: 'i' } } }
+    ] } },
+    { $project: projectionDeleted },
+    { $limit: 1000 },
+  ])
+
+  let allUsers = [...activeUsers, ...deletedUsers]
+  const formattedUsers = _formatUsers(allUsers)
+  
   return {
     totalSize: formattedUsers.length,
     users: formattedUsers,
