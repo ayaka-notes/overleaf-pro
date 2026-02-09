@@ -20,7 +20,7 @@ import {
   User,
   Sort,
 } from '../../../../types/user/api'
-import { getUsers } from '../util/api'
+import { getUsers, searchUsers } from '../util/api'
 import sortUsers from '../util/sort-users'
 
 import { UserIdentityProvider } from './user-identity-context'
@@ -131,6 +131,7 @@ export function UserListProvider({ children }: UserListProviderProps) {
   )
 
   const [searchText, setSearchText] = useState('')
+  const [searchResults, setSearchResults] = useState<User[] | null>(null)
 
   const {
     isLoading: loading,
@@ -157,26 +158,35 @@ export function UserListProvider({ children }: UserListProviderProps) {
       })
   }, [prefetchedUsersBlob, runAsync])
 
+  useEffect(() => {
+    if (!searchText.length) {
+      setSearchResults(null)
+      return
+    }
+
+    const timer = setTimeout(() => {
+      searchUsers(searchText)
+        .then(data => {
+          setSearchResults(data.users)
+        })
+        .catch(error => {
+          debugConsole.error('Error searching users:', error)
+          setSearchResults(null)
+        })
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(timer)
+  }, [searchText])
+
   const addUserToView = useCallback((newUser: Partial<User>) => {
     setLoadedUsers(prev => [newUser as User, ...prev])
   }, [])
 
   const processedUsers = useMemo(() => {
-    let users = loadedUsers
-
-    if (searchText.length) {
-      const searchTextLowerCase = searchText.toLowerCase()
-      users = users.filter(user =>
-        user.email?.toLowerCase().includes(searchTextLowerCase) ||
-        user.firstName?.toLowerCase().includes(searchTextLowerCase) ||
-        user.lastName?.toLowerCase().includes(searchTextLowerCase)
-      )
-    }
-
+    let users = searchResults !== null ? searchResults : loadedUsers
     users = arrayFilter(users, filters[filter])
-
     return sortUsers(users, sort)
-  }, [loadedUsers, searchText, filter, sort])
+  }, [searchResults, loadedUsers, filter, sort])
 
   const visibleUsers = useMemo(() => {
     return processedUsers.slice(0, maxVisibleUsers)

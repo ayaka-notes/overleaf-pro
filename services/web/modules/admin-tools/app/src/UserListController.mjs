@@ -223,10 +223,14 @@ async function _getUsers(
   }
   projectionDeleted.deletedAt = '$deleterData.deletedAt'
 
-  const activeUsers = await UserGetter.promises.getUsers({}, projection)
+  const activeUsers = await User.find({}, projection)
+    .limit(1000)
+    .lean()
+  
   const deletedUsers = await DeletedUser.aggregate([
     { $match: { user: { $type: 'object' } } },
     { $project: projectionDeleted },
+    { $limit: 1000 },
   ])
 
   const allUsers = [...activeUsers, ...deletedUsers]
@@ -238,6 +242,42 @@ async function _getUsers(
   return {
     totalSize: filteredUsers.length,
     users,
+  }
+}
+
+async function _searchUsers(searchTerm) {
+  const projection = {
+    _id: 1,
+    email: 1,
+    first_name: 1,
+    last_name: 1,
+    lastActive: 1,
+    lastLoggedIn: 1,
+    signUpDate: 1,
+    loginCount: 1,
+    isAdmin: 1,
+    hashedPassword: 1,
+    samlIdentifiers: 1,
+    thirdPartyIdentifiers: 1,
+    suspended: 1,
+    'features.collaborators': 1,
+    'features.compileTimeout': 1,
+  }
+
+  const activeUsers = await User.find({
+    $or: [
+      { email: { $regex: searchTerm, $options: 'i' } },
+      { first_name: { $regex: searchTerm, $options: 'i' } },
+      { last_name: { $regex: searchTerm, $options: 'i' } },
+    ]
+  }, projection)
+  .limit(1000)
+  .lean()
+
+  const formattedUsers = _formatUsers(activeUsers)
+  return {
+    totalSize: formattedUsers.length,
+    users: formattedUsers,
   }
 }
 
@@ -658,9 +698,21 @@ async function getAdditionalUserInfo(req, res, next) {
   res.json({ activationLink })
 }
 
+async function getUsersJsonBySearch(req, res) {
+  const { search } = req.body
+  if (typeof search !== 'string' || search.trim() === '') {
+    return HttpErrorHandler.unprocessableEntity(req, res, 'Search term is empty')
+  }
+
+  const usersPage = await _searchUsers(search.trim())
+  res.json(usersPage)
+}
+
+
 export default {
   manageUsersPage: expressify(manageUsersPage),
   getUsersJson: expressify(getUsersJson),
+  getUsersJsonBySearch: expressify(getUsersJsonBySearch),
   getAdditionalUserInfo: expressify(getAdditionalUserInfo),
   registerNewUser: expressify(registerNewUser),
   activateAccountPage: expressify(activateAccountPage),
