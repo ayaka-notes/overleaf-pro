@@ -36,6 +36,10 @@ export default {
       AuthorizationMiddleware.ensureUserIsSiteAdmin,
       UserListController.getUsersJsonBySearch
     )
+    webRouter.post('/admin/projects/search',
+      AuthorizationMiddleware.ensureUserIsSiteAdmin,
+      ProjectListController.getProjectsJsonBySearch
+    )
     webRouter.post('/admin/user/:userId/delete',
       AuthorizationMiddleware.ensureUserIsSiteAdmin,
       UserListController.deleteUser

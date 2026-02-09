@@ -4,17 +4,12 @@ import { fileURLToPath } from 'node:url'
 import { expressify } from '@overleaf/promise-utils'
 import logger from '@overleaf/logger'
 import Metrics from '@overleaf/metrics'
+import mongoose from 'mongoose'
 import ProjectHelper from '../../../../app/src/Features/Project/ProjectHelper.mjs'
-import ProjectGetter from '../../../../app/src/Features/Project/ProjectGetter.mjs'
-import PrivilegeLevels from '../../../../app/src/Features/Authorization/PrivilegeLevels.mjs'
-import SessionManager from '../../../../app/src/Features/Authentication/SessionManager.mjs'
-import UserGetter from '../../../../app/src/Features/User/UserGetter.mjs'
 import { OError } from '../../../../app/src/Features/Errors/Errors.js'
-import { User } from '../../../../app/src/models/User.mjs'
 import { Project } from '../../../../app/src/models/Project.mjs'
 import { DeletedProject } from '../../../../app/src/models/DeletedProject.mjs'
 import ProjectDeleter from '../../../../app/src/Features/Project/ProjectDeleter.mjs'
-import HttpErrorHandler from '../../../../app/src/Features/Errors/HttpErrorHandler.mjs'
 
 const __dirname = Path.dirname(fileURLToPath(import.meta.url))
 
@@ -64,7 +59,7 @@ async function _getProjects(
   const actualProjects = await Project.find(
     userId == null ? {} : { owner_ref: userId },
     projection,
-  ).lean().exec()
+  ).limit(1000).lean().exec()
 
   const delProjection = Object.fromEntries(
     Object.keys(projection).map(k => [`project.${k}`, 1])
@@ -75,7 +70,7 @@ async function _getProjects(
   const deletedProjects = await DeletedProject.find(
     userId == null ? { project: { $type: 'object' } } : { 'project.owner_ref': userId },
     delProjection
-  ).lean().exec()
+  ).limit(1000).lean().exec()
 
   const formattedActualProjects = _formatProjects(actualProjects, _formatProjectInfo)
   const formattedDeletedProjects = _formatProjects(deletedProjects, _formatDeletedProjectInfo)
@@ -86,6 +81,98 @@ async function _getProjects(
   return {
     totalSize: filteredProjects.length,
     projects,
+  }
+}
+
+async function _searchProjects(
+  userId = null,
+  search = '',
+) {
+  const projection = {
+    _id: 1,
+    name: 1,
+    lastUpdated: 1,
+    lastUpdatedBy: 1,
+    lastOpened: 1,
+    trashed: 1,
+    owner_ref: 1,
+  }
+  const userIdObj = userId ? new mongoose.Types.ObjectId(userId) : null
+
+  const activeProjects = await Project.aggregate([
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'owner_ref',
+        foreignField: '_id',
+        as: 'owner'
+      }
+    },
+    { $unwind: { path: '$owner', preserveNullAndEmptyArrays: true } },
+    {
+      $match: {
+        $and: [
+          {
+            $or: [
+              { name: { $regex: search, $options: 'i' } },
+              { $expr: { $regexMatch: { input: { $toString: '$_id' }, regex: search, options: 'i' } } },
+              { 'owner.email': { $regex: search, $options: 'i' } },
+              { 'owner.first_name': { $regex: search, $options: 'i' } },
+              { 'owner.last_name': { $regex: search, $options: 'i' } }
+            ]
+          },
+          ...(userIdObj ? [{ owner_ref: userIdObj }] : [])
+        ]
+      }
+    },
+    { $project: projection },
+    { $limit: 1000 },
+  ]).exec()
+
+  const delProjection = Object.fromEntries(
+    Object.keys(projection).map(k => [`project.${k}`, 1])
+  )
+  delProjection['deleterData.deletedAt'] = 1
+  delProjection['deleterData.deleterId'] = 1
+
+  const deletedProjects = await DeletedProject.aggregate([
+    { $match: { project: { $type: 'object' } } },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'project.owner_ref',
+        foreignField: '_id',
+        as: 'owner'
+      }
+    },
+    { $unwind: { path: '$owner', preserveNullAndEmptyArrays: true } },
+    {
+      $match: {
+        $and: [
+          {
+            $or: [
+              { 'project.name': { $regex: search, $options: 'i' } },
+              { $expr: { $regexMatch: { input: { $toString: '$project._id' }, regex: search, options: 'i' } } },
+              { 'owner.email': { $regex: search, $options: 'i' } },
+              { 'owner.first_name': { $regex: search, $options: 'i' } },
+              { 'owner.last_name': { $regex: search, $options: 'i' } }
+            ],
+          },
+          ...(userIdObj ? [{ 'project.owner_ref': userIdObj }] : [{ project: { $type: 'object' } }])
+        ]
+      }
+    },
+    { $project: delProjection },
+    { $limit: 1000 },
+  ]).exec()
+
+  const formattedActiveProjects = _formatProjects(activeProjects, _formatProjectInfo)
+  const formattedDeletedProjects = _formatProjects(deletedProjects, _formatDeletedProjectInfo)
+  const formattedProjects = [...formattedActiveProjects, ...formattedDeletedProjects]
+
+  return {
+    totalSize: formattedProjects.length,
+    projects: formattedProjects,
   }
 }
 
@@ -229,9 +316,17 @@ async function purgeDeletedProject(req, res) {
   res.sendStatus(200)
 }
 
+async function getProjectsJsonBySearch(req, res) {
+  const { search } = req.body
+  const { userId } = req.body
+  const projects = await _searchProjects(userId, search)
+  res.json(projects)
+}
+
 export default {
   manageProjectsPage: expressify(manageProjectsPage),
   getProjectsJson: expressify(getProjectsJson),
+  getProjectsJsonBySearch: expressify(getProjectsJsonBySearch),
   undeleteProject: expressify(undeleteProject),
   purgeDeletedProject: expressify(purgeDeletedProject),
   trashProjectForUser: expressify(trashProjectForUser),
