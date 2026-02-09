@@ -64,6 +64,13 @@
     color: $content-secondary;
     font-weight: bold;
     min-width: 0;
+    font-size: var(--font-size-03);
+  }
+
+  a.user-list-title-link{
+    color: var(--content-danger);
+    text-decoration: none;
+
   }
 }
 

@@ -53,6 +53,8 @@ function UsersActionModal({
   const actionLabel =
     action === 'update' ? t('confirm') :
     action === 'info' ? t('close') :
+    action === 'set_admin' ? "Grant admin" :
+    action === 'unset_admin' ? "Revoke admin" :
     t(action)
 
   async function handleActionForUsers(users: Array<User>, options?: any) {

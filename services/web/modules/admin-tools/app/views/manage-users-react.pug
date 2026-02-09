@@ -10,6 +10,7 @@ block vars
 	- const suppressPugCookieBanner = true
 
 block append meta
+	meta(name='ol-activeUsersCount' data-type='number' content=activeUsersCount)
 	meta(name='ol-availableAuthMethods' data-type='json' content=availableAuthMethods)
 	meta(
 		name='ol-prefetchedUsersBlob'

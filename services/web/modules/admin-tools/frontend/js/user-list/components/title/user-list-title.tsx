@@ -18,14 +18,17 @@ function UserListTitle({
   const { t } = useTranslation()
 
   return (
-    <h1
+    <span
       id="main-content"
       tabIndex={-1}
       className={classnames('user-list-title', className)}
       {...extraProps}
     >
-      {t('user_management') + ' > ' + message}
-    </h1>
+      <a href="/admin/user"
+        className="user-list-title-link"
+      >{t('user_management')}</a>
+      {message ? ` > ${message}` : ''}
+    </span>
   )
 }
 
