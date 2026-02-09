@@ -238,8 +238,8 @@ export function UserListProvider({ children }: UserListProviderProps) {
   )
 
   const selectedUsers = useMemo(() => {
-    return loadedUsers.filter(user => selectedUserIds.has(user.id))
-  }, [selectedUserIds, loadedUsers])
+    return processedUsers.filter(user => selectedUserIds.has(user.id))
+  }, [selectedUserIds, processedUsers])
 
   const selectOrUnselectAllUsers = useCallback(
     (checked: any) => {
