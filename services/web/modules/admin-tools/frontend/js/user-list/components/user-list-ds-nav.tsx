@@ -85,6 +85,34 @@ export function UsersTab({
   )
 }
 
+export function LicenseUsageTab() {
+  const activeUsersCount = getMeta('ol-activeUsersCount')
+  const { t } = useTranslation()
+
+  return (
+    <div className="license-usage-tab">
+      <p></p>
+      <p>
+        <Trans
+          i18nKey="server_pro_license_entitlement_line_1"
+          values={{ appName: t('app_name') }}
+          components={[<strong />]}
+        />
+      </p>
+      <p>
+        <Trans
+          i18nKey="server_pro_license_entitlement_line_2"
+          values={{ count: activeUsersCount }}
+          components={[<strong />, <a href="https://www.overleaf.com/contact" />]}
+        />
+      </p>
+      <p>
+        <Trans i18nKey="server_pro_license_entitlement_line_3" />
+      </p>
+    </div>
+  )
+}
+
 
 export function UserListDsNav() {
   const navbarProps = getMeta('ol-navbar')
@@ -178,24 +206,7 @@ export function UserListDsNav() {
                           />
                         </div>
                         <div className={`tab-pane ${activeTab === 'license-usage' ? 'active' : ''}`} role="tabpanel" id="license-usage">
-                          <p></p>
-                          <p>
-                            <Trans
-                              i18nKey="server_pro_license_entitlement_line_1"
-                              values={{ appName: t('app_name') }}
-                              components={[<strong />]}
-                            />
-                          </p>
-                          <p>
-                            <Trans
-                              i18nKey="server_pro_license_entitlement_line_2"
-                              values={{ count: activeUsersCount }}
-                              components={[<strong />, <a href="https://www.overleaf.com/contact" />]}
-                            />
-                          </p>
-                          <p>
-                            <Trans i18nKey="server_pro_license_entitlement_line_3" />
-                          </p>
+                          <LicenseUsageTab />
                         </div>
                       </div>
                     </div>
