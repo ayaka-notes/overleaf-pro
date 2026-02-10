@@ -1130,3 +1130,9 @@ module.exports = {
 module.exports.mergeWith = function (overrides) {
   return merge(overrides, module.exports)
 }
+
+module.exports.splitTestOverrides = {
+  'history-ranges-support': 'enabled',
+  'revert-file': 'enabled',
+  'revert-project': 'enabled'
+}
