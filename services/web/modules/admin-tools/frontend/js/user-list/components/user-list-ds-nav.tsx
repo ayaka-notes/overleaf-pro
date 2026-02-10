@@ -161,7 +161,7 @@ export function UserListDsNav() {
                                 setActiveTab('license-usage')
                               }}
                             >
-                              {"License Usage"}
+                              {t('license')}
                             </a>
                           </li>
                         </ul>

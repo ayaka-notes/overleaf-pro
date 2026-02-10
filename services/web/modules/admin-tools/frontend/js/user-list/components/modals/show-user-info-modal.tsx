@@ -112,7 +112,7 @@ function ShowUserInfoModal({
               )}
               {activationLink && (
                 <InfoRow 
-                  label={t('activation_link')}
+                  label={t('activate_account')}
                   value={
                     <span
                       style={{ cursor: 'pointer', textDecoration: 'underline' }}
@@ -136,7 +136,7 @@ function ShowUserInfoModal({
       <OLCard>
         {(Body) => (
           <>
-            <Card.Header>{t('user_activity')}</Card.Header>
+            <Card.Header>{t('actions')}</Card.Header>
             <Body>
               <InfoRow
                 label={t('signed_up')}
