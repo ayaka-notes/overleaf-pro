@@ -80,6 +80,10 @@ async function manageUsersPage(req, res, next) {
   })
 
   const prefetchedUsersBlob = await usersBlobPending
+  const activeUsersCount = await _getActiveUsers().catch(err => {
+    logger.err({ err }, 'counting active users failed')
+    return undefined
+  })
 
   Metrics.inc('user-list-prefetch-users', 1, {
     status: prefetchedUsersBlob ? 'success' : 'error',
@@ -91,6 +95,7 @@ async function manageUsersPage(req, res, next) {
     availableAuthMethods,
     userDetailsUpdatedOnLogin,
     userIsAdminUpdatedOnLogin,
+    activeUsersCount,
   })
 }
 
@@ -243,6 +248,20 @@ async function _getUsers(
     totalSize: filteredUsers.length,
     users,
   }
+}
+
+// Return active users number
+async function _getActiveUsers() {
+  // An active user is one who has opened a project in this Server Pro 
+  // instance in the last 12 months.
+  const yearAgo = new Date()
+  yearAgo.setFullYear(yearAgo.getFullYear() - 1)
+
+  const activeUsersCount = await User.countDocuments({
+    lastActive: { $gt: yearAgo },
+  }).exec()
+
+  return activeUsersCount || 0
 }
 
 async function _searchUsers(searchTerm) {
