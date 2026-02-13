@@ -87,6 +87,13 @@ services:
     volumes:
         - history-v1-buckets:/buckets
 
+  linked-url-proxy:
+    build:
+      context: ..
+      dockerfile: services/linked-url-proxy/Dockerfile
+    env_file:
+      - dev.env
+
   mongo:
     image: mongo:6.0
     command: --replSet overleaf
@@ -140,7 +147,7 @@ services:
       - dev.env
     environment:
       - APP_NAME=Overleaf Community Edition
-      - ENABLED_LINKED_FILE_TYPES=project_file,project_output_file
+      - ENABLED_LINKED_FILE_TYPES=project_file,project_output_file,url,mendeley,zotero
       - EMAIL_CONFIRMATION_DISABLED=true
       - NODE_ENV=development
       - OVERLEAF_ALLOW_PUBLIC_ACCESS=true
@@ -158,6 +165,7 @@ services:
       - document-updater
       - filestore
       - history-v1
+      - linked-url-proxy
       - notifications
       - project-history
       - real-time

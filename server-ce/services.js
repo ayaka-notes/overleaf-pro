@@ -32,6 +32,9 @@ module.exports = [
   {
     name: 'history-v1',
   },
+  {
+    name: 'linked-url-proxy',
+  },
 ]
 
 if (require.main === module) {
