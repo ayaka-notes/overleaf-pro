@@ -29,6 +29,7 @@ jobs:
             webpack,
             real-time,
             project-history,
+            linked-url-proxy,
             notifications,
             history-v1,
             filestore,
