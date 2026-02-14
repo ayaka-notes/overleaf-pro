@@ -33,7 +33,7 @@ const server = app.listen(port, host, function (error) {
 process.on('SIGTERM', () => {
   server.close(() => {
     logger.info({ host, port }, 'linked-url-proxy HTTP server closed')
-    metrics.close()
+    Metrics.close()
   })
 })
 
