@@ -88,7 +88,7 @@ services:
     volumes:
       - ../services/linked-url-proxy/app:/overleaf/services/linked-url-proxy/app
       - ../services/linked-url-proxy/config:/overleaf/services/linked-url-proxy/config
-      - ../services/linked-url-proxy/app.js:/overleaf/services/linked-url-proxy/app.js
+      - ../services/linked-url-proxy/app.js:/overleaf/services/linked-url-proxy/app.mjs
 
   notifications:
     command: ["node", "--watch", "app.ts"]
