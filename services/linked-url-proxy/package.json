@@ -17,9 +17,5 @@
     "ipaddr.js": "^2.1.0",
     "als-normalize-urlpath": "^2.3.0",
     "strict-url-sanitise": "^0.0.1"
-  },
-  "devDependencies": {
-    "als-normalize-urlpath": "^2.3.0",
-    "strict-url-sanitise": "^0.0.1"
   }
 }
