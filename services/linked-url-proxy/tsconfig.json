@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.backend.json",
+  "include": [
+    "app.mjs",
+    "app.ts",
+    "app/js/**/*",
+    "benchmarks/**/*",
+    "config/**/*",
+    "scripts/**/*",
+    "test/**/*",
+    "types"
+  ]
+}

@@ -261,6 +261,9 @@ module.exports = {
     contacts: {
       url: `http://${process.env.CONTACTS_HOST || '127.0.0.1'}:3036`,
     },
+    linkedUrlProxy: {
+      url: `http://${process.env.LINKED_URL_PROXY_HOST || '127.0.0.1'}:3066`,
+    },
     notifications: {
       url: `http://${process.env.NOTIFICATIONS_HOST || '127.0.0.1'}:3042`,
     },
