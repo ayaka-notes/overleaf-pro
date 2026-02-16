@@ -1099,7 +1099,7 @@ module.exports = {
     'symbol-palette',
     'track-changes',
     'template-gallery',
-    'registration',
+    'login-register',
     'oauth2-server',
     'git-bridge',
   ],

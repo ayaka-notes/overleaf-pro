@@ -17,6 +17,17 @@ export default  {
   apply(webRouter) {
     logger.debug({}, 'Init Registration module')
 
+    // remove default registration router if it exists
+    if (process.env.OVERLEAF_ALLOW_PUBLIC_REGISTRATION === 'true' || 
+      (process.env.OVERLEAF_ALLOW_PUBLIC_REGISTRATION != null && 
+        process.env.OVERLEAF_ALLOW_PUBLIC_REGISTRATION.startsWith('@'))) 
+    {
+      webRouter.stack = webRouter.stack.filter(layer => {
+        return !(layer.route && layer.route.path === '/register' && layer.route.methods.get)
+      })
+    }
+
+
     webRouter.get(
       '/register',
       RegisterController.registerPage

@@ -12,7 +12,7 @@ block content
 					.card
 						.card-body
 							.page-header
-								h1.login-register-header-heading-focus #{translate("register")}
+								h1.login-register-header-heading-focus.h3 #{translate("register")}
 								.login-register-hr-text-container
 							form(
 								data-ol-async-form
@@ -21,6 +21,7 @@ block content
 								method="POST",
 								aria-label=translate('create_account')
 							)
+								input(name='_csrf' type='hidden' value=csrfToken)
 								+formMessages()
 								.form-group
 									label(for='emailField') #{translate("email")}

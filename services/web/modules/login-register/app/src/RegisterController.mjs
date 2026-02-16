@@ -16,7 +16,8 @@ export default {
     // If not logged in, render the registration page
     const __dirname = Path.dirname(new URL(import.meta.url).pathname)
     res.render(Path.resolve(__dirname, '../views/user/register'), {
-      showPasswordField,  
+      showPasswordField,
+      csrfToken: req.csrfToken(),
     })
   },
 
