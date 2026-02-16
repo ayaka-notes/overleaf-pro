@@ -40,7 +40,6 @@ const LDAPModuleManager = {
         rejectUnauthorized: boolFromEnv(process.env.OVERLEAF_LDAP_TLS_OPTS_REJECT_UNAUTH),
       },
     }
-    logger.debug(JSON.stringify(ldapOptions, null, 2))
     try {
       passport.use(
         'ldapauth',
