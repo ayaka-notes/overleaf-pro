@@ -174,6 +174,7 @@
     "passport-ldapauth": "^2.1.4",
     "passport-local": "^1.0.0",
     "passport-oauth2": "^1.5.0",
+    "passport-openidconnect": "^0.1.2",
     "passport-orcid": "0.0.4",
     "pug": "^3.0.3",
     "pug-runtime": "^3.0.1",
