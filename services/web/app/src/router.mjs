@@ -263,7 +263,6 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
   webRouter.get('/restricted', AuthorizationMiddleware.restricted)
 
   if (Features.hasFeature('registration-page')) {
-    if(!(process.env.OVERLEAF_ALLOW_PUBLIC_REGISTRATION === 'true' || (process.env.OVERLEAF_ALLOW_PUBLIC_REGISTRATION != null && process.env.OVERLEAF_ALLOW_PUBLIC_REGISTRATION.startsWith('@'))))
     webRouter.get('/register', UserPagesController.registerPage)
     AuthenticationController.addEndpointToLoginWhitelist('/register')
   }
