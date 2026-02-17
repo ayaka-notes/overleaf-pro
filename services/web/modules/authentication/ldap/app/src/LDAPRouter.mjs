@@ -9,7 +9,7 @@ export default {
     logger.debug({}, 'Init LDAP router')
     webRouter.post('/ldap/login',
       RateLimiterMiddleware.rateLimit(overleafLoginRateLimiter), // rate limit IP (20 / 60s)
-      RateLimiterMiddleware.loginRateLimitEmail(), // rate limit email (10 / 120s)
+      RateLimiterMiddleware.loginRateLimitEmail('login'), // rate limit email (10 / 120s)
       CaptchaMiddleware.validateCaptcha('login'),
       LDAPAuthenticationController.passportLogin,
     )
