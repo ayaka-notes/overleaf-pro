@@ -1,5 +1,8 @@
 extends ../../../../../app/views/layout-marketing
 
+block vars
+	- isWebsiteRedesign = true
+
 block content
 	main#main-content.content.content-alt
 		.container
@@ -11,7 +14,8 @@ block content
 								if login_support_title
 									h1 !{login_support_title}
 								else
-									h1 #{translate("log_in")}
+									h1.h3 #{translate("log_in")}
+							.login-register-hr-text-container(style='margin-top: 1px; padding: 5px 0;')
 							form(name='loginForm' data-ol-async-form action='/login' method='POST')
 								input(name='_csrf' type='hidden' value=csrfToken)
 								+formMessagesNewStyle
@@ -47,8 +51,10 @@ block content
 								if login_support_text
 									hr
 									p.text-center !{login_support_text}
+							p.ciam-login-register-or-text-container
+								span.ciam-login-register-or-text #{translate("or")}
 							if settings.ldap && settings.ldap.enable
-								.actions(style='margin-top: 30px;')
+								.actions(style='margin-top: 15px;')
 									a.button.btn-secondary.btn(
 									href='/ldap/login',
 										style="width: 100%;"
@@ -57,7 +63,7 @@ block content
 										span(data-ol-inflight="idle") #{settings.ldap.identityServiceName}
 										span(hidden data-ol-inflight="pending") #{translate("logging_in")}…
 							if settings.saml && settings.saml.enable
-								.actions(style='margin-top: 30px;')
+								.actions(style='margin-top: 15px;')
 									a.button.btn-secondary.btn(
 									href='/saml/login',
 										style="width: 100%;"
@@ -66,7 +72,7 @@ block content
 										span(data-ol-inflight="idle") #{settings.saml.identityServiceName}
 										span(hidden data-ol-inflight="pending") #{translate("logging_in")}…
 							if settings.oidc && settings.oidc.enable
-								.actions(style='margin-top: 30px;')
+								.actions(style='margin-top: 15px;')
 									a.button.btn-secondary.btn(
 										href='/oidc/login',
 										style="width: 100%;"

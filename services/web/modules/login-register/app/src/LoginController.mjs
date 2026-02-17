@@ -3,7 +3,7 @@ import Settings from "@overleaf/settings"
 import Path from 'path'
 
 export default {
-  loginPage(req, res, next) {
+  async loginPage(req, res, next) {
     // return res.json({ message: 'Login successful' })
     // if user is being sent to /login with explicit redirect (redir=/foo),
     // such as being sent from the editor to /login, then set the redirect explicitly
@@ -26,7 +26,7 @@ export default {
     })
   },
 
-  ldapLoginPage(req, res, next) {
+  async ldapLoginPage(req, res, next) {
     // return res.json({ message: 'Login successful' })
     // if user is being sent to /login with explicit redirect (redir=/foo),
     // such as being sent from the editor to /login, then set the redirect explicitly

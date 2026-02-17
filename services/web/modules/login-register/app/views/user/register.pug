@@ -13,7 +13,7 @@ block content
 						.card-body
 							.page-header
 								h1.login-register-header-heading-focus.h3 #{translate("register")}
-								.login-register-hr-text-container
+							.login-register-hr-text-container(style='margin-top: 1px; padding: 5px 0;')
 							form(
 								data-ol-async-form
 								name="registerForm"
@@ -23,6 +23,12 @@ block content
 							)
 								input(name='_csrf' type='hidden' value=csrfToken)
 								+formMessages()
+								+customFormMessageNewStyle('invalid-password-retry-or-reset', 'danger')
+									| !{translate('email_or_password_wrong_try_again_or_reset', {}, [{ name: 'a', attrs: { href: '/user/password/reset', 'aria-describedby': 'resetPasswordDescription' } }])}
+									span.visually-hidden(id='resetPasswordDescription')
+										| #{translate('reset_password_link')}
+								+customFormMessageNewStyle('password-compromised')
+									| !{translate('password_compromised_try_again_or_use_known_device_or_reset', {}, [{name: 'a', attrs: {href: 'https://haveibeenpwned.com/passwords', rel: 'noopener noreferrer', target: '_blank'}}, {name: 'a', attrs: {href: '/user/password/reset', target: '_blank'}}])}.
 								.form-group
 									label(for='emailField') #{translate("email")}
 									input.form-control(
@@ -52,10 +58,39 @@ block content
 									)
 										span(data-ol-inflight="idle") #{translate("create_account")}
 										span(hidden data-ol-inflight="pending") #{translate("registering")}…
+							p.ciam-login-register-or-text-container
+								span.ciam-login-register-or-text #{translate("or")}
+							if settings.ldap && settings.ldap.enable
+								.actions(style='margin-top: 15px;')
+									a.button.btn-secondary.btn(
+									href='/ldap/login',
+										style="width: 100%;"
+										data-ol-disabled-inflight
+									)
+										span(data-ol-inflight="idle") #{settings.ldap.identityServiceName}
+										span(hidden data-ol-inflight="pending") #{translate("logging_in")}…
+							if settings.saml && settings.saml.enable
+								.actions(style='margin-top: 15px;')
+									a.button.btn-secondary.btn(
+									href='/saml/login',
+										style="width: 100%;"
+										data-ol-disabled-inflight
+									)
+										span(data-ol-inflight="idle") #{settings.saml.identityServiceName}
+										span(hidden data-ol-inflight="pending") #{translate("logging_in")}…
+							if settings.oidc && settings.oidc.enable
+								.actions(style='margin-top: 15px;')
+									a.button.btn-secondary.btn(
+										href='/oidc/login',
+										style="width: 100%;"
+										data-ol-disabled-inflight
+									)
+										span(data-ol-inflight="idle") #{settings.oidc.identityServiceName}
+										span(hidden data-ol-inflight="pending") #{translate("logging_in")}…
+									
 							.login-register-hr-text-container
 							.ciam-register-login-link
 								.login-register-other-links
 									.p 
 										| #{translate("already_have_sl_account")} 
 										a(href='/login') #{translate("login")}
-									br
