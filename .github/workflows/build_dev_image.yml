@@ -65,10 +65,14 @@ jobs:
           registry: ${{env.GHCR_REGISTRY}}
           username: ${{github.actor}}
           password: ${{secrets.GITHUB_TOKEN}}
+      - name: Disable buildx default attestations
+        run: |
+          echo "BUILDX_NO_DEFAULT_ATTESTATIONS=1" >> $GITHUB_ENV
       - name: "Clone Overleaf And Build"
         env:
           PLATFORM_PAIR: ${{ matrix.platform_pair }}
         run: |
+          export BUILDX_NO_DEFAULT_ATTESTATIONS=1
           cd ./develop/
           bin/build ${{matrix.image-name}}
           docker tag develop-${{matrix.image-name}}:latest ${{env.GHCR_REGISTRY}}/ayaka-notes/overleaf-pro/dev:${{matrix.image-name}}-${PLATFORM_PAIR}
