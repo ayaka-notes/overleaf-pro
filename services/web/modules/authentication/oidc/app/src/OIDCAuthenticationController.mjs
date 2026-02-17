@@ -5,7 +5,6 @@ import AuthenticationController from '../../../../../app/src/Features/Authentica
 import UserController from '../../../../../app/src/Features/User/UserController.mjs'
 import ThirdPartyIdentityManager from '../../../../../app/src/Features/User/ThirdPartyIdentityManager.mjs'
 import OIDCAuthenticationManager from './OIDCAuthenticationManager.mjs'
-import { acceptsJson } from '../../../../../app/src/infrastructure/RequestContentTypeDetection.mjs'
 
 const OIDCAuthenticationController = {
   passportLogin(req, res, next) {

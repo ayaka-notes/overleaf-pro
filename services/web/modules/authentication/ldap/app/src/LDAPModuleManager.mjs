@@ -39,6 +39,7 @@ const LDAPModuleManager = {
         ca: readFilesContentFromEnv(process.env.OVERLEAF_LDAP_TLS_OPTS_CA_PATH),
         rejectUnauthorized: boolFromEnv(process.env.OVERLEAF_LDAP_TLS_OPTS_REJECT_UNAUTH),
       },
+      log: logger.logger,
     }
     try {
       passport.use(

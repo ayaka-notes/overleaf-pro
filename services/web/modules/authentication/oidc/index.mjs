@@ -1,5 +1,3 @@
-import Settings from '@overleaf/settings'
-
 let oidcModule = {}
 if (process.env.EXTERNAL_AUTH?.includes('oidc')) {
   const { default: OIDCModuleManager } = await import('./app/src/OIDCModuleManager.mjs')
