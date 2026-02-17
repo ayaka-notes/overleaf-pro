@@ -1,0 +1,178 @@
+# ---------------------------------
+# This workflow is used to build release images
+# and push them to GitHub Container Registry
+#
+# Published at:
+#     ghcr.io/ayaka-notes/overleaf-pro/
+#
+# ---------------------------------
+
+name: Build Release Image
+
+# Controls when the workflow will run
+on:
+  workflow_dispatch:
+
+env:
+  GHCR_REGISTRY: ghcr.io
+  REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - platform: linux/amd64
+          runner: ubuntu-latest
+        - platform: linux/arm64
+          runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Get latest release branch
+        run: |
+          echo "LATEST_RELEASE_REF=$(git ls-remote --heads --sort='version:refname' https://github.com/ayaka-notes/overleaf-pro.git 'release-v*' | tail -n1 | cut -d/ -f3)" >> $GITHUB_ENV
+      - name: "Checkout Repository"
+        uses: actions/checkout@main
+        with:
+          ref: ${{ env.LATEST_RELEASE_REF }}
+      - name: Resolve MONOREPO_REVISION
+        run: |
+          echo "MONOREPO_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          arch=${platform##*/}
+          echo "PLATFORM_PAIR=$arch" >> $GITHUB_ENV
+      - name: Set release version outputs
+        id: set_version
+        run: |
+          ref="${{ env.LATEST_RELEASE_REF }}"
+          # ref is like release-v1.2.3, we want to extract 1.2.3
+          version="${ref#release-v}"
+          echo "version=$version" >> $GITHUB_ENV
+          echo "version=$version" >> $GITHUB_OUTPUT
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{github.actor}}
+          password: ${{ secrets.ORGTOKEN }}
+      
+      # --- We need to sync package-lock.json/i18 to ensure consistency ---
+      - name: "Sync package-lock.json And Prepare .dockerignore"
+        run: |
+          docker run --rm -v "$(pwd)":/workspace -w /workspace node:22.18.0 npm install --package-lock-only --ignore-scripts
+          docker run --rm -v "$(pwd)/services/web/":/overleaf/services/web -w /overleaf/services/web ghcr.io/ayaka-notes/overleaf-pro/dev:webpack npm run extract-translations
+          cd ./server-ce/
+          cp .dockerignore ../
+      
+      # --- Set up Docker ---
+      # See: https://docs.docker.com/build/ci/github-actions/multi-platform/
+      - name: Set up Docker (enable containerd image store)
+        uses: docker/setup-docker-action@v4
+        with:
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+      - name: Set up Buildx (docker driver)
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+
+      - name: Build Base Image
+        id: build_base
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./server-ce/Dockerfile-base
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ env.REGISTRY_IMAGE }}-base:latest
+          push: false
+          load: true
+          outputs: type=image,name-canonical=true,push=false
+          provenance: false
+          sbom: false
+      - name: Build App Image
+        id: build_app
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./server-ce/Dockerfile
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            OVERLEAF_BASE_TAG=${{ env.REGISTRY_IMAGE }}-base:latest
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            com.overleaf.pro.revision=${{ env.MONOREPO_REVISION }}
+          tags: ${{ env.REGISTRY_IMAGE }}:${{ env.version }}-${{ env.PLATFORM_PAIR }}
+          outputs: type=image,name-canonical=true,push=true
+          provenance: false
+          sbom: false
+      
+      - name: Export digest
+        run: |
+          mkdir -p ${{ runner.temp }}/digests
+          digest="${{ steps.build_app.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+    outputs:
+      version: ${{ steps.set_version.outputs.version }}
+  merge:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Login to GHCR Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{github.actor}}
+          password: ${{ secrets.ORGTOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ needs.build.outputs.version }}
+
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ needs.build.outputs.version }}
+
