@@ -50,12 +50,12 @@ function SendRegEmailModal({
     <UsersActionModal
       action="resend"
       actionHandler={actionHandler}
-      title={t('resend_activation_email')}
+      title={'Resend activation email'}
       showModal={showModal}
       handleCloseModal={handleCloseModal}
       users={localUsers}
     >
-      <p>{t('about_to_resend_activation_email')}</p>
+      <p>{"About to resend activation email for the following users:"}</p>
       <UsersList users={localUsers} usersToDisplay={usersToDisplay} />
     </UsersActionModal>
   )

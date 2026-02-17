@@ -139,7 +139,7 @@ function ShowUserInfoModal({
             <Card.Header>{t('actions')}</Card.Header>
             <Body>
               <InfoRow
-                label={t('signed_up')}
+                label={t('sign_up')}
                 value={formatDate(user.signUpDate)}
               />
               <InfoRow

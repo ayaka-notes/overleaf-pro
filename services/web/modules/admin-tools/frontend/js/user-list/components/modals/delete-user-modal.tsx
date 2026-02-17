@@ -81,14 +81,16 @@ function DeleteUserModal({
     <UsersActionModal
       action="delete"
       actionHandler={actionHandler}
-      title={t('delete_accounts')}
+      title={t('delete_account')}
       showModal={showModal}
       handleCloseModal={handleCloseModal}
       users={users}
       options={options}
       actionIsDisabled={transferProjects && !newOwner}
     >
-      <p>{t('about_to_delete_accounts')}</p>
+      <p>
+        You are about to delete the following user.
+      </p>
       <UsersList users={users} usersToDisplay={usersToDisplay} />
       <Notification
         content={t('this_action_cannot_be_undone')}
@@ -101,9 +103,9 @@ function DeleteUserModal({
             autoComplete="off"
             onChange={handleSendEmailChange}
             name="sendEmail"
-            label={t('notify_users_about_account_deletion')}
+            label={'Notify users about account deletion'}
             checked={sendEmail}
-            area-label={t('notify_users_about_account_deletion')}
+            area-label={'Notify users about account deletion'}
           />
         </OLFormGroup>
 

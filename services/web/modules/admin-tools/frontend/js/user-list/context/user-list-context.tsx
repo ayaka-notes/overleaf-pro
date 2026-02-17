@@ -119,9 +119,9 @@ export function UserListProvider({ children }: UserListProviderProps) {
   })
 
   const { t } = useTranslation()
-
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
   const filterTranslations = useMemo(
-    () => new Map(filterKeys.map(key => [key, t(`${key}`)])),
+    () => new Map(filterKeys.map(key => [key, capitalize(t(`${key}`))])),
     [t]
   )
 

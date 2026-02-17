@@ -35,7 +35,7 @@ function SortByDropdown() {
   const sortByTranslations = useRef<Record<Sort['by'], string>>({
     name: t('name'),
     email: t('email'),
-    signUpDate: t('signed_up'),
+    signUpDate: t('sign_up'),
     lastActive: t('last_active'),
     deletedAt: t('deleted_at'),
   })
@@ -81,7 +81,7 @@ function SortByDropdown() {
         { filter !== 'deleted' ? (
           <ItemWithContent
             column="signUpDate"
-            text={t('signed_up')}
+            text={t('sign_up')}
             sort={sort}
             onClick={() => handleClick('signUpDate')}
           />

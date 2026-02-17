@@ -118,7 +118,7 @@ function UserListTable() {
           {filter !== 'deleted' ? (
             <th
               className="dash-cell-date-signup d-none d-md-table-cell"
-              aria-label={t('signed_up')}
+              aria-label={t('sign_up')}
               aria-sort={
                 sort.by === 'signUpDate'
                   ? sort.order === 'asc'
@@ -129,7 +129,7 @@ function UserListTable() {
             >
               <SortByButton
                 column="signUpDate"
-                text={t('signed_up')}
+                text={t('sign_up')}
                 sort={sort}
                 onClick={() => handleSort('signUpDate')}
               />
