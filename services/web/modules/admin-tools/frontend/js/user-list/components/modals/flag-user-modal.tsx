@@ -47,18 +47,18 @@ function FlagUserModal({
     default:
       return
   }
-
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 return (
     <UsersActionModal
       action={action}
       actionHandler={actionHandler}
-      title={t(`${action}_account`)}
+      title={capitalize(action) + " account"}
       showModal={showModal}
       handleCloseModal={handleCloseModal}
       users={users}
       options={{userData}}
     >
-      <p>{t(`about_to_${action}_accounts`)}</p>
+      <p>About to {action} the following users:</p>
       <UsersList users={users} usersToDisplay={usersToDisplay} />
     </UsersActionModal>
   )
