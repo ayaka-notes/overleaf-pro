@@ -52,6 +52,11 @@ const Features = {
         return Boolean(Settings.enableHomepage)
       case 'registration-page':
         return (
+          (
+            process.env.OVERLEAF_ALLOW_PUBLIC_REGISTRATION === 'true' ||
+            (process.env.OVERLEAF_ALLOW_PUBLIC_REGISTRATION != null &&
+            process.env.OVERLEAF_ALLOW_PUBLIC_REGISTRATION.startsWith('@'))
+          ) ||
           !Features.externalAuthenticationSystemUsed() ||
           Boolean(Settings.overleaf)
         )
