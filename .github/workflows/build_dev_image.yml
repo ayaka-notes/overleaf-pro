@@ -20,7 +20,7 @@ jobs:
   build-image:
     strategy:
       fail-fast: false
-      # max-parallel: 6
+      max-parallel: 8
       matrix:
         image-name:
           [
