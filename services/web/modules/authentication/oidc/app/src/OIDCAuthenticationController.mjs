@@ -144,14 +144,14 @@ const OIDCAuthenticationController = {
       return res.status(200).end()
     } catch (error) {
       logger.error(error.info, error.message)
-      return {
+      return res.status(500).json({
         user: false,
         info: {
           type: 'error',
           text: 'Can not unlink account',
-          status: 200,
-	}
-      }
+          status: 500,
+        }
+      })
     }
   },
   async passportLogout(req, res, next) {
