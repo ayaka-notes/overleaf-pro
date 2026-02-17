@@ -5,7 +5,7 @@ import OAuthPersonalAccessTokenController from './OAuthPersonalAccessTokenContro
 
 export default {
     apply(webRouter, privateApiRouter, publicApiRouter) {
-        logger.debug({}, 'Oauth2-Server router')
+        logger.debug({}, 'Init Oauth2-Server router')
 
         // We must expose this endpoint on the public API router
         // And Git Bridge uses it to validate PATs
