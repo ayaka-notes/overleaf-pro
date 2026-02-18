@@ -51,8 +51,9 @@ block content
 								if login_support_text
 									hr
 									p.text-center !{login_support_text}
-							p.ciam-login-register-or-text-container
-								span.ciam-login-register-or-text #{translate("or")}
+							if (settings.ldap && settings.ldap.enable) || (settings.saml && settings.saml.enable) || (settings.oidc && settings.oidc.enable)
+								p.ciam-login-register-or-text-container
+									span.ciam-login-register-or-text #{translate("or")}
 							if settings.ldap && settings.ldap.enable
 								.actions(style='margin-top: 15px;')
 									a.button.btn-secondary.btn(
