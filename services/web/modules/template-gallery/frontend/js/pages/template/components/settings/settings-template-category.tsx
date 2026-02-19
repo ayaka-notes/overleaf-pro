@@ -7,11 +7,13 @@ import type { Option } from './settings-menu-select'
 interface SettingsTemplateCategoryProps {
   value: string
   onChange: (value: string) => void
+  disabled?: boolean
 }
 
 const SettingsTemplateCategory: React.FC<SettingsTemplateCategoryProps> = ({
   value,
   onChange,
+  disabled = false,
 }) => {
   const { t } = useTranslation()
 
@@ -37,6 +39,7 @@ const SettingsTemplateCategory: React.FC<SettingsTemplateCategoryProps> = ({
       value={value}
       onChange={onChange}
       options={options}
+      disabled={disabled}
     />
   )
 }

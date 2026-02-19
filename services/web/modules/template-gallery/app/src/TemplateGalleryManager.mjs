@@ -15,6 +15,7 @@ import {
 import { cleanHtml }  from './CleanHtml.mjs'
 import { TemplateNameConflictError } from './TemplateErrors.mjs'
 import { fetchStreamWithResponse } from '@overleaf/fetch-utils'
+import ProjectGetter from '../../../../app/src/Features/Project/ProjectGetter.mjs'
 const TIMEOUT = 30000
 
 async function editTemplate({ templateId, updates }) {
@@ -77,6 +78,11 @@ async function createTemplateFromProject({ projectId, userId, templateSource }) 
     previousVersionExists = true
   }
 
+  // We should alwary update project_id to make sure it is correct
+  // Some times, admin may publish another project as template with 
+  // the same name, if override, project_id may be changed to the new one
+  template.project_id = projectId
+
   await uploadTemplateAssets(projectId, userId, templateSource.build, template)
   await template.save()
 
@@ -86,6 +92,7 @@ async function createTemplateFromProject({ projectId, userId, templateSource }) 
   return {
     conflict: false,
     templateId: template._id,
+    version: template.version,
   }
 }
 
@@ -158,6 +165,15 @@ async function getTemplate(key, val) {
   const template = await Template.findOne(query).exec()
   if (!template) return null
 
+  // Check if associated project still exists, if not, 
+  // set project_id to null to avoid showing wrong project link on template details page
+  if (template.project_id) {
+    const projectExists = await ProjectGetter.promises.getProject(template.project_id)
+    if (!projectExists) {
+      template.project_id = null
+    }
+  }
+
   return _formatTemplateForPage(template)
 }
 
@@ -228,6 +244,7 @@ function _formatTemplateForPage(template) {
     compiler: template.compiler,
     imageName: _formatImageNameForPage(template.imageName),
     language: template.language,
+    project_id: template.project_id?.toString() || null
   }
 }
 

@@ -3,6 +3,7 @@ import getMeta from '@/utils/meta'
 import OLCol from '@/shared/components/ol/ol-col'
 import OLRow from '@/shared/components/ol/ol-row'
 import OLTooltip from '@/shared/components/ol/ol-tooltip'
+import OLButton from '@/shared/components/ol/ol-button'
 import { formatDate, fromNowDate } from '@/utils/dates'
 import { cleanHtml } from '../../../../../app/src/CleanHtml.mjs'
 
@@ -99,6 +100,13 @@ function TemplateDetails() {
     {loggedInUserId && (loggedInUserId === template.owner || loggedInUserIsAdmin) && (
       <OLRow className="cta-links-container">
         <OLCol md={12} className="text-end">
+          {
+            template.project_id && (
+              <OLButton variant="secondary" href={`/project/${template.project_id}`} className="cta-link">
+                {t('templates_admin_source_project')}
+              </OLButton>
+            )
+          }
           <EditTemplateButton />
           <DeleteTemplateButton />
         </OLCol>

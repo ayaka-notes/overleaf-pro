@@ -138,6 +138,7 @@ export default function ManageTemplateModalContent({
                 includeLanguage={false}
                 onChange={handleChange}
                 onEnterKey={handleEnterKey}
+                disable={inFlight}
               />
             </OLForm>
           </div>

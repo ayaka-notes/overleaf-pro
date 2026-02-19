@@ -7,11 +7,13 @@ import type { Optgroup } from './settings-menu-select'
 interface SettingsLanguageProps {
   value: string
   onChange: (value: string) => void
+  disabled?: boolean
 }
 
 export default function SettingsLanguage({
   value,
   onChange,
+  disabled = false,
 }: SettingsLanguageProps) {
   const { t } = useTranslation()
 
@@ -37,6 +39,7 @@ export default function SettingsLanguage({
       optgroup={optgroup}
       label={t('spell_check')}
       name="spellCheckLanguage"
+      disabled={disabled}
     />
   )
 }

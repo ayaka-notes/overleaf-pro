@@ -23,6 +23,25 @@ async function createTemplateFromProject(req, res, next) {
                     + (result.canOverride ? "Do you want to overwrite it?" : "You can't overwrite it.")
       return res.status(409).json({ canOverride: result.canOverride, message })
     }
+
+    // pull thumbnail and preview in the background, so that when user 
+    // goes to template details page, those images are likely ready
+    await TemplateGalleryManager.fetchTemplatePreview({
+      templateId: result.templateId,
+      version: result.version,
+      style: 'preview'
+    }).catch(err => {
+      logger.error({ err }, 'Failed to generate preview for template')
+    })
+
+    await TemplateGalleryManager.fetchTemplatePreview({
+      templateId: result.templateId,
+      version: result.version,
+      style: 'thumbnail'
+    }).catch(err => {
+      logger.error({ err }, 'Failed to generate thumbnail for template')
+    })
+
     return res.status(200).json({ template_id: result.templateId })
   } catch (error) {
     if (error instanceof Errors.InvalidNameError) {

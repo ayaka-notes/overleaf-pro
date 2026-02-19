@@ -23,7 +23,7 @@ const MAX_TEMPLATE_DESCRIPTION_LENGTH = 4096
 
 // Configure marked for CommonMark-only parsing
 marked.setOptions({
-  gfm: false,
+  gfm: true,
   breaks: false,
   headerIds: false,
   mangle: false,

@@ -12,6 +12,7 @@ interface TemplateFormFieldsProps {
   includeLanguage?: boolean
   onChange: (changes: Partial<Template>) => void
   onEnterKey?: () => void
+  disable?: boolean
 }
 
 function TemplateFormFields({
@@ -19,6 +20,7 @@ function TemplateFormFields({
   includeLanguage = false,
   onChange,
   onEnterKey,
+  disable = false,
 }: TemplateFormFieldsProps) {
   const { t } = useTranslation()
 
@@ -42,6 +44,7 @@ function TemplateFormFields({
           placeholder={t('title')}
           onChange={e => onChange({ name: e.target.value })}
           onKeyDown={handleKeyDown}
+          disabled={disable}
         />
       </LabeledRowFormGroup>
 
@@ -52,6 +55,7 @@ function TemplateFormFields({
           placeholder={t('author')}
           onChange={e => onChange({ authorMD: e.target.value })}
           onKeyDown={handleKeyDown}
+          disabled={disable}
         />
       </LabeledRowFormGroup>
 
@@ -59,6 +63,7 @@ function TemplateFormFields({
         <SettingsTemplateCategory
           value={template.category}
           onChange={val => onChange({ category: val })}
+          disabled={disable}
         />
       </LabeledRowFormGroup>
 
@@ -71,6 +76,7 @@ function TemplateFormFields({
           placeholder={t('description')}
           onChange={e => onChange({ descriptionMD: e.target.value })}
           autoFocus
+          disabled={disable}
         />
       </LabeledRowFormGroup>
 
@@ -78,6 +84,7 @@ function TemplateFormFields({
         <SettingsLicense
           value={template.license}
           onChange={val => onChange({ license: val })}
+          disabled={disable}
         />
       </LabeledRowFormGroup>
 
@@ -86,6 +93,7 @@ function TemplateFormFields({
           <SettingsLanguage
             value={template.language}
             onChange={val => onChange({ language: val })}
+            disabled={disable}
           />
         </LabeledRowFormGroup>
       )}
