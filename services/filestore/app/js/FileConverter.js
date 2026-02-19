@@ -25,12 +25,14 @@ async function convert(sourcePath, requestedFormat) {
   const width = '600x'
   return await _convert(sourcePath, requestedFormat, [
     'convert',
-    '-define',
-    `pdf:fit-page=${width}`,
+    // '-define',
+    // `pdf:fit-page=${width}`,
     '-flatten',
     '-density',
     '300',
     `${sourcePath}[0]`,
+    `-resize`,
+    `1280x`,
   ])
 }
 
