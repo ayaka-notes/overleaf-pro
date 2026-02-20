@@ -97,7 +97,7 @@ jobs:
           file: ./server-ce/Dockerfile-base
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          tags: ${{ env.REGISTRY_IMAGE }}-base:latest-${{ env.PLATFORM_PAIR }}-${{ env.MONOREPO_REVISION }}
+          tags: ${{ env.REGISTRY_IMAGE }}-base:latest-${{ env.PLATFORM_PAIR }}-${{ env.MONOREPO_REVISION }}-${{ github.run_id }}
           push: false
           load: true
           outputs: type=image,name-canonical=true,push=false
@@ -111,7 +111,7 @@ jobs:
           file: ./server-ce/Dockerfile
           platforms: ${{ matrix.platform }}
           build-args: |
-            OVERLEAF_BASE_TAG=${{ env.REGISTRY_IMAGE }}-base:latest-${{ env.PLATFORM_PAIR }}-${{ env.MONOREPO_REVISION }}
+            OVERLEAF_BASE_TAG=${{ env.REGISTRY_IMAGE }}-base:latest-${{ env.PLATFORM_PAIR }}-${{ env.MONOREPO_REVISION }}-${{ github.run_id }}
           labels: |
             ${{ steps.meta.outputs.labels }}
             com.overleaf.pro.revision=${{ env.MONOREPO_REVISION }}
