@@ -1001,7 +1001,7 @@ module.exports = {
     sourceEditorSymbolPalette: [
       Path.resolve(
         __dirname,
-        '../modules/symbol-palette/frontend/components/symbol-palette'
+        '../modules/symbol-palette/frontend/js/components/symbol-palette'
       ),
     ],
     sourceEditorToolbarComponents: [],
