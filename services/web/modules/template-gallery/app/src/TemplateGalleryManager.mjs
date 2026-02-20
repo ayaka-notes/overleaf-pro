@@ -168,7 +168,7 @@ async function getTemplate(key, val) {
   // Check if associated project still exists, if not, 
   // set project_id to null to avoid showing wrong project link on template details page
   if (template.project_id) {
-    const projectExists = await ProjectGetter.promises.getProject(template.project_id)
+    const projectExists = await ProjectGetter.promises.getProject(template.project_id, { _id: 1 })
     if (!projectExists) {
       template.project_id = null
     }
