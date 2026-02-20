@@ -2,7 +2,7 @@ import Settings from '@overleaf/settings'
 import logger from '@overleaf/logger'
 import { promisify } from 'util'
 import passport from 'passport'
-import ldapjs from 'ldapauth-fork/node_modules/ldapjs/lib/index.js'
+import ldapjs from 'ldapjs'
 import UserGetter from '../../../../../app/src/Features/User/UserGetter.mjs'
 import { splitFullName } from '../../../utils.mjs'
 

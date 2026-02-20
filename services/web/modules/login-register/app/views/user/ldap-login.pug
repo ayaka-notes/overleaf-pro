@@ -26,12 +26,12 @@ block content
 								+customFormMessageNewStyle('password-compromised')
 									| !{translate('password_compromised_try_again_or_use_known_device_or_reset', {}, [{name: 'a', attrs: {href: 'https://haveibeenpwned.com/passwords', rel: 'noopener noreferrer', target: '_blank'}}, {name: 'a', attrs: {href: '/user/password/reset', target: '_blank'}}])}.
 								.form-group
-									label(for='login') #{translate("username")}
+									label(for='login') #{(settings.ldap && settings.ldap.placeholder) ? settings.ldap.placeholder : 'LDAP Username'}
 									input#login.form-control(
 										name='login'
 										type='text'
 										required
-										placeholder=(settings.ldap && settings.ldap.enable) ? settings.ldap.placeholder : 'LDAP Username'
+										placeholder=(settings.ldap && settings.ldap.placeholder) ? settings.ldap.placeholder : 'LDAP Username'
 										autofocus='true'
 										autocomplete='username'
 									)
@@ -48,7 +48,6 @@ block content
 									button.btn-primary.btn(type='submit' data-ol-disabled-inflight)
 										span(data-ol-inflight='idle') #{translate("login")}
 										span(hidden data-ol-inflight='pending') #{translate("logging_in")}…
-									a.float-end(href='/user/password/reset') #{translate("forgot_your_password")}?
 								if login_support_text
 									hr
 									p.text-center !{login_support_text}
