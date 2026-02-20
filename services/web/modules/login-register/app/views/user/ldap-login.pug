@@ -14,7 +14,8 @@ block content
 								if login_support_title
 									h1 !{login_support_title}
 								else
-									h1 #{translate("log_in")} LDAP
+									h1.h3 #{translate("log_in")} LDAP
+							.login-register-hr-text-container(style='margin-top: 1px; padding: 5px 0;')
 							form(name='loginForm' data-ol-async-form action='/ldap/login' method='POST')
 								input(name='_csrf' type='hidden' value=csrfToken)
 								+formMessagesNewStyle
