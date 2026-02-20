@@ -176,3 +176,13 @@ jobs:
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ needs.build.outputs.version }}
 
+      # --- Retention Policy: Delete old images ---
+      - name: Delete old images
+        uses: snok/container-retention-policy@v2
+        with:
+          image-names: overleaf-pro/ops*
+          cut-off: 1000y
+          account-type: org
+          org-name: ayaka-notes
+          untagged-only: true
+          token: ${{ secrets.ORGTOKEN }}
