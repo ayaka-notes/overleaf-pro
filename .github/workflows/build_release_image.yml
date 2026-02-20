@@ -100,7 +100,6 @@ jobs:
           tags: ${{ env.REGISTRY_IMAGE }}-base:latest-${{ env.PLATFORM_PAIR }}-${{ env.MONOREPO_REVISION }}-${{ github.run_id }}
           push: false
           load: true
-          outputs: type=image,name-canonical=true,push=false
           provenance: false
           sbom: false
       - name: Build App Image
