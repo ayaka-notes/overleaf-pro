@@ -11,11 +11,13 @@ export const licensesMap = {
 interface SettingsLicenseProps {
   value: string
   onChange: (value: string) => void
+  disabled?: boolean
 }
 
 export default function SettingsLicense({
   value,
   onChange,
+  disabled = false,
 }: SettingsLicenseProps) {
   const { t } = useTranslation()
 
@@ -28,6 +30,7 @@ export default function SettingsLicense({
       value={value}
       onChange={onChange}
       options={options}
+      disabled={disabled}
     />
   )
 }

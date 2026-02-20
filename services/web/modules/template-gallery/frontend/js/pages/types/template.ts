@@ -12,5 +12,6 @@ export type Template = {
   compiler?: string
   language?: string
   owner: string
+  project_id: string
 }
 

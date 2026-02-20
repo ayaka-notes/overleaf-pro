@@ -17,6 +17,7 @@ export const TemplateSchema = new Schema({
     language: { type: String },
     version: { type: Number, default: 1, required: true },
     owner: { type: ObjectId, ref: 'User' },
+    project_id: { type: ObjectId, ref: 'Project' },
     lastUpdated: {
       type: Date,
       default() {

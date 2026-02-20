@@ -10,10 +10,12 @@ function TemplatePreview() {
       <OLRow>
         <OLCol md={12}>
           <div className="gallery-large-pdf-preview">
-            <img
-              src={`/template/${template.id}/preview?version=${template.version}&style=preview`}
-              alt={template.name}
-            />
+            <a href={`/template/${template.id}/preview?version=${template.version}`}>
+              <img
+                src={`/template/${template.id}/preview?version=${template.version}&style=preview`}
+                alt={template.name}
+              />
+            </a>
           </div>
         </OLCol>
       </OLRow>
