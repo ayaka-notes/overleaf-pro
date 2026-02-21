@@ -123,3 +123,6 @@ RUN apt update && apt install -y linux-libc-dev \
   && rm -rf /var/lib/apt/lists/*
 
 RUN node genScript compile | bash
+
+# Apply 6.1.2 patch
+RUN apt update && apt install -y linux-libc-dev   && unattended-upgrade --verbose --no-minimal-upgrade-steps   && apt purge -y imagemagick   && apt autoremove -y   && apt install -y poppler-utils   && rm -rf /var/lib/apt/lists/*
