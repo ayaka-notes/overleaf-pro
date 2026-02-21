@@ -303,7 +303,7 @@ export default async function (webRouter, privateApiRouter, publicApiRouter) {
 
   webRouter.use(function (req, res, next) {
     // TODO
-    if (Settings.overleaf != null) {
+    if (true) {
       res.locals.overallThemes = [
         {
           name: 'Dark',
