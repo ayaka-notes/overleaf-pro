@@ -27,7 +27,81 @@ import {
 } from '../../../../../frontend/js/infrastructure/fetch-json'
 import getMeta from '@/utils/meta'
 import OLNotification from '@/shared/components/ol/ol-notification'
+import { useEditorManagerContext } from '@/features/ide-react/context/editor-manager-context'
+import { Trans } from 'react-i18next'
 
+
+type GitHubSyncModalStatus = 'loading' | 'export' | 'merge' | 'pushSubmit' | 'syncing' | 'conflict'
+
+type GitHubSyncModalSyncingProps = {
+  handleHide: () => void
+  modalStatus: GitHubSyncModalStatus
+  setModalStatus: (modalStatus: GitHubSyncModalStatus) => void
+  commitMessage: string
+  projectId: string
+}
+
+const GitHubSyncModalSyncing = ({
+  handleHide, modalStatus, setModalStatus,
+  commitMessage, projectId
+}: GitHubSyncModalSyncingProps) => {
+  const { t } = useTranslation()
+  const { setIgnoringExternalUpdates } = useEditorManagerContext()
+
+  // launch syncing when this component is rendered
+  useEffect(() => {
+    let cancelled = false
+
+    const syncProjectWithGitHub = async () => {
+      setIgnoringExternalUpdates(true)
+      try {
+        // call backend to start syncing process, endpoint: /project/<project_id>/github-sync/sync
+        await postJSON(`/project/${projectId}/github-sync/merge`, {
+          body: {
+            message: commitMessage,
+          },
+        })
+        // after syncing is done, we can set modal status to loading to fetch latest status and show merge table if needed.
+        if (!cancelled)
+          setModalStatus('loading')
+      } catch (err) {
+        console.error('Failed to sync project with GitHub', err)
+        // if error occurs, we can set modal status to merge to show pull/push table, user can decide how to resolve the conflict.
+        if (!cancelled)
+          setModalStatus('loading')
+      } finally {
+        setIgnoringExternalUpdates(false)
+      }
+    }
+
+    if (modalStatus === 'syncing') syncProjectWithGitHub()
+
+    return () => {
+      cancelled = true
+      setIgnoringExternalUpdates(false)
+    }
+  }, [modalStatus, projectId, commitMessage, setModalStatus, setIgnoringExternalUpdates])
+
+
+  return (
+    <>
+      <OLModalBody>
+        <div role="status" className="loading align-items-start">
+          <div aria-hidden="true" data-testid="ol-spinner" className="spinner-border spinner-border-sm"></div>
+          {t('importing_and_merging_changes_in_github')}
+        </div>
+      </OLModalBody>
+      <OLModalFooter>
+        <OLButton
+          variant="secondary"
+          onClick={handleHide}
+        >
+          {t('cancel')}
+        </OLButton>
+      </OLModalFooter>
+    </>
+  )
+}
 
 type GithubSyncModalLoadingProps = {
   handleHide: () => void
@@ -56,7 +130,7 @@ const GithubSyncModalLoading = ({ handleHide }: GithubSyncModalLoadingProps) => 
 
 type GithubSyncModalExportingProps = {
   handleHide: () => void
-  handleSetModalState: (modalStatus: 'loading' | 'export' | 'merge' | 'pushSubmit') => void
+  handleSetModalState: (modalStatus: GitHubSyncModalStatus) => void
 }
 const GithubSyncModalExporting = ({ handleHide, handleSetModalState }: GithubSyncModalExportingProps) => {
   const { t } = useTranslation()
@@ -266,13 +340,15 @@ const GithubSyncModalExporting = ({ handleHide, handleSetModalState }: GithubSyn
 
 type GithubSyncModalMergingProps = {
   handleHide: () => void
-  setModalStatus: (modalStatus: 'loading' | 'export' | 'merge' | 'pushSubmit') => void
+  setModalStatus: (modalStatus: GitHubSyncModalStatus) => void
   projectSyncStatus: any
   projectId: string
   // other props to show conflict and allow user to resolve conflict
 }
 
-const GithubSyncModalMerging = ({ handleHide, setModalStatus, projectSyncStatus, projectId }: GithubSyncModalMergingProps) => {
+const GithubSyncModalMerging = ({
+  handleHide, setModalStatus, projectSyncStatus, projectId
+}: GithubSyncModalMergingProps) => {
   const { t } = useTranslation()
   const { appName } = getMeta('ol-ExposedSettings')
   const [unmergedCommits, setUnmergedCommits] = useState<any[]>([])
@@ -359,7 +435,8 @@ const GithubSyncModalMerging = ({ handleHide, setModalStatus, projectSyncStatus,
         <p className="text-center row-spaced">
           <OLButton
             variant="secondary"
-            leadingIcon="arrow_upward"
+            leadingIcon="arrow_downward"
+            onClick={() => setModalStatus('syncing')}
           >
             {t('pull_github_changes_into_sharelatex', { appName })}
           </OLButton>
@@ -393,9 +470,14 @@ const GithubSyncModalMerging = ({ handleHide, setModalStatus, projectSyncStatus,
 type GitHubSyncModalPushSubmitProps = {
   handleHide: () => void
   // other props to show commit message input and submit button
+  commitMessage: string
+  setCommitMessage: (message: string) => void
+  setModalStatus: (modalStatus: GitHubSyncModalStatus) => void
 }
 
-const GitHubSyncModalPushSubmit = ({ handleHide }: GitHubSyncModalPushSubmitProps) => {
+const GitHubSyncModalPushSubmit = ({
+  handleHide, commitMessage, setCommitMessage, setModalStatus
+}: GitHubSyncModalPushSubmitProps) => {
   const { t } = useTranslation()
   const { appName } = getMeta('ol-ExposedSettings')
 
@@ -409,6 +491,8 @@ const GitHubSyncModalPushSubmit = ({ handleHide }: GitHubSyncModalPushSubmitProp
               as="textarea"
               rows={2}
               placeholder={t('github_commit_message_placeholder', { appName })}
+              value={commitMessage}
+              onChange={(e) => setCommitMessage(e.target.value)}
             />
           </OLFormGroup>
         </OLForm>
@@ -422,6 +506,9 @@ const GitHubSyncModalPushSubmit = ({ handleHide }: GitHubSyncModalPushSubmitProp
         </OLButton>
         <OLButton
           variant="primary"
+          onClick={() => {
+            setModalStatus('syncing')
+          }}
         >
           {t('sync')}
         </OLButton>
@@ -430,13 +517,58 @@ const GitHubSyncModalPushSubmit = ({ handleHide }: GitHubSyncModalPushSubmitProp
   )
 }
 
+type GitHubSyncModalConflictProps = {
+  // props to show conflict and allow user to resolve conflict
+  projectSyncStatus: any
+  handleHide: () => void
+  setModalStatus: (modalStatus: GitHubSyncModalStatus) => void
+}
+
+const GitHubSyncModalConflict = ({ projectSyncStatus, handleHide, setModalStatus }: GitHubSyncModalConflictProps) => {
+  const { t } = useTranslation()
+  const { appName } = getMeta('ol-ExposedSettings')
+
+  return (
+    <>
+      <OLModalBody>
+        <OLNotification
+          type="error"
+          content={"Your changes in Overleaf and GitHub could not be automatically merged."}
+        />
+        <p className="mt-2">
+          <Trans
+            i18nKey="github_merge_failed"
+            values={{ appName, sharelatex_branch: projectSyncStatus.unmerged_branch }}
+            components={[<b />]}
+          />
+        </p>
+      </OLModalBody>
+      <OLModalFooter>
+        <OLButton
+          variant="secondary"
+          onClick={handleHide}
+        >
+          {t('close')}
+        </OLButton>
+        <OLButton
+          variant="primary"
+          onClick={
+            () => setModalStatus('pushSubmit')
+          }
+        >
+          {t('continue_github_merge')}
+        </OLButton>
+      </OLModalFooter>
+    </>
+  )
+}
 
 type GitHubSyncModalProps = {
   show: boolean
   handleHide: () => void
   projectId: string
-  modalStatus: 'loading' | 'export' | 'merge' | 'pushSubmit'
-  setModalStatus: (modalStatus: 'loading' | 'export' | 'merge' | 'pushSubmit') => void
+  modalStatus: GitHubSyncModalStatus
+  setModalStatus: (modalStatus: GitHubSyncModalStatus) => void
 }
 
 // 0. Check project github sync status 
@@ -457,11 +589,18 @@ type GitHubSyncModalProps = {
 //    then show conflict resolution contents.
 //        a) user can choose to merge confict in github, and submit 
 //           remerge form overleaf.
-function GitHubSyncModal({ show, handleHide, projectId, modalStatus, setModalStatus }: GitHubSyncModalProps) {
+function GitHubSyncModal({
+  show, handleHide, projectId, modalStatus, setModalStatus
+}: GitHubSyncModalProps) {
   const { t } = useTranslation()
   const { project } = useProjectContext()
-  
+
   const [projectSyncStatus, setProjectSyncStatus] = useState<any>(null)
+
+
+  // since we need to switch to syncing component when user clicks pull or push,
+  // we need to pass this var
+  const [commitMessage, setCommitMessage] = useState('')
 
   // If modalStatus is loading, we will fetch status
   useEffect(() => {
@@ -471,10 +610,14 @@ function GitHubSyncModal({ show, handleHide, projectId, modalStatus, setModalSta
     const fetchGitHubSyncStatus = async () => {
       try {
         const data = await getJSON(`/project/${projectId}/github-sync/status`)
-        if (data.enabled) {
+        if (data.enabled && data.merge_status === 'success') {
           setModalStatus('merge')
           setProjectSyncStatus(data)
-        } else {
+        } else if (data.enabled && data.merge_status === 'failure') {
+          setModalStatus('conflict')
+          setProjectSyncStatus(data)
+        }
+        else {
           setModalStatus('export')
         }
       } catch (err: any) {
@@ -485,6 +628,11 @@ function GitHubSyncModal({ show, handleHide, projectId, modalStatus, setModalSta
     fetchGitHubSyncStatus()
   }, [show, modalStatus])
 
+  useEffect(() => {
+    if (!show)
+      setCommitMessage('')
+  }, [show])
+
   return (
     <OLModal show={show} onHide={handleHide} size="lg" backdrop="static">
       <OLModalHeader closeButton>
@@ -492,8 +640,29 @@ function GitHubSyncModal({ show, handleHide, projectId, modalStatus, setModalSta
       </OLModalHeader>
       {modalStatus === 'loading' && <GithubSyncModalLoading handleHide={handleHide} />}
       {modalStatus === 'export' && <GithubSyncModalExporting handleHide={handleHide} handleSetModalState={setModalStatus} />}
-      {modalStatus === 'merge' && <GithubSyncModalMerging handleHide={handleHide} setModalStatus={setModalStatus} projectSyncStatus={projectSyncStatus} projectId={projectId} />}
-      {modalStatus === 'pushSubmit' && <GitHubSyncModalPushSubmit handleHide={handleHide} />}
+      {modalStatus === 'merge' && <GithubSyncModalMerging
+        handleHide={handleHide} setModalStatus={setModalStatus}
+        projectSyncStatus={projectSyncStatus} projectId={projectId}
+      />
+      }
+      {modalStatus === 'pushSubmit' && <GitHubSyncModalPushSubmit
+        handleHide={handleHide} commitMessage={commitMessage}
+        setCommitMessage={setCommitMessage}
+        setModalStatus={setModalStatus}
+      />}
+      {modalStatus === 'syncing' && <GitHubSyncModalSyncing
+        handleHide={handleHide} modalStatus={modalStatus}
+        setModalStatus={setModalStatus} commitMessage={commitMessage}
+        projectId={projectId}
+      />}
+      {
+        modalStatus === 'conflict' && <GitHubSyncModalConflict
+          projectSyncStatus={projectSyncStatus}
+          handleHide={handleHide}
+          setModalStatus={setModalStatus}
+        />
+      }
+
     </OLModal >
   )
 }
@@ -511,7 +680,8 @@ const GitHubSyncCard = () => {
   // export: show export table to link github repo
   // merge: show remote changes from github and allow user to pull/push
   // pushSubmit: allow user to fill submit message
-  const [modalStatus, setModalStatus] = useState<'loading' | 'export' | 'merge' | 'pushSubmit'>('loading')
+  // syncing: show syncing spinner while request is being processed
+  const [modalStatus, setModalStatus] = useState<GitHubSyncModalStatus>('loading')
 
   return (
     <>

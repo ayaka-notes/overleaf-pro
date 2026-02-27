@@ -277,7 +277,43 @@ async function getUnmergedCommits(req, res){
 }
 
 async function mergeFromGitHub(req, res){
+  const projectId = req.params.Project_id
+  if (!projectId) {
+    return res.status(400).json({ error: 'Project ID is required' })
+  }
 
+  let message = 'Merge changes from overleaf'
+  if (req.body && req.body.message) {
+    message = req.body.message
+  }
+
+  const projectStatus = await GitHubSyncHandler.promises.getProjectGitHubSyncStatus(projectId)
+  if (!projectStatus) {
+    return res.status(400).json({ error: 'Project is not linked to a GitHub repository' })
+  }
+  const ownerId = projectStatus.ownerId
+
+  try {
+    const result = await GitHubSyncHandler.promises.syncProjectToGitHub(
+      ownerId, projectId, message
+    )
+    logger.debug({ projectId, result }, 'Merge from GitHub result')
+
+    if (result.newSha && result.files) {
+      const credentials = await GitHubSyncHandler.promises.getGitHubAccessTokenForUser(ownerId)
+      if (!credentials) {
+        throw new Error('GitHub credentials not found for project owner')
+      }
+
+      await GitHubSyncHandler.promises.applyChangesToOverleaf(
+        projectId, result.newSha, result.files, ownerId)
+    }
+    
+    res.status(200).json({ success: true })
+  } catch (error) {
+    logger.error({ err: error instanceof Error ? error : new Error(String(error)) }, 'Error syncing project to GitHub')
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' })
+  }
 }
 
 // List user and user's orgs.

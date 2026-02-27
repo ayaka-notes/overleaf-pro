@@ -5,6 +5,9 @@ import { GitHubSyncProjectStates } from '../models/githubSyncProjectStates.mjs'
 import Settings from '@overleaf/settings'
 import logger from '@overleaf/logger'
 import SecretsHelper from './SecretsHelper.mjs'
+import GitHubSyncUpdater from './GitHubSyncUpdater.mjs'
+import { fetchJson } from '@overleaf/fetch-utils'
+
 
 
 /**
@@ -38,6 +41,25 @@ async function getProjectGitHubSyncStatus(projectId) {
   projectStatus.enabled = true
   return projectStatus
 }
+
+/**
+ * Save project's GitHub sync status
+ */
+async function updateProjectGitHubSyncStatus(projectId, updateFields) {
+  logger.debug({ projectId, updateFields }, 'Updating project GitHub sync status')
+  const projectStatus = await GitHubSyncProjectStates.findOneAndUpdate(
+    { projectId },
+    { $set: updateFields },
+    { new: true, upsert: false, fields: { _id: 0, __v: 0 } }
+  ).lean()
+
+  if (!projectStatus) {
+    throw new Error('Project GitHub sync status not found')
+  }
+  return projectStatus
+}
+
+
 
 /**
  * List user's GitHub repositories
@@ -181,6 +203,61 @@ async function listCommitsSince(userId, repoFullName, branch, since) {
   return await GitHubApiClient.listCommitsSince(pat, repoFullName, branch, since)
 }
 
+async function syncProjectToGitHub(userId, projectId, message) {
+  const url = `${Settings.apis.github_sync.url}/project/${projectId}/user/${userId}/merge`
+  logger.debug({ userId, projectId, url }, 'Syncing project to GitHub')
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(`GitHub Sync Service error: ${response.status} - ${error.error || error}`)
+  }
+
+  return await response.json()
+}
+
+
+// 1. apply changes
+// 2. update project sync status
+// 3. return ok, client will fetch status again.
+async function applyChangesToOverleaf(projectId, newSha, files, userId) {
+  const token = await getGitHubAccessTokenForUser(userId)
+
+  if (!token) {
+    throw new Error('GitHub not connected')
+  }
+
+  try {
+    await GitHubSyncUpdater.promises.postSnapshot(projectId, files, userId, token)
+    // Re get projectID and version
+    const snapshot = await fetchJson(
+      `${Settings.apis.project_history.url}/project/${projectId}/version`
+    )
+    const projectVersion = snapshot.version
+
+
+    // get latest version in overleaf
+    await updateProjectGitHubSyncStatus(projectId, 
+      { 
+        merge_status: 'success',
+        last_sync_version: projectVersion,
+        last_sync_sha: newSha,
+        unmerged_branch: null, // clear unmerged branch if any
+      })
+  } catch (err) {
+    logger.error({ err, projectId, newSha }, 'Failed to apply changes to Overleaf')
+    throw err
+  }
+  
+}
+
 export default {
   promises: {
     getUserGitHubStatus,
@@ -195,6 +272,8 @@ export default {
     saveNewlySyncedProjectState,
     getGitHubOrgsForUser,
     exportProjectToGitHub,
-    listCommitsSince
+    listCommitsSince,
+    syncProjectToGitHub,
+    applyChangesToOverleaf,
   },
 }
