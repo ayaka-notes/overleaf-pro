@@ -1,7 +1,7 @@
 import logger from '@overleaf/logger'
 import fetch from 'node-fetch'
 import Settings from '@overleaf/settings'
-import HttpsProxyAgent from 'https-proxy-agent'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 
 const GITHUB_API_BASE = 'https://api.github.com'
 

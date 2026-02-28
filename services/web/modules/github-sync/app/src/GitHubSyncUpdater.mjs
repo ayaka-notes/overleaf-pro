@@ -12,7 +12,7 @@ import { promises as fsPromises } from 'fs'
 import { Snapshot } from 'overleaf-editor-core'
 import { pipeline } from 'stream/promises'
 import { fetchStream } from '@overleaf/fetch-utils'
-import HttpsProxyAgent from 'https-proxy-agent'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 import fetch from 'node-fetch'
 
 const proxyUrl = process.env.GITHUB_SYNC_PROXY_URL
