@@ -113,14 +113,19 @@ async function mergeToGitHubAndPushback(req, res, next) {
       const latestVersion = latestVersionData.version
       const last_sync_version = projectStatus.last_sync_version
       const last_sync_sha = projectStatus.last_sync_sha
+      const branch_latest_sha = await GithubSyncHandler.promises.getBranchHeadCommitSha(
+        projectStatus.repo,
+        projectStatus.default_branch,
+        userId
+      )
 
       // only export changes
       if (latestVersion > last_sync_version) {
         // create a new branch from last_sync_sha
         const now = new Date()
-        const branchName = `overleaf-${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`
+        const branchName = `overleaf-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`
 
-        const branchCreated = await GithubSyncHandler.promises.createOrUpdateBranchRef( 
+        const branchCreated = await GithubSyncHandler.promises.createOrUpdateBranchRef(
           projectStatus.repo,
           branchName,
           last_sync_sha,
@@ -141,15 +146,28 @@ async function mergeToGitHubAndPushback(req, res, next) {
 
         // Try merge the branch to default branch, if failed, record.
         try {
-          const mergeResult = await GithubSyncHandler.promises.mergeBranchToDefaultBranch(
-            projectStatus.repo,
-            branchName,
-            projectStatus.default_branch,
-            userId
-          )
+          if (branch_latest_sha !== last_sync_sha) {
+            const mergeResult = await GithubSyncHandler.promises.mergeBranchToDefaultBranch(
+              projectStatus.repo,
+              branchName,
+              projectStatus.default_branch,
+              userId
+            )
+            newSha = mergeResult.sha
+          } else {
+            // we need to fast-forward the default branch
+            const mergeResult = await GithubSyncHandler.promises.fastForwardBranchToDefaultBranch(
+              projectStatus.repo,
+              branchName,
+              projectStatus.default_branch,
+              userId
+            )
+            newSha = mergeResult.sha
+          }
 
-          newSha = mergeResult.sha
 
+
+          logger.debug({ projectId, branchName, newSha }, 'Branch merged to default branch successfully')
           // delete overleaf branch 
           await GithubSyncHandler.promises.deleteBranchOnGitHub(
             projectStatus.repo,
@@ -179,7 +197,7 @@ async function mergeToGitHubAndPushback(req, res, next) {
         )
 
       }
-      
+
     } else if (projectStatus.merge_status === 'failure') {
       // If the last merge failed, we try to re-merge the unmerged branch
       const unmergedBranch = projectStatus.unmerged_branch

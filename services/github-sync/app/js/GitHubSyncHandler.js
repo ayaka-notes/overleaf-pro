@@ -271,7 +271,9 @@ async function getBranchHeadCommitSha(repoFullName, branch, userId) {
 }
 
 // We need to remove init README.
-async function forceUpdateBranchToCommit(repoFullName, branch, commitSha, accessToken) {
+async function updateBranchToCommit(
+  repoFullName, branch, commitSha, accessToken, ifForce = false
+) {
   const response = await fetch(
     `${GITHUB_API_BASE}/repos/${repoFullName}/git/refs/heads/${branch}`,
     {
@@ -283,7 +285,7 @@ async function forceUpdateBranchToCommit(repoFullName, branch, commitSha, access
       },
       body: JSON.stringify({
         sha: commitSha,
-        force: true,
+        force: ifForce,
       }),
     }
   )
@@ -345,8 +347,8 @@ async function initializeRepositoryForProject(projectId, userId, repoFullName, d
     const commitSha = await createCommitOnGitHub(
       repoFullName, treeSha, `Initial Overleaf Import`, accessToken)
 
-    const updateRefResult = await forceUpdateBranchToCommit(
-      repoFullName, defaultBranch, commitSha, accessToken)
+    const updateRefResult = await updateBranchToCommit(
+      repoFullName, defaultBranch, commitSha, accessToken, true)
 
     logger.debug({ projectId, repoFullName, treeSha, commitSha, updateRefResult }, 
       'Created initial commit on GitHub Successfully')
@@ -507,7 +509,8 @@ async function createOrUpdateBranchRef(repoFullName, branch, commitSha, userId) 
 
 
 async function deleteBranchOnGitHub(repoFullName, branch, userId) {
-  const accessToken = getUserGitHubCredentials(userId)
+  logger.debug({ repoFullName, branch }, 'Deleting branch on GitHub')
+  const accessToken = await getUserGitHubCredentials(userId)
   if (!accessToken) {
     throw new Error('User does not have GitHub credentials')
   }
@@ -521,11 +524,21 @@ async function deleteBranchOnGitHub(repoFullName, branch, userId) {
       Accept: 'application/vnd.github.v3+json',
     },
   })
-  
+
   if (response.status === 404) {
     logger.warn({ repoFullName, branch }, 'Branch not found when trying to delete, ignoring')
     return
   }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    logger.warn(
+      { repoFullName, branch, status: response.status, error: errorData },
+      'Failed to delete branch on GitHub'
+    )
+  }
+
+  logger.debug({ repoFullName, branch, status: response.status }, 'Deleted branch on GitHub')
 }
 
 
@@ -576,6 +589,30 @@ async function mergeBranchToDefaultBranch(repoFullName, sourceBranch, defaultBra
   return mergeData
 }
 
+async function fastForwardBranchToDefaultBranch(repoFullName, sourceBranch, defaultBranch, userId) {
+  const accessToken = await getUserGitHubCredentials(userId)
+  if (!accessToken) {
+    throw new Error('User does not have GitHub credentials')
+  }
+
+  const sourceHeadSha = await getBranchHeadCommitSha(repoFullName, sourceBranch, userId)
+  if (!sourceHeadSha) {
+    throw new Error(`Source branch ${sourceBranch} not found`)
+  }
+
+
+  // Fast forward the default branch to the source branch head sha, if possible.
+  let ffResult = await updateBranchToCommit(
+    repoFullName, defaultBranch, sourceHeadSha, accessToken, false
+  )
+
+  return {
+    ...ffResult,
+    sha: ffResult?.object?.sha || sourceHeadSha,
+  }
+}
+
+
 async function diffChangesOnGitHub(repoFullName, baseBranch,
   fromSha, toSha, userId) {
   const accessToken = await getUserGitHubCredentials(userId)
@@ -600,6 +637,10 @@ async function diffChangesOnGitHub(repoFullName, baseBranch,
   return compareData.files || []
 }
 
+
+// We do a workarount here
+// if user delete that branch on GitHub, we will consider merge successful
+// Return [] means no diff.
 async function diffBranchsOnGitHub(
   repoFullName, baseBranch, compareBranch, userId
 ){
@@ -737,6 +778,7 @@ export default {
     saveProjectGitHubSyncStatus,
     diffBranchsOnGitHub,
     deleteBranchOnGitHub,
+    fastForwardBranchToDefaultBranch
   },
   generateRespURL,
 }
