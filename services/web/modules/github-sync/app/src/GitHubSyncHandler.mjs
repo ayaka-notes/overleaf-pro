@@ -59,7 +59,12 @@ async function updateProjectGitHubSyncStatus(projectId, updateFields) {
   return projectStatus
 }
 
-
+/**
+ * Delete project's GitHub sync status
+ */
+async function deleteProjectGitHubSyncStatus(projectId) {
+  await GitHubSyncProjectStates.deleteOne({ projectId })
+}
 
 /**
  * List user's GitHub repositories
@@ -275,5 +280,6 @@ export default {
     listCommitsSince,
     syncProjectToGitHub,
     applyChangesToOverleaf,
+    deleteProjectGitHubSyncStatus,
   },
 }

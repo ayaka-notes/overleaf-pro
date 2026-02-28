@@ -506,6 +506,29 @@ async function createOrUpdateBranchRef(repoFullName, branch, commitSha, userId) 
 }
 
 
+async function deleteBranchOnGitHub(repoFullName, branch, userId) {
+  const accessToken = getUserGitHubCredentials(userId)
+  if (!accessToken) {
+    throw new Error('User does not have GitHub credentials')
+  }
+
+  const url = `${GITHUB_API_BASE}/repos/${repoFullName}/git/refs/heads/${branch}`
+
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `token ${accessToken}`,
+      Accept: 'application/vnd.github.v3+json',
+    },
+  })
+  
+  if (response.status === 404) {
+    logger.warn({ repoFullName, branch }, 'Branch not found when trying to delete, ignoring')
+    return
+  }
+}
+
+
 async function getCommitTreeSha(repoFullName, commitSha, accessToken) {
   const response = await fetch(`${GITHUB_API_BASE}/repos/${repoFullName}/git/commits/${commitSha}`, {
     method: 'GET',
@@ -693,6 +716,8 @@ function generateRespURL(diff, tree, repoFullName, newSha) {
   return resp
 }
 
+
+
 export default {
   promises: {
     getProjectGitHubSyncStatus,
@@ -711,6 +736,7 @@ export default {
     updateProjectGitHubSyncStatus,
     saveProjectGitHubSyncStatus,
     diffBranchsOnGitHub,
+    deleteBranchOnGitHub,
   },
   generateRespURL,
 }

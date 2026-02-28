@@ -149,6 +149,14 @@ async function mergeToGitHubAndPushback(req, res, next) {
           )
 
           newSha = mergeResult.sha
+
+          // delete overleaf branch 
+          await GithubSyncHandler.promises.deleteBranchOnGitHub(
+            projectStatus.repo,
+            branchName,
+            userId
+          )
+
         } catch (err) {
           // update merge_status to failure, and save the unmerged_branch
           await GithubSyncHandler.promises.updateProjectGitHubSyncStatus(projectId, {
@@ -244,10 +252,14 @@ async function mergeToGitHubAndPushback(req, res, next) {
           newSha: newSha
         }
       )
+    } else {
+      // no changes, just return ok
+      return res.status(200).json({ message: 'Already up to date, no changes to sync' })
     }
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
+  res.status(200).json({ message: 'Merge to GitHub and push back process completed' })
 }
 
 // p 699dd39a8a419bfc8f417400
