@@ -25,10 +25,5 @@ export function createServer() {
     GitHubSyncController.mergeToGitHubAndPushback,
   )
 
-  app.get('/project/:Project_id/user/:user_id/dev',
-    projectConcurrencyMiddleware,
-    GitHubSyncController.dev,
-  )
-
   return { app, server: app }
 }

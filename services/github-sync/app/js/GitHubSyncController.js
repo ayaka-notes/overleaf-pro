@@ -280,36 +280,7 @@ async function mergeToGitHubAndPushback(req, res, next) {
   res.status(200).json({ message: 'Merge to GitHub and push back process completed' })
 }
 
-// p 699dd39a8a419bfc8f417400
-// u 699d40291c632958125dbdab
-async function dev(req, res, next) {
-  // const { Project_id: projectId } = req.params
-  // const { user_id: userId } = req.params
-  // // const projectStatus = await GithubSyncHandler.promises.getProjectGitHubSyncStatus(projectId)
-  // // const userCredentials = await GithubSyncHandler.promises.getUserGitHubCredentials(userId)
-
-  // const repoName = `test-repo-${Date.now()}`
-
-  // const createTest = await GithubSyncHandler.promises.createRepositoryOnGitHub(
-  //   userId,
-  //   repoName,
-  //   'This is a test repository created by GitHub Sync Service',
-  //   true,
-  //   'ayaka-notes'
-  // )
-
-  // const repoFullName = createTest.full_name
-  // const defaultBranch = createTest.default_branch
-
-  // await GithubSyncHandler.promises.initializeRepositoryForProject(projectId, userId, repoFullName, defaultBranch)
-
-  // res.json({ projectId, userId, repoFullName })
-}
-
-
-
 export default {
   exportProjectToGithub: expressify(exportProjectToGithub),
   mergeToGitHubAndPushback: expressify(mergeToGitHubAndPushback),
-  dev: expressify(dev)
 }
