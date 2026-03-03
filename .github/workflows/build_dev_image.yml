@@ -36,7 +36,8 @@ jobs:
             docstore,
             contacts,
             chat,
-            clsi
+            clsi,
+            github-sync
           ]
         platform: [linux/amd64, linux/arm64]
         include:
@@ -97,7 +98,8 @@ jobs:
           docstore,
           contacts,
           chat,
-          clsi
+          clsi,
+          github-sync
         ]
 
     steps:
