@@ -767,6 +767,7 @@ function generateRespURL(diff, tree, repoFullName, newSha) {
   const resp = []
   const BaseURL = `${GITHUB_API_BASE}/repos/${repoFullName}/contents/`
   for (const item of tree) {
+    if (item.type !== 'blob') continue
     let obj = {
       name: item.path,
     }
