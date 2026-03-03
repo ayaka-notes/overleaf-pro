@@ -677,7 +677,12 @@ async function diffBranchsOnGitHub(
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     logger.error('Failed to diff branches on GitHub', { repoFullName, baseBranch, compareBranch, error: errorData })
-    return []
+
+    // treat 404 as no diff.
+    if (errorData.status === '404') {
+      return []
+    }
+    throw new Error(`GitHub API error: ${errorData.message || response.statusText}`)
   }
   const compareData = await response.json()
   return compareData.files || []

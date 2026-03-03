@@ -112,13 +112,19 @@ async function exchangeCodeForToken(code) {
 // Save the GitHub access token for a user, encrypted in the database
 async function saveGitHubAccessTokenForUser(userId, accessToken) {
   const tokenEncrypted = await SecretsHelper.encryptAccessToken(accessToken)
-
-  let gitHubSyncUserCredentials = new GitHubSyncUserCredentials()
-  gitHubSyncUserCredentials.userId = userId
-  gitHubSyncUserCredentials.auth_token_encrypted = tokenEncrypted
-
   // save tp database
-  await gitHubSyncUserCredentials.save()
+  await GitHubSyncUserCredentials.findOneAndUpdate(
+    { userId },
+    {
+      $set: { auth_token_encrypted: tokenEncrypted },
+      $setOnInsert: { userId },
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+    }
+  )
 }
 
 // Save githubSyncProjectStates for a project

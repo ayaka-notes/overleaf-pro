@@ -275,9 +275,10 @@ async function mergeToGitHubAndPushback(req, res, next) {
       return res.status(200).json({ message: 'Already up to date, no changes to sync' })
     }
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    return res.status(500).json({ error: err.message })
   }
-  res.status(200).json({ message: 'Merge to GitHub and push back process completed' })
+  // Never reach here, but just in case
+  return res.status(200).json({ message: 'Merge to GitHub and push back process completed' })
 }
 
 export default {
