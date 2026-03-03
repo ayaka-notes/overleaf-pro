@@ -246,7 +246,7 @@ async function getUnmergedCommits(req, res){
   const { Project_id: projectId } = req.params
   const projectStatus = await GitHubSyncHandler.promises.getProjectGitHubSyncStatus(projectId)
 
-  if (!projectStatus) {
+  if (!projectStatus?.enabled) {
     return res.status(400).json({ error: 'Project is not linked to a GitHub repository' })
   }
 
@@ -254,8 +254,12 @@ async function getUnmergedCommits(req, res){
   const lastSyncSha = projectStatus.last_sync_sha
   const repo = projectStatus.repo
   const defaultBranch = projectStatus.default_branch
-  const crentials = await GitHubSyncHandler.promises.getGitHubAccessTokenForUser(ownerId)
-  if (!crentials) {
+
+  if (!ownerId || !repo || !defaultBranch) {
+    return res.status(400).json({ error: 'Project GitHub sync state is invalid' })
+  }
+  const credentials = await GitHubSyncHandler.promises.getGitHubAccessTokenForUser(ownerId)
+  if (!credentials) {
     return res.status(400).json({ error: 'GitHub credentials not found for project owner' })
   }
 
@@ -286,10 +290,13 @@ async function mergeFromGitHub(req, res){
   }
 
   const projectStatus = await GitHubSyncHandler.promises.getProjectGitHubSyncStatus(projectId)
-  if (!projectStatus) {
+  if (!projectStatus?.enabled) {
     return res.status(400).json({ error: 'Project is not linked to a GitHub repository' })
   }
-  const ownerId = projectStatus.ownerId
+  const { ownerId, repo, default_branch: defaultBranch } = projectStatus
+  if (!ownerId || !repo || !defaultBranch) {
+    return res.status(400).json({ error: 'Project GitHub sync state is invalid' })
+  }
 
   try {
     const result = await GitHubSyncHandler.promises.syncProjectToGitHub(
