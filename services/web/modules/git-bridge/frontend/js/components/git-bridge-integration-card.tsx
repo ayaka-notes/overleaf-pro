@@ -96,6 +96,7 @@ function GitBridgeSyncModal({ show, projectId, handleHide }: GitBridgeSyncModalP
     return (
         <OLModal show={show} animation onHide={handleHide}
             id="git-bridge-sync-modal" backdrop="static" size="lg"
+            initialFocus={false} enforceFocus={false}
         >
             <ModalGitBridgeSync projectId={projectId} handleHide={handleHide}
             />
@@ -115,7 +116,7 @@ function GitBridgeSyncCard() {
             <IntegrationCard
                 title={t('git_integration')}
                 description={t('git_clone_this_project')}
-                icon={<GitLogoOrange size={18} />}
+                icon={<GitLogoOrange size={32} />}
                 showPaywallBadge={false}
                 onClick={() => setShowGitBridgeSyncModal(true)}
             >
