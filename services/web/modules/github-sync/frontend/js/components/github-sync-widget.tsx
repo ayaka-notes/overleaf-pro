@@ -115,9 +115,10 @@ export default function GitHubSyncWidget() {
 
 
       {/* Disconnect Confirmation Modal */}
-      <OLModal
+      <OLModal 
         show={showDisconnectModal}
         onHide={() => setShowDisconnectModal(false)}
+        backdrop="static" initialFocus={false} enforceFocus={false}
       >
         <OLModalHeader>
           <OLModalTitle>

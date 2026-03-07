@@ -224,7 +224,7 @@ export default function GitHubSyncButton() {
         {t('github_sync', { defaultValue: 'GitHub' })}
       </LeftMenuButton>
 
-      <OLModal show={showModal} onHide={() => setShowModal(false)} size="lg">
+      <OLModal show={showModal} onHide={() => setShowModal(false)} size="lg" backdrop="static" initialFocus={false}>
         <OLModalHeader>
           <OLModalTitle>
             {t('github_sync_title', { defaultValue: 'GitHub Sync' })}

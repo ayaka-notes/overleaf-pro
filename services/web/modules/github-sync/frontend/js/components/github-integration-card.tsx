@@ -697,7 +697,7 @@ function GitHubSyncModal({
   }, [show])
 
   return (
-    <OLModal show={show} onHide={handleHide} size="lg" backdrop="static">
+    <OLModal show={show} onHide={handleHide} size="lg" backdrop="static" initialFocus={false} enforceFocus={false}>
       <OLModalHeader closeButton>
         <OLModalTitle>{t('github_sync')}</OLModalTitle>
       </OLModalHeader>

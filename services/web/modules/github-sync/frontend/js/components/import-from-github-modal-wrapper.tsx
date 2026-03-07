@@ -160,7 +160,7 @@ export default function ImportFromGitHubModal({ onHide }: ImportFromGitHubModalP
   // backdrop="static" can prevent the modal from being closed by 
   // clicking outside of it
   return (
-    <OLModal show animation size="lg" onHide={onHide} backdrop="static">
+    <OLModal show animation size="lg" onHide={onHide} backdrop="static" initialFocus={false} enforceFocus={false}>
       <OLModalHeader onClose={onHide}>
         <OLModalTitle>
           {t('import_from_github')}
