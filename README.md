@@ -97,3 +97,7 @@ Please see the [CONTRIBUTING](CONTRIBUTING.md) file for information on contribut
 The code in this repository is released under the GNU AFFERO GENERAL PUBLIC LICENSE, version 3. A copy can be found in the [`LICENSE`](LICENSE) file.
 
 Copyright (c) Overleaf, 2014-2025.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/image?repos=ayaka-notes/overleaf-pro&type=timeline&legend=top-left)](https://www.star-history.com/?repos=ayaka-notes%2Foverleaf-pro&type=timeline&legend=top-left)
