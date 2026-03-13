@@ -101,6 +101,7 @@ function GitBridgeSyncModal({ show, projectId, handleHide }: GitBridgeSyncModalP
     return (
         <OLModal show={show} animation onHide={handleHide}
             id="git-bridge-sync-modal" backdrop="static" size="lg"
+            initialFocus={false} enforceFocus={false}
         >
             <ModalGitBridgeSync projectId={projectId} handleHide={handleHide}
             />
