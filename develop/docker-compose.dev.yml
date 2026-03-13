@@ -65,6 +65,17 @@ services:
       - ../services/filestore/app.js:/overleaf/services/filestore/app.js
       - ../services/filestore/config:/overleaf/services/filestore/config
 
+  github-sync:
+    command: ["node", "--watch", "app.js"]
+    environment:
+      - NODE_OPTIONS=--inspect=0.0.0.0:9229
+    ports:
+      - "127.0.0.1:9242:9229"
+    volumes:
+      - ../services/github-sync/app:/overleaf/services/github-sync/app
+      - ../services/github-sync/app.js:/overleaf/services/github-sync/app.js
+      - ../services/github-sync/config:/overleaf/services/github-sync/config
+
   history-v1:
     command: ["node", "--watch", "app.js"]
     environment:

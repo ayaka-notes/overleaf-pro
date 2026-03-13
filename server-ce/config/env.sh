@@ -12,6 +12,7 @@ export PROJECT_HISTORY_HOST=127.0.0.1
 export REALTIME_HOST=127.0.0.1
 export WEB_HOST=127.0.0.1
 export WEB_API_HOST=127.0.0.1
+export GITHUB_SYNC_HOST=127.0.0.1
 
 # If SANDBOXED_COMPILES_SIBLING_CONTAINERS is set to true, 
 # we need to set the TEXLIVE_IMAGE_USER to www-data so that the

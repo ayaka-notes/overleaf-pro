@@ -80,6 +80,7 @@ each service:
 | `history-v1`       | 9239 |
 | `project-history`  | 9240 |
 | `linked-url-proxy` | 9241 |
+| `github-sync`      | 9242 |
 
 To attach to a service using Chrome's _remote debugging_, go to
 <chrome://inspect/> and make sure _Discover network targets_ is checked. Next
