@@ -14,10 +14,28 @@
   <a href="#license">License</a>
 </p>
 
-<img src="doc/screenshot.png" alt="A screenshot of a project being edited in Overleaf Community Edition">
+<img src="doc/screenshot-pro.png" alt="A screenshot of a project being edited in Overleaf Community Edition">
 <p align="center">
-  Figure 1: A screenshot of a project being edited in Overleaf Community Edition.
+  Figure 1: A screenshot of a project being edited in Overleaf Pro Edition.
 </p>
+
+## Overleaf Pro Edition
+Overleaf Pro is an enhanced version of Overleaf with almost all features and capabilities. For details, please check [Overleaf Pro](https://overleaf-pro.ayaka.space) page. Features in Overleaf Pro include: 
+
+- GitHub Sync in 2-ways (Features in SaaS)
+- Git-Bridge Support (Features in Server Pro)
+- Admin Panel (User/Project management)
+- SSO with LDAP and SAML or OAuth 2.0
+- Unlimited Compile Times (Adjustable in admin panel)
+- Self Register (Optional, can be limited by mail domain)
+- Sandbox Compile (With [texlive-full](https://github.com/ayaka-notes/texlive-full) Image Support)
+- Template System (With Template Gallery)
+- Track Changes (With Review and Comment Panel)
+- Full Project History
+- Symbol Palette
+- ARM Support
+
+Last but not least, Overleaf Pro is open-source, free to use and modify. You can self-host it and contribute to the development of Overleaf Pro. For more details, please check [Developer Documentation](https://overleaf-pro.ayaka.space/dev) page.
 
 ## Community Edition
 
@@ -79,3 +97,7 @@ Please see the [CONTRIBUTING](CONTRIBUTING.md) file for information on contribut
 The code in this repository is released under the GNU AFFERO GENERAL PUBLIC LICENSE, version 3. A copy can be found in the [`LICENSE`](LICENSE) file.
 
 Copyright (c) Overleaf, 2014-2025.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/image?repos=ayaka-notes/overleaf-pro&type=timeline&legend=top-left)](https://www.star-history.com/?repos=ayaka-notes%2Foverleaf-pro&type=timeline&legend=top-left)

@@ -35,6 +35,9 @@ module.exports = [
   {
     name: 'linked-url-proxy',
   },
+  {
+    name: 'github-sync',
+  }
 ]
 
 if (require.main === module) {

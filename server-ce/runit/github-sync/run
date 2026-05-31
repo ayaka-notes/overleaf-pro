@@ -1,0 +1,12 @@
+#!/bin/bash
+
+NODE_PARAMS=""
+if [ "$DEBUG_NODE" == "true" ]; then
+    echo "running debug - github-sync"
+    NODE_PARAMS="--inspect=0.0.0.0:30670"
+fi
+
+source /etc/overleaf/env.sh
+export LISTEN_ADDRESS=127.0.0.1
+
+exec /sbin/setuser www-data /usr/bin/node $NODE_PARAMS /overleaf/services/github-sync/app.js >> /var/log/overleaf/github-sync.log 2>&1
