@@ -13,6 +13,7 @@ function CreateAccountModal({ onHide }: CreateAccountModalProps) {
       onHide={onHide}
       id="blank-user-modal"
       backdrop="static"
+      initialFocus={false} enforceFocus={false}
     >
       <ModalContentNewUserForm handleCloseModal={onHide} />
     </OLModal>

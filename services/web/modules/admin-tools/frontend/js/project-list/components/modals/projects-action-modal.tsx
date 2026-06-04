@@ -105,6 +105,7 @@ function ProjectsActionModal({
       onHide={handleCloseModal}
       id="admin-action-project-modal"
       backdrop="static"
+      initialFocus={false} enforceFocus={false}
     >
       <OLModalHeader>
         <OLModalTitle>{title}</OLModalTitle>

@@ -99,6 +99,7 @@ function UsersActionModal({
       onHide={handleCloseModal}
       id="action-user-modal"
       backdrop="static"
+      initialFocus={false} enforceFocus={false}
     >
       <OLModalHeader>
         <OLModalTitle>{title}</OLModalTitle>
