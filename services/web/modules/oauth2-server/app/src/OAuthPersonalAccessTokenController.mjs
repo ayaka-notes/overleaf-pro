@@ -61,10 +61,7 @@ const PersonalAccessTokenController = {
             return res.status(400).json({ message: 'Token id is required' })
         }
 
-        const result = await OAuthPersonalAccessTokenManager.removeToken(tokenId, user._id)
-        if (!result || result.deletedCount !== 1) {
-            return res.status(404).json({ message: 'Token not found' })
-        }
+        await OAuthPersonalAccessTokenManager.removeToken(tokenId)
 
         return res.json({ 
             message: 'Token deleted',

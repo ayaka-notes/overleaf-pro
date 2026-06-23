@@ -87,15 +87,10 @@ const PersonalAccessTokenManager = {
         return accessToken
     },
 
-    // Delete a personal access token owned by a specific user
-    async removeToken(tokenId, userId) {
-        if (!ObjectId.isValid(tokenId)) {
-            return { deletedCount: 0 }
-        }
+    // Delete a personal access token
+    async removeToken(tokenId) {
         const query = {
             _id: new ObjectId(tokenId),
-            user_id: userId,
-            type: 'personal_access_token',
         }
 
         // Delete token from database
