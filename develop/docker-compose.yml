@@ -71,6 +71,13 @@ services:
       - filestore-uploads:/overleaf/services/filestore/uploads
       - history-v1-buckets:/buckets
 
+  github-sync:
+    build:
+      context: ..
+      dockerfile: services/github-sync/Dockerfile
+    env_file:
+      - dev.env
+
   history-v1:
     build:
       context: ..
@@ -155,6 +162,7 @@ services:
     volumes:
       - sharelatex-data:/var/lib/overleaf
       - web-data:/overleaf/services/web/data
+      - ./data/certs/:/var/lib/overleaf/certs/
     depends_on:
       - mongo
       - redis
@@ -233,3 +241,9 @@ services:
       - "8081:8081"
     environment:
       ME_CONFIG_MONGODB_SERVER: mongo
+  
+  # For ldap testing
+  # https://github.com/rroemhild/docker-test-openldap
+  ldap:
+    restart: always
+    image: ghcr.io/rroemhild/docker-test-openldap:v2.5.0
