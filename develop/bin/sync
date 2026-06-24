@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+###########################################################
+# 1. This script sync packages-lock.json and packages.json 
+#      to the same.
+# 2. node image is needed to run
+#      `npm install` command to update packages-lock.json.
+###########################################################
+
+MONO_REPO_ROOT=$(git rev-parse --show-toplevel)
+
+docker run --rm \
+  -v "$MONO_REPO_ROOT":/workspace \
+  -w /workspace \
+  node:22.18.0 \
+  npm install --package-lock-only --ignore-scripts
