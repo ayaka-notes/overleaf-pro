@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from 'react-bootstrap'
 import { CopyToClipboard } from '@/shared/components/copy-to-clipboard'
 import { useProjectContext } from '@/shared/context/project-context'
-import IntegrationCard from '@/features/ide-redesign/components/integrations-panel/integration-card'
+import IntegrationCard from '@/features/integrations-panel/integration-card'
 import GitLogoOrange from '@/shared/svgs/git-logo-orange'
 
 import {

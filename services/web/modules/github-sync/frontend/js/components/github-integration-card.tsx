@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useState, useEffect } from 'react'
 import GithubLogo from '@/shared/svgs/github-logo'
 import { useProjectContext } from '@/shared/context/project-context'
-import IntegrationCard from '@/features/ide-redesign/components/integrations-panel/integration-card'
+import IntegrationCard from '@/features/integrations-panel/integration-card'
 import {
   OLModalBody,
   OLModalFooter,
