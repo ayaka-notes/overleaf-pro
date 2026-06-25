@@ -12,7 +12,8 @@ import TemplatesManager from '../Templates/TemplatesManager.mjs'
 import { z, zz, parseReq } from '../../infrastructure/Validation.mjs'
 import AdminAuthorizationHelper from '../Helpers/AdminAuthorizationHelper.mjs'
 
-const { useAdminCapabilities } = AdminAuthorizationHelper
+const { useAdminCapabilities, useNonAdminDomainCapabilities } =
+  AdminAuthorizationHelper
 // set of middleware arrays or functions that checks user access to an entity
 // (publisher, institution, group, template, etc.)
 const UserMembershipMiddleware = {
@@ -23,7 +24,7 @@ const UserMembershipMiddleware = {
     requireEntity(),
     allowAccessIfAny([
       UserMembershipAuthorization.hasEntityAccess(),
-      UserMembershipAuthorization.hasStaffAccess('groupMetrics'),
+      UserMembershipAuthorization.hasAdminAccess,
     ]),
   ],
 
@@ -36,7 +37,12 @@ const UserMembershipMiddleware = {
     requireEntity(),
   ],
 
-  requireEntityAccess: ({ entityName, staffAccess, adminCapability }) => [
+  requireEntityAccess: (
+    /** @type {{ entityName: any; adminCapability?: any }} */ {
+      entityName,
+      adminCapability,
+    }
+  ) => [
     AuthenticationController.requireLogin(),
     fetchEntityConfig(entityName),
     fetchEntity(),
@@ -44,27 +50,24 @@ const UserMembershipMiddleware = {
     allowAccessIfAny(
       [
         UserMembershipAuthorization.hasEntityAccess(),
-        staffAccess && UserMembershipAuthorization.hasStaffAccess(staffAccess),
         adminCapability &&
           UserMembershipAuthorization.hasAdminCapability(adminCapability),
       ].filter(Boolean)
     ),
   ],
 
-  requireEntityAccessOrAdminAccess: entityName => [
+  requireEntityAccessOrAdminAccess: (/** @type {any} */ entityName) => [
     AuthenticationController.requireLogin(),
     fetchEntityConfig(entityName),
     fetchEntity(),
     requireEntity(),
     allowAccessIfAny([
       UserMembershipAuthorization.hasEntityAccess(),
-      UserMembershipAuthorization.hasStaffAccess('groupManagement'),
-      // allow to all admins when `adminRolesEnabled` is true
-      UserMembershipAuthorization.hasAnyAdminRole,
+      UserMembershipAuthorization.hasAdminCapability('modify-group'),
     ]),
   ],
 
-  requireGroupMemberManagement: entityName => [
+  requireGroupMemberManagement: (/** @type {any} */ entityName) => [
     AuthenticationController.requireLogin(),
     fetchEntityConfig(entityName),
     fetchEntity(),
@@ -72,7 +75,6 @@ const UserMembershipMiddleware = {
     useAdminCapabilities,
     allowAccessIfAny([
       UserMembershipAuthorization.hasEntityAccess(),
-      UserMembershipAuthorization.hasStaffAccess('groupManagement'),
       UserMembershipAuthorization.hasModifyGroupMemberCapability,
     ]),
   ],
@@ -84,7 +86,7 @@ const UserMembershipMiddleware = {
     requireEntity(),
     allowAccessIfAny([
       UserMembershipAuthorization.hasEntityAccess(),
-      UserMembershipAuthorization.hasStaffAccess('groupMetrics'),
+      UserMembershipAuthorization.hasAdminAccess,
     ]),
   ],
 
@@ -92,42 +94,63 @@ const UserMembershipMiddleware = {
     AuthenticationController.requireLogin(),
     fetchEntityConfig('institution'),
     fetchEntity(),
-    requireEntityOrCreate('institutionManagement'),
+    requireEntityOrCreate(),
     allowAccessIfAny([
       UserMembershipAuthorization.hasEntityAccess(),
-      UserMembershipAuthorization.hasStaffAccess('institutionMetrics'),
+      UserMembershipAuthorization.hasAdminAccess,
     ]),
   ],
 
-  requireInstitutionManagementAccess: [
+  requireInstitutionManagerAccess: [
     AuthenticationController.requireLogin(),
     fetchEntityConfig('institution'),
     fetchEntity(),
-    requireEntityOrCreate('institutionManagement'),
+    requireEntityOrCreate(),
+    useAdminCapabilities,
     allowAccessIfAny([
       UserMembershipAuthorization.hasEntityAccess(),
-      UserMembershipAuthorization.hasStaffAccess('institutionManagement'),
+      UserMembershipAuthorization.hasAdminAccess,
     ]),
   ],
 
-  requireInstitutionManagementStaffAccess: [
+  requireInstitutionManagerManagement: [
     AuthenticationController.requireLogin(),
-    allowAccessIfAny([
-      UserMembershipAuthorization.hasStaffAccess('institutionManagement'),
-    ]),
     fetchEntityConfig('institution'),
     fetchEntity(),
-    requireEntityOrCreate('institutionManagement'),
+    requireEntityOrCreate(),
+    useAdminCapabilities,
+    allowAccessIfAny([
+      UserMembershipAuthorization.hasEntityAccess(),
+      UserMembershipAuthorization.hasAdminCapability(
+        'modify-institution-manager'
+      ),
+    ]),
+  ],
+
+  requireInstitutionAIAccess: [
+    AuthenticationController.requireLogin(),
+    fetchEntityConfig('institution'),
+    fetchEntity(),
+    requireEntityOrCreate(),
+    allowAccessIfAny([UserMembershipAuthorization.hasAdminAccess]),
+  ],
+
+  requireInstitutionStaffHubAccess: [
+    AuthenticationController.requireLogin(),
+    fetchEntityConfig('institution'),
+    fetchEntity(),
+    requireEntityOrCreate(),
+    allowAccessIfAny([UserMembershipAuthorization.hasAdminAccess]),
   ],
 
   requirePublisherMetricsAccess: [
     AuthenticationController.requireLogin(),
     fetchEntityConfig('publisher'),
     fetchEntity(),
-    requireEntityOrCreate('publisherManagement'),
+    requireEntityOrCreate(),
     allowAccessIfAny([
       UserMembershipAuthorization.hasEntityAccess(),
-      UserMembershipAuthorization.hasStaffAccess('publisherMetrics'),
+      UserMembershipAuthorization.hasAdminAccess,
     ]),
   ],
 
@@ -135,10 +158,13 @@ const UserMembershipMiddleware = {
     AuthenticationController.requireLogin(),
     fetchEntityConfig('publisher'),
     fetchEntity(),
-    requireEntityOrCreate('publisherManagement'),
+    requireEntityOrCreate(),
+    useAdminCapabilities,
     allowAccessIfAny([
       UserMembershipAuthorization.hasEntityAccess(),
-      UserMembershipAuthorization.hasStaffAccess('publisherManagement'),
+      UserMembershipAuthorization.hasAdminCapability(
+        'modify-publisher-manager'
+      ),
     ]),
   ],
 
@@ -146,18 +172,16 @@ const UserMembershipMiddleware = {
     AuthenticationController.requireLogin(),
     fetchEntityConfig('publisher'),
     fetchEntity(),
-    requireEntityOrCreate('publisherManagement'),
+    requireEntityOrCreate(),
     allowAccessIfAny([
       UserMembershipAuthorization.hasEntityAccess(),
-      UserMembershipAuthorization.hasStaffAccess('publisherMetrics'),
+      UserMembershipAuthorization.hasAdminAccess,
     ]),
   ],
 
   requireAdminMetricsAccess: [
     AuthenticationController.requireLogin(),
-    allowAccessIfAny([
-      UserMembershipAuthorization.hasStaffAccess('adminMetrics'),
-    ]),
+    allowAccessIfAny([UserMembershipAuthorization.hasAdminAccess]),
   ],
 
   requireTemplateMetricsAccess: [
@@ -168,42 +192,39 @@ const UserMembershipMiddleware = {
     fetchPublisherFromTemplate(),
     allowAccessIfAny([
       UserMembershipAuthorization.hasEntityAccess(),
-      UserMembershipAuthorization.hasStaffAccess('publisherMetrics'),
+      UserMembershipAuthorization.hasAdminAccess,
     ]),
   ],
 
   requirePublisherCreationAccess: [
     AuthenticationController.requireLogin(),
-    allowAccessIfAny([
-      UserMembershipAuthorization.hasStaffAccess('publisherManagement'),
-    ]),
+    allowAccessIfAny([UserMembershipAuthorization.hasAdminAccess]),
     fetchEntityConfig('publisher'),
   ],
 
   requireInstitutionCreationAccess: [
     AuthenticationController.requireLogin(),
-    allowAccessIfAny([
-      UserMembershipAuthorization.hasStaffAccess('institutionManagement'),
-    ]),
+    allowAccessIfAny([UserMembershipAuthorization.hasAdminAccess]),
     fetchEntityConfig('institution'),
   ],
 
   requireSplitTestMetricsAccess: [
     AuthenticationController.requireLogin(),
-    useAdminCapabilities,
+    useNonAdminDomainCapabilities,
     allowAccessIfAny([
-      UserMembershipAuthorization.hasStaffAccess('splitTestMetrics'),
-      UserMembershipAuthorization.hasStaffAccess('splitTestManagement'),
-      UserMembershipAuthorization.hasAdminCapability('view-split-test'),
+      UserMembershipAuthorization.hasNonAdminDomainCapability(
+        'view-split-test'
+      ),
     ]),
   ],
 
   requireSplitTestManagementAccess: [
     AuthenticationController.requireLogin(),
-    useAdminCapabilities,
+    useNonAdminDomainCapabilities,
     allowAccessIfAny([
-      UserMembershipAuthorization.hasStaffAccess('splitTestManagement'),
-      UserMembershipAuthorization.hasAdminCapability('modify-split-test'),
+      UserMembershipAuthorization.hasNonAdminDomainCapability(
+        'modify-split-test'
+      ),
     ]),
   ],
 
@@ -212,10 +233,20 @@ const UserMembershipMiddleware = {
 
 export default UserMembershipMiddleware
 
-// fetch entity config and set it in the request
+/**
+ * fetch entity config and set it in the request
+ *
+ * @param {any} entityName
+ */
 function fetchEntityConfig(entityName) {
-  return (req, res, next) => {
-    const entityConfig = EntityConfigs[entityName]
+  return (
+    /** @type {any} */ req,
+    /** @type {any} */ res,
+    /** @type {any} */ next
+  ) => {
+    const entityConfig = /** @type {Record<string, any>} */ (EntityConfigs)[
+      entityName
+    ]
     req.entityName = entityName
     req.entityConfig = entityConfig
     next()
@@ -242,6 +273,7 @@ const ObjectIdEntitySchema = z.object({
     'groupAdmin',
     'groupManagers',
     'groupMember',
+    'groupUsers',
   ]),
   params: z.object({
     id: zz.coercedObjectId(),
@@ -259,6 +291,11 @@ const fetchEntitySchema = z.discriminatedUnion('entityName', [
 // `req.params.id`
 // - the entity name is in `req.query.resource_type` and is used to find the
 // require middleware depending on the entity name
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 function requireGraphAccess(req, res, next) {
   const entityName = req.query.resource_type
   if (!entityName) {
@@ -267,8 +304,9 @@ function requireGraphAccess(req, res, next) {
   const middleWareName =
     entityName.charAt(0).toUpperCase() + entityName.slice(1)
 
-  const middlewares =
-    UserMembershipMiddleware[`require${middleWareName}MetricsAccess`]
+  const middlewares = /** @type {Record<string, any>} */ (
+    UserMembershipMiddleware
+  )[`require${middleWareName}MetricsAccess`]
   if (!middlewares) {
     return HttpErrorHandler.notFound(
       req,
@@ -280,25 +318,42 @@ function requireGraphAccess(req, res, next) {
   // call next router with fixed params to pass it to the correct middleware chain
   const { graph } = req.params
   const entityRoute = entityName === 'splitTest' ? 'split-test' : entityName
-  req.url = `/graphs/${entityRoute}/${graph}/${req.query.resource_id}`
+
+  // all other routes go through analytics, which map undefined graph type to index (to fetch all graphs)
+  // conversion still goes directly to v1, which can not handle an undefined graph param
+  if (!graph?.length && entityRoute === 'conversion') {
+    req.url = `/graphs/conversion/index/${req.query.resource_id}`
+  } else {
+    req.url = `/graphs/${entityRoute}/${graph}/${req.query.resource_id}`
+  }
   next('route')
 }
 
 // fetch the entity with id and config, and set it in the request
 function fetchEntity() {
-  return expressify(async (req, res, next) => {
-    const { params } = parseReq(req, fetchEntitySchema)
-    req.entity =
-      await UserMembershipHandler.promises.getEntityWithoutAuthorizationCheck(
-        params.id,
-        req.entityConfig
-      )
-    next()
-  })
+  return expressify(
+    async (
+      /** @type {any} */ req,
+      /** @type {any} */ res,
+      /** @type {any} */ next
+    ) => {
+      const { params } = parseReq(req, fetchEntitySchema)
+      req.entity =
+        await UserMembershipHandler.promises.getEntityWithoutAuthorizationCheck(
+          params.id,
+          req.entityConfig
+        )
+      next()
+    }
+  )
 }
 
 function fetchPublisherFromTemplate() {
-  return (req, res, next) => {
+  return (
+    /** @type {any} */ req,
+    /** @type {any} */ res,
+    /** @type {any} */ next
+  ) => {
     if (req.template.brand.slug) {
       // set the id as the publisher's id as it's the entity used for access
       // control
@@ -312,7 +367,11 @@ function fetchPublisherFromTemplate() {
 
 // ensure an entity was found, or fail with 404
 function requireEntity() {
-  return (req, res, next) => {
+  return (
+    /** @type {any} */ req,
+    /** @type {any} */ res,
+    /** @type {any} */ next
+  ) => {
     if (req.entity) {
       return next()
     }
@@ -323,15 +382,21 @@ function requireEntity() {
   }
 }
 
-// ensure an entity was found or redirect to entity creation page if the user
-// has permissions to create the entity, or fail with 404
-function requireEntityOrCreate(creationStaffAccess) {
-  return (req, res, next) => {
+/**
+ * ensure an entity was found or redirect to entity creation page if the user
+ * has permissions to create the entity, or fail with 404
+ */
+function requireEntityOrCreate() {
+  return (
+    /** @type {any} */ req,
+    /** @type {any} */ res,
+    /** @type {any} */ next
+  ) => {
     if (req.entity) {
       return next()
     }
 
-    if (UserMembershipAuthorization.hasStaffAccess(creationStaffAccess)(req)) {
+    if (UserMembershipAuthorization.hasAdminAccess(req)) {
       res.redirect(`/entities/${req.entityName}/create/${req.params.id}`)
       return
     }
@@ -344,21 +409,31 @@ function requireEntityOrCreate(creationStaffAccess) {
 
 // fetch the template from v1, and set it in the request
 function fetchV1Template() {
-  return expressify(async (req, res, next) => {
-    const templateId = req.params.id
-    const body = await TemplatesManager.promises.fetchFromV1(templateId)
-    req.template = {
-      id: body.id,
-      title: body.title,
-      brand: body.brand,
+  return expressify(
+    async (
+      /** @type {any} */ req,
+      /** @type {any} */ res,
+      /** @type {any} */ next
+    ) => {
+      const templateId = req.params.id
+      const body = await TemplatesManager.promises.fetchFromV1(templateId)
+      req.template = {
+        id: body.id,
+        title: body.title,
+        brand: body.brand,
+      }
+      next()
     }
-    next()
-  })
+  )
 }
 
 // ensure a template was found, or fail with 404
 function requireV1Template() {
-  return (req, res, next) => {
+  return (
+    /** @type {any} */ req,
+    /** @type {any} */ res,
+    /** @type {any} */ next
+  ) => {
     if (req.template.id) {
       return next()
     }
@@ -367,10 +442,18 @@ function requireV1Template() {
   }
 }
 
-// run a serie of synchronous access functions and call `next` if any of the
-// retur values is truly. Redirect to restricted otherwise
+/**
+ * run a series of synchronous access functions and call `next` if any of the
+ * return values is truly. Redirect to restricted otherwise
+ *
+ * @param {any} accessFunctions
+ */
 function allowAccessIfAny(accessFunctions) {
-  return (req, res, next) => {
+  return (
+    /** @type {any} */ req,
+    /** @type {any} */ res,
+    /** @type {any} */ next
+  ) => {
     for (const accessFunction of accessFunctions) {
       if (accessFunction(req)) {
         return next()

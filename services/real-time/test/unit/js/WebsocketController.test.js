@@ -550,7 +550,12 @@ describe('WebsocketController', function () {
         .callsArgWith(2, null)
       ctx.DocumentUpdaterManager.getDocument = sinon
         .stub()
-        .callsArgWith(3, null, ctx.doc_lines, ctx.version, ctx.ranges, ctx.ops)
+        .callsArgWith(3, null, {
+          lines: ctx.doc_lines,
+          version: ctx.version,
+          ranges: ctx.ranges,
+          ops: ctx.ops,
+        })
       ctx.RoomManager.joinDoc = sinon.stub().callsArg(2)
     })
 
@@ -720,6 +725,28 @@ describe('WebsocketController', function () {
 
       it('should not call the DocumentUpdaterManager', function (ctx) {
         ctx.DocumentUpdaterManager.getDocument.called.should.equal(false)
+      })
+    })
+
+    describe('when the DocumentUpdaterManager returns an error', function () {
+      beforeEach(function (ctx) {
+        ctx.err = new Error('document updater error')
+        ctx.DocumentUpdaterManager.getDocument = sinon
+          .stub()
+          .callsArgWith(3, ctx.err)
+        ctx.WebsocketController.joinDoc(
+          ctx.client,
+          ctx.doc_id,
+          -1,
+          ctx.options,
+          ctx.callback
+        )
+      })
+
+      it('should call the callback with the error', function (ctx) {
+        ctx.callback
+          .calledWith(sinon.match({ message: 'document updater error' }))
+          .should.equal(true)
       })
     })
 
@@ -937,7 +964,12 @@ describe('WebsocketController', function () {
           callback
         ) => {
           ctx.client.disconnected = true
-          callback(null, ctx.doc_lines, ctx.version, ctx.ranges, ctx.ops)
+          return callback(null, {
+            lines: ctx.doc_lines,
+            version: ctx.version,
+            ranges: ctx.ranges,
+            ops: ctx.ops,
+          })
         }
 
         ctx.WebsocketController.joinDoc(

@@ -2,12 +2,12 @@ import { screen, within, render } from '@testing-library/react'
 import { expect } from 'chai'
 import fetchMock from 'fetch-mock'
 import type { ImageName } from '../../../../../types/project-settings'
-import { SettingsModalProvider } from '@/features/ide-redesign/contexts/settings-modal-context'
+import { SettingsModalProvider } from '@/features/settings/context/settings-modal-context'
 import {
   EditorProviders,
   projectDefaults,
 } from '../../../helpers/editor-providers'
-import ImageNameSetting from '@/features/ide-redesign/components/settings/compiler-settings/image-name-setting'
+import ImageNameSetting from '@/features/settings/components/compiler-settings/image-name-setting'
 import userEvent from '@testing-library/user-event'
 
 describe('<ImageNameSetting />', function () {

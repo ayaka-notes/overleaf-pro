@@ -5,10 +5,21 @@ import mongodb from 'mongodb-legacy'
 import cheerio from 'cheerio'
 import { Subscription } from '../../../app/src/models/Subscription.mjs'
 import Features from '../../../app/src/infrastructure/Features.mjs'
+import Metrics from './helpers/metrics.mjs'
 
 const ObjectId = mongodb.ObjectId
 
 const User = UserHelper.promises
+
+async function getProjectAccessStats() {
+  const hit = await Metrics.promises.sumMetrics(
+    s => s.startsWith('project_access_cache') && s.includes('"hit"')
+  )
+  const miss = await Metrics.promises.sumMetrics(
+    s => s.startsWith('project_access_cache') && s.includes('"miss"')
+  )
+  return { hit, miss }
+}
 
 describe('Project CRUD', function () {
   beforeEach(async function () {
@@ -64,6 +75,22 @@ describe('Project CRUD', function () {
       expect(body).to.include(
         '<meta name="ol-showUpgradePrompt" data-type="boolean">'
       )
+    })
+
+    it('should cache the project access', async function () {
+      const prev = await getProjectAccessStats()
+      await loadProject(this.user, this.projectId)
+      if (Features.hasFeature('saas')) {
+        expect(await getProjectAccessStats()).to.deep.equal({
+          hit: prev.hit + 7,
+          miss: prev.miss + 1,
+        })
+      } else {
+        expect(await getProjectAccessStats()).to.deep.equal({
+          hit: prev.hit + 4,
+          miss: prev.miss + 1,
+        })
+      }
     })
   })
 
@@ -192,14 +219,13 @@ describe('Project CRUD', function () {
     })
     it('returns a 400 when publicAccessLevel is an unsupported access level', async function () {
       await this.user.makePrivate(this.projectId)
-      const { response, body } = await this.user.doRequest('POST', {
+      const { response } = await this.user.doRequest('POST', {
         url: `/project/${this.projectId}/settings/admin`,
         json: {
           publicAccessLevel: 'readOnly',
         },
       })
       expect(response.statusCode).to.equal(400)
-      expect(body.details[0].message).to.equal('unexpected access level')
       const project = await Project.findById(this.projectId).exec()
       expect(project.publicAccesLevel).to.equal('private')
     })

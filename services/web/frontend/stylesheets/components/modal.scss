@@ -3,8 +3,12 @@
 }
 
 .modal {
-  // Until we add a dark modal version, all dropdowns in modals should use light theme
+  // Until we add a dark modal version, all core components in modals should use light theme
   @include light-dropdown-menu;
+  @include form-check-light;
+  @include light-notification;
+  @include light-input;
+  @include light-buttons;
 }
 
 @include media-breakpoint-up(sm) {
@@ -27,6 +31,15 @@
   .modal-lg {
     @include modal-lg;
   }
+}
+
+// OLModal wraps children in a FocusTrap that renders a <div> between
+// .modal-content and .modal-header/.modal-body/.modal-footer, breaking
+// Bootstrap's flex chain for scrollable modals. display: contents makes the
+// wrapper invisible to the layout engine so Bootstrap's flex/overflow chain
+// reaches .modal-body correctly.
+.modal-dialog-scrollable .modal-content > .focus-trap-container {
+  display: contents;
 }
 
 .modal-content {

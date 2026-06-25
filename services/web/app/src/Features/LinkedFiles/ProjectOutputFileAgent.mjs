@@ -158,24 +158,19 @@ function _getFileStream(linkedFileData, userId, callback) {
       return callback(err)
     }
     const sourceProjectId = project._id
-    CompileManager.getProjectCompileLimits(sourceProjectId, (err, limits) => {
-      if (err) return callback(err)
-
-      ClsiManager.getOutputFileStream(
-        sourceProjectId,
-        userId,
-        limits,
-        clsiServerId,
-        buildId,
-        sourceOutputFilePath,
-        (err, readStream) => {
-          if (err) {
-            return callback(err)
-          }
-          callback(null, readStream)
+    ClsiManager.getOutputFileStream(
+      sourceProjectId,
+      userId,
+      clsiServerId,
+      buildId,
+      sourceOutputFilePath,
+      (err, readStream) => {
+        if (err) {
+          return callback(err)
         }
-      )
-    })
+        callback(null, readStream)
+      }
+    )
   })
 }
 
@@ -191,7 +186,7 @@ function _compileAndGetFileStream(linkedFileData, userId, callback) {
       sourceProjectId,
       userId,
       {},
-      (err, status, outputFiles, clsiServerId, limits) => {
+      (err, status, outputFiles, clsiServerId) => {
         if (err) {
           return callback(err)
         }
@@ -209,7 +204,6 @@ function _compileAndGetFileStream(linkedFileData, userId, callback) {
         ClsiManager.getOutputFileStream(
           sourceProjectId,
           userId,
-          limits,
           clsiServerId,
           buildId,
           sourceOutputFilePath,

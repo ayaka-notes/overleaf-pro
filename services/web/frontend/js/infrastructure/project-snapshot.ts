@@ -256,7 +256,7 @@ export class ProjectSnapshot {
 /**
  * Blob store that fetches blobs from the history service
  */
-class SimpleBlobStore {
+export class SimpleBlobStore {
   private projectId: string
 
   constructor(projectId: string) {
@@ -280,7 +280,7 @@ async function flushHistory(projectId: string) {
   await postJSON(`/project/${projectId}/flush`)
 }
 
-async function fetchLatestChunk(projectId: string): Promise<Chunk> {
+export async function fetchLatestChunk(projectId: string): Promise<Chunk> {
   const response = await getJSON<{ chunk: RawChunk }>(
     `/project/${projectId}/latest/history`
   )
@@ -347,5 +347,13 @@ async function fetchBlob(
   if (!res.ok) {
     throw new FetchError('Failed to fetch blob', url, undefined, res)
   }
-  return await res.text()
+
+  // Use arrayBuffer + TextDecoder rather than res.text() to preserve any
+  // UTF-8 BOM (U+FEFF) in the blob content. The server stores blobs as-is
+  // and includes the BOM in stringLength, so text operations are built
+  // against a BOM-inclusive length. Response.text() strips the BOM per the
+  // Encoding spec, making the string 1 char shorter than expected and causing
+  // ApplyError when the operations are applied.
+  const buffer = await res.arrayBuffer()
+  return new TextDecoder('utf-8', { ignoreBOM: true }).decode(buffer)
 }

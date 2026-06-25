@@ -2,7 +2,13 @@
 # Instead run bin/update_build_scripts from
 # https://github.com/overleaf/internal/
 
-FROM node:22.18.0 AS base
+FROM node:24.14.1 AS base
+
+# Corepack setup, shared between all the images.
+ENV PATH="/overleaf/node_modules/.bin:$PATH"
+ENV COREPACK_HOME=/opt/corepack
+RUN corepack enable && corepack install -g yarn@4.14.1
+ENV COREPACK_ENABLE_NETWORK=0
 
 WORKDIR /overleaf/services/history-v1
 COPY services/history-v1/install_deps.sh /overleaf/services/history-v1/
@@ -17,7 +23,8 @@ RUN mkdir /buckets && chown node:node /buckets
 
 FROM base AS app
 
-COPY package.json package-lock.json /overleaf/
+COPY package.json yarn.lock .yarnrc.yml /overleaf/
+COPY libraries/eslint-plugin/package.json /overleaf/libraries/eslint-plugin/package.json
 COPY libraries/fetch-utils/package.json /overleaf/libraries/fetch-utils/package.json
 COPY libraries/logger/package.json /overleaf/libraries/logger/package.json
 COPY libraries/metrics/package.json /overleaf/libraries/metrics/package.json
@@ -32,10 +39,11 @@ COPY libraries/stream-utils/package.json /overleaf/libraries/stream-utils/packag
 COPY libraries/validation-tools/package.json /overleaf/libraries/validation-tools/package.json
 COPY services/history-v1/package.json /overleaf/services/history-v1/package.json
 COPY tools/migrations/package.json /overleaf/tools/migrations/package.json
-COPY patches/ /overleaf/patches/
+COPY .yarn/patches/ /overleaf/.yarn/patches/
 COPY tools/migrations/ /overleaf/tools/migrations/
 
-RUN cd /overleaf && npm ci --quiet
+RUN cd /overleaf && yarn workspaces focus overleaf-editor overleaf
+COPY libraries/eslint-plugin/ /overleaf/libraries/eslint-plugin/
 COPY libraries/fetch-utils/ /overleaf/libraries/fetch-utils/
 COPY libraries/logger/ /overleaf/libraries/logger/
 COPY libraries/metrics/ /overleaf/libraries/metrics/

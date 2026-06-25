@@ -14,6 +14,7 @@ class MockV1Api extends AbstractMockApi {
     this.existingEmails = []
     this.exportId = null
     this.exportParams = null
+    this.exportToken = null
     this.institutionDomains = {}
     this.institutionId = 1000
     this.institutions = {}
@@ -47,6 +48,10 @@ class MockV1Api extends AbstractMockApi {
 
   setExportId(id) {
     this.exportId = id
+  }
+
+  setExportToken(token) {
+    this.exportToken = token
   }
 
   getLastExportParams() {
@@ -209,7 +214,28 @@ class MockV1Api extends AbstractMockApi {
 
     this.app.post('/api/v1/overleaf/exports', (req, res) => {
       this.exportParams = Object.assign({}, req.body)
-      res.json({ exportId: this.exportId })
+      res.json({ exportId: this.exportId, token: this.exportToken })
+    })
+
+    this.app.get('/api/v1/overleaf/exports/:id', (req, res) => {
+      const { token } = req.query
+      if (token && token !== this.exportToken) {
+        return res.sendStatus(404)
+      }
+      res.json({
+        id: parseInt(req.params.id, 10),
+        status_summary: 'succeeded',
+        token: this.exportToken,
+      })
+    })
+
+    this.app.get('/api/v1/overleaf/exports/:id/zip_url', (req, res) => {
+      const { token } = req.query
+      if (token && token !== this.exportToken) {
+        return res.sendStatus(404)
+      }
+      res.set('Content-Type', 'text/plain')
+      return res.end('https://example.com/export.zip')
     })
 
     this.app.get('/api/v2/users/:userId/affiliations', (req, res) => {
@@ -476,6 +502,25 @@ class MockV1Api extends AbstractMockApi {
       }
       res.json(template)
     })
+
+    this.app.get(
+      '/api/v1/overleaf/fake_route_api_handler_tests',
+      (req, res) => {
+        const expectedStatus = req.query.expectedStatus
+        const expectedBody = req.query.expectedBody
+        const statusCode = Number(expectedStatus)
+        if (
+          !Number.isInteger(statusCode) ||
+          statusCode < 100 ||
+          statusCode > 599
+        ) {
+          return res
+            .status(500)
+            .json({ error: 'Invalid expectedStatus query parameter' })
+        }
+        return res.status(statusCode).json(JSON.parse(expectedBody))
+      }
+    )
   }
 }
 

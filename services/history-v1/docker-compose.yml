@@ -15,6 +15,10 @@ services:
       - .:/overleaf/services/history-v1
       - ../../node_modules:/overleaf/node_modules
       - ../../libraries:/overleaf/libraries
+      - ../../package.json:/overleaf/package.json
+      - ../../.yarnrc.yml:/overleaf/.yarnrc.yml
+      - ../../yarn.lock:/overleaf/yarn.lock
+      - ../../.yarn:/overleaf/.yarn
       - ../../bin/shared/wait_for_it:/overleaf/bin/shared/wait_for_it
       - ../../tools/migrations:/overleaf/tools/migrations
     working_dir: /overleaf/services/history-v1
@@ -28,8 +32,9 @@ services:
       HISTORY_REDIS_HOST: redis_test
       QUEUES_REDIS_HOST: redis_test
       ANALYTICS_QUEUES_REDIS_HOST: redis_test
+      ANALYTICS_QUEUES_BQ_SINK_REDIS_HOST: redis_test
     entrypoint: /overleaf/bin/shared/wait_for_it mongo:27017 --timeout=60 --
-    command: npm run --silent test:unit
+    command: yarn run --silent test:unit
     user: node
     depends_on:
       mongo:
@@ -46,20 +51,25 @@ services:
       - .:/overleaf/services/history-v1
       - ../../node_modules:/overleaf/node_modules
       - ../../libraries:/overleaf/libraries
+      - ../../package.json:/overleaf/package.json
+      - ../../.yarnrc.yml:/overleaf/.yarnrc.yml
+      - ../../yarn.lock:/overleaf/yarn.lock
+      - ../../.yarn:/overleaf/.yarn
       - minio-certs:/certs
       - ../../bin/shared/wait_for_it:/overleaf/bin/shared/wait_for_it
       - ../../tools/migrations:/overleaf/tools/migrations
     working_dir: /overleaf/services/history-v1
     environment:
-      ELASTIC_SEARCH_DSN: es:9200
+      RETRIES:
       REDIS_HOST: redis_test
       HISTORY_REDIS_HOST: redis_test
       QUEUES_REDIS_HOST: redis_test
       ANALYTICS_QUEUES_REDIS_HOST: redis_test
+      ANALYTICS_QUEUES_BQ_SINK_REDIS_HOST: redis_test
       MONGO_CONNECTION_STRING: mongodb://mongo/test-overleaf
       POSTGRES_HOST: postgres
       AWS_S3_ENDPOINT: https://minio:9000
-      AWS_S3_PATH_STYLE: 'true'
+      AWS_S3_PATH_STYLE: "true"
       DELETE_OBJECTS_MD5_FALLBACK: true
       AWS_ACCESS_KEY_ID: OVERLEAF_HISTORY_S3_ACCESS_KEY_ID
       AWS_SECRET_ACCESS_KEY: OVERLEAF_HISTORY_S3_SECRET_ACCESS_KEY
@@ -89,10 +99,10 @@ services:
       gcs:
         condition: service_healthy
     entrypoint: /overleaf/bin/shared/wait_for_it mongo:27017 --timeout=60 --
-    command: npm run --silent test:acceptance
+    command: yarn run --silent test:acceptance
 
   redis_test:
-    image: redis:7.4.3
+    image: redis:7.4.8
     healthcheck:
       test: ping=$$(redis-cli ping) && [ "$$ping" = 'PONG' ]
       interval: 1s
@@ -114,7 +124,7 @@ services:
       - mongo:127.0.0.1
 
   postgres:
-    image: postgres:10
+    image: postgres:14
     environment:
       POSTGRES_USER: overleaf
       POSTGRES_PASSWORD: overleaf
@@ -129,7 +139,7 @@ services:
   certs:
     build:
       dockerfile_inline: |
-        FROM node:22.18.0
+        FROM node:24.14.1
         RUN wget -O /certgen "https://github.com/minio/certgen/releases/download/v1.3.0/certgen-linux-"`dpkg --print-architecture`
         RUN chmod +x /certgen
     volumes:
@@ -137,7 +147,7 @@ services:
     working_dir: /certs
     entrypoint: sh
     command:
-      - '-cex'
+      - "-cex"
       - |
         if [ ! -f private.key ] || [ ! -f public.crt ]; then
           /certgen -host minio
@@ -169,7 +179,7 @@ services:
       - minio-certs:/root/.mc/certs/CAs
     entrypoint: sh
     command:
-      - '-cex'
+      - "-cex"
       - |
         sleep 1
         mc alias set s3 https://minio:9000 MINIO_ROOT_USER MINIO_ROOT_PASSWORD \
@@ -272,6 +282,7 @@ services:
         mc admin policy create s3 overleaf-history policy-history.json
         mc admin policy attach s3 overleaf-history \
           --user=OVERLEAF_HISTORY_S3_ACCESS_KEY_ID
+
   gcs:
     image: fsouza/fake-gcs-server:1.52.3
     command: ["--port=9090", "--scheme=http", "--external-url=http://gcs:9090"]

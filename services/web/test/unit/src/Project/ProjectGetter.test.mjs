@@ -20,10 +20,13 @@ describe('ProjectGetter', function () {
     ctx.Project = {
       find: sinon.stub().returns({
         exec: sinon.stub().resolves(),
+        populate: sinon.stub().returnsThis(),
+        limit: sinon.stub().returnsThis(),
       }),
       findOne: sinon.stub().returns({
         exec: sinon.stub().resolves(ctx.project),
       }),
+      exists: sinon.stub().returns({ exec: sinon.stub().resolves(true) }),
     }
     ctx.CollaboratorsGetter = {
       promises: {
@@ -84,87 +87,6 @@ describe('ProjectGetter', function () {
     )
 
     ctx.ProjectGetter = (await import(modulePath)).default
-  })
-
-  describe('getProjectWithoutDocLines', function () {
-    beforeEach(function (ctx) {
-      ctx.ProjectGetter.promises.getProject = sinon.stub().resolves()
-    })
-
-    describe('passing an id', function () {
-      beforeEach(async function (ctx) {
-        await ctx.ProjectGetter.promises.getProjectWithoutDocLines(
-          ctx.project._id
-        )
-      })
-
-      it('should call find with the project id', function (ctx) {
-        ctx.ProjectGetter.promises.getProject
-          .calledWith(ctx.project._id)
-          .should.equal(true)
-      })
-
-      it('should exclude the doc lines', function (ctx) {
-        const excludes = {
-          'rootFolder.docs.lines': 0,
-          'rootFolder.folders.docs.lines': 0,
-          'rootFolder.folders.folders.docs.lines': 0,
-          'rootFolder.folders.folders.folders.docs.lines': 0,
-          'rootFolder.folders.folders.folders.folders.docs.lines': 0,
-          'rootFolder.folders.folders.folders.folders.folders.docs.lines': 0,
-          'rootFolder.folders.folders.folders.folders.folders.folders.docs.lines': 0,
-          'rootFolder.folders.folders.folders.folders.folders.folders.folders.docs.lines': 0,
-        }
-
-        ctx.ProjectGetter.promises.getProject
-          .calledWith(ctx.project._id, excludes)
-          .should.equal(true)
-      })
-    })
-  })
-
-  describe('getProjectWithOnlyFolders', function () {
-    beforeEach(function (ctx) {
-      ctx.ProjectGetter.promises.getProject = sinon.stub().resolves()
-    })
-
-    describe('passing an id', function () {
-      beforeEach(async function (ctx) {
-        await ctx.ProjectGetter.promises.getProjectWithOnlyFolders(
-          ctx.project._id
-        )
-      })
-
-      it('should call find with the project id', function (ctx) {
-        ctx.ProjectGetter.promises.getProject
-          .calledWith(ctx.project._id)
-          .should.equal(true)
-      })
-
-      it('should exclude the docs and files lines', function (ctx) {
-        const excludes = {
-          'rootFolder.docs': 0,
-          'rootFolder.fileRefs': 0,
-          'rootFolder.folders.docs': 0,
-          'rootFolder.folders.fileRefs': 0,
-          'rootFolder.folders.folders.docs': 0,
-          'rootFolder.folders.folders.fileRefs': 0,
-          'rootFolder.folders.folders.folders.docs': 0,
-          'rootFolder.folders.folders.folders.fileRefs': 0,
-          'rootFolder.folders.folders.folders.folders.docs': 0,
-          'rootFolder.folders.folders.folders.folders.fileRefs': 0,
-          'rootFolder.folders.folders.folders.folders.folders.docs': 0,
-          'rootFolder.folders.folders.folders.folders.folders.fileRefs': 0,
-          'rootFolder.folders.folders.folders.folders.folders.folders.docs': 0,
-          'rootFolder.folders.folders.folders.folders.folders.folders.fileRefs': 0,
-          'rootFolder.folders.folders.folders.folders.folders.folders.folders.docs': 0,
-          'rootFolder.folders.folders.folders.folders.folders.folders.folders.fileRefs': 0,
-        }
-        ctx.ProjectGetter.promises.getProject
-          .calledWith(ctx.project._id, excludes)
-          .should.equal(true)
-      })
-    })
   })
 
   describe('getProject', function () {
@@ -456,6 +378,49 @@ describe('ProjectGetter', function () {
       const docs =
         await ctx.ProjectGetter.promises.getUsersDeletedProjects('giraffe')
       expect(docs).to.deep.equal([ctx.deletedProject])
+    })
+  })
+
+  describe('findAllDebugProjects', function () {
+    it('should find all projects with overleaf.isDebugCopyOf of type objectId', async function (ctx) {
+      await ctx.ProjectGetter.promises.findAllDebugProjects('fields')
+      sinon.assert.calledWith(ctx.Project.find, {
+        'overleaf.isDebugCopyOf': { $type: 'objectId' },
+      })
+      sinon.assert.calledWith(ctx.Project.find().populate, 'owner_ref', [
+        'email',
+        'name',
+      ])
+      sinon.assert.calledOnce(ctx.Project.find().exec)
+    })
+  })
+
+  describe('existUsersDebugProjectsOlderThan', function () {
+    beforeEach(function () {
+      vi.useFakeTimers()
+    })
+
+    afterEach(function () {
+      vi.useRealTimers()
+    })
+
+    it('should check for existence of debug projects older than given days', async function (ctx) {
+      const days = 10
+      const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+
+      const exists =
+        await ctx.ProjectGetter.promises.existUsersDebugProjectsOlderThan(
+          ctx.userId,
+          days
+        )
+
+      sinon.assert.calledWith(ctx.Project.exists, {
+        owner_ref: ctx.userId,
+        'overleaf.isDebugCopyOf': { $type: 'objectId' },
+        lastUpdated: { $lt: cutoffDate },
+      })
+
+      expect(exists).to.equal(true)
     })
   })
 })

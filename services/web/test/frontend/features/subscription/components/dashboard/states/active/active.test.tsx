@@ -82,9 +82,17 @@ describe('<ActiveSubscription />', function () {
 
     screen.getByRole('heading', { name: subscription.plan.name, level: 3 })
 
-    screen.getByText(
-      '* Prices may be subject to additional VAT, depending on your country.'
-    )
+    if (subscription.payment.taxRate > 0) {
+      expect(
+        screen.queryByText(
+          '* Taxes may be added, depending on your billing address.'
+        )
+      ).to.be.null
+    } else {
+      screen.getByText(
+        '* Taxes may be added, depending on your billing address.'
+      )
+    }
 
     screen.getByRole('link', { name: 'View invoices' })
 
@@ -224,9 +232,9 @@ describe('<ActiveSubscription />', function () {
     screen.getByText('AI Assist')
   })
 
-  it('shows empty add-ons message if none present', function () {
+  it('hides the add-ons section when none are present', function () {
     renderActiveSubscription(annualActiveSubscription)
-    screen.getByText(/You don’t have any add-ons on your account/i)
+    expect(screen.queryByRole('heading', { name: 'Add-ons' })).to.be.null
   })
 
   it('shows multiple active coupons', function () {

@@ -3,7 +3,10 @@ import { useTranslation, Trans } from 'react-i18next'
 import { SubscriptionDashModalIds } from '../../../../../../../../../../types/subscription/dashboard/modal-ids'
 import { postJSON } from '../../../../../../../../infrastructure/fetch-json'
 import { useSubscriptionDashboardContext } from '../../../../../../context/subscription-dashboard-context'
-import { cancelPendingSubscriptionChangeUrl } from '../../../../../../data/subscription-url'
+import {
+  cancelPendingSubscriptionChangeUrl,
+  reloadWithoutHasSubscription,
+} from '../../../../../../data/subscription-url'
 import { useLocation } from '../../../../../../../../shared/hooks/use-location'
 import {
   OLModal,
@@ -30,7 +33,7 @@ export function KeepCurrentPlanModal() {
 
     try {
       await postJSON(cancelPendingSubscriptionChangeUrl)
-      location.reload()
+      reloadWithoutHasSubscription(location)
     } catch (e) {
       setError(true)
       setInflight(false)

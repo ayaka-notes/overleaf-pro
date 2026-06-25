@@ -22,7 +22,6 @@ import AuthorizationManager from '../Authorization/AuthorizationManager.mjs'
 import Modules from '../../infrastructure/Modules.mjs'
 import async from 'async'
 import HttpErrorHandler from '../Errors/HttpErrorHandler.mjs'
-import RecurlyClient from './RecurlyClient.mjs'
 import {
   AI_ADD_ON_CODE,
   subscriptionChangeIsAiAssistUpgrade,
@@ -33,8 +32,8 @@ import UserGetter from '../User/UserGetter.mjs'
 import PermissionsManager from '../Authorization/PermissionsManager.mjs'
 import { sanitizeSessionUserForFrontEnd } from '../../infrastructure/FrontEndUser.mjs'
 import { z, parseReq } from '../../infrastructure/Validation.mjs'
-import { IndeterminateInvoiceError } from '../Errors/Errors.js'
 import SubscriptionLocator from './SubscriptionLocator.mjs'
+import { PaymentProviderSubscriptionChange } from './PaymentProviderEntities.mjs'
 
 const {
   DuplicateAddOnError,
@@ -42,14 +41,21 @@ const {
   PaymentActionRequiredError,
   PaymentFailedError,
   MissingBillingInfoError,
+  MultiplePendingChangesError,
 } = Errors
 
 const SUBSCRIPTION_PAUSED_REDIRECT_PATH =
   '/user/subscription?redirect-reason=subscription-paused'
 
 /**
+ * @typedef {import('../../../../types/subscription/currency').CurrencyCode} CurrencyCode
+ * @typedef {import('./PaymentProviderEntities.mjs').PaymentProviderSubscription} PaymentProviderSubscription
+ * @typedef {import('../../../../types/subscription/plan').Plan} Plan
+ */
+
+/**
  * Check if a Stripe subscription is currently paused
- * @param {Object} subscription - The subscription object
+ * @param {Record<string, any>} subscription - The subscription object
  * @returns {Promise<boolean>}
  */
 async function _checkStripeSubscriptionPauseStatus(subscription) {
@@ -73,7 +79,7 @@ async function _checkStripeSubscriptionPauseStatus(subscription) {
 
 /**
  * Check if a Recurly subscription is currently paused
- * @param {Object} subscription - The subscription object
+ * @param {Record<string, any>} subscription - The subscription object
  * @returns {Promise<boolean>}
  */
 async function _checkRecurlySubscriptionPauseStatus(subscription) {
@@ -97,7 +103,7 @@ async function _checkRecurlySubscriptionPauseStatus(subscription) {
 }
 
 /** Check if a user's subscription is manual or custom
- * @param {Object} user - The user object
+ * @param {Record<string, any>} user - The user object
  * @returns {Promise<boolean>}
  */
 async function _isManualOrCustomSubscription(user) {
@@ -115,7 +121,7 @@ async function _isManualOrCustomSubscription(user) {
 
 /**
  * Check if a user's subscription is currently paused
- * @param {Object} user - The user object
+ * @param {Record<string, any>} user - The user object
  * @returns {Promise<{isPaused: boolean, redirectPath?: string}>}
  */
 async function checkSubscriptionPauseStatus(user) {
@@ -157,7 +163,6 @@ async function checkSubscriptionPauseStatus(user) {
 /**
  * @import { SubscriptionChangeDescription } from '../../../../types/subscription/subscription-change-preview'
  * @import { SubscriptionChangePreview } from '../../../../types/subscription/subscription-change-preview'
- * @import { PaymentProviderSubscriptionChange } from './PaymentProviderEntities.mjs'
  * @import { PaymentMethod } from './types'
  */
 
@@ -173,42 +178,19 @@ function formatGroupPlansDataForDash() {
 }
 
 /**
- * Trim the staffAccess object to only include allowed fields
- * @param {Object} user - The user object with mongoose object fields
- * @returns {Object} - User object with trimmed staffAccess
+ * @param {any} req
+ * @param {any} res
  */
-function _trimStaffAccess(user) {
-  if (!user || !user.staffAccess) return user
-
-  const allowedFields = [
-    'publisherMetrics',
-    'publisherManagement',
-    'institutionMetrics',
-    'institutionManagement',
-    'groupMetrics',
-    'groupManagement',
-    'adminMetrics',
-    'splitTestMetrics',
-    'splitTestManagement',
-  ]
-
-  const trimmedStaffAccess = allowedFields.reduce((acc, key) => {
-    if (key in user.staffAccess) {
-      acc[key] = user.staffAccess[key]
-    }
-    return acc
-  }, {})
-
-  return {
-    ...user,
-    staffAccess: trimmedStaffAccess,
-  }
-}
-
 async function userSubscriptionPage(req, res) {
   const user = SessionManager.getSessionUser(req.session)
+  await SplitTestHandler.promises.getAssignment(req, res, 'sharing-updates')
   await SplitTestHandler.promises.getAssignment(req, res, 'pause-subscription')
-
+  await SplitTestHandler.promises.getAssignment(
+    req,
+    res,
+    'combined-user-management'
+  )
+  await SplitTestHandler.promises.getAssignment(req, res, 'plans-2026-phase-1')
   const groupPricingDiscount = await SplitTestHandler.promises.getAssignment(
     req,
     res,
@@ -236,7 +218,6 @@ async function userSubscriptionPage(req, res) {
   const userCanExtendTrial = (
     await Modules.promises.hooks.fire('userCanExtendTrial', user)
   )?.[0]
-  const fromPlansPage = req.query.hasSubscription
   const redirectedPaymentErrorCode = req.query.errorCode
   const isInTrial = SubscriptionHelper.isInTrial(
     personalSubscription?.payment?.trialEndsAt
@@ -265,6 +246,7 @@ async function userSubscriptionPage(req, res) {
   try {
     const managedGroups = await async.filter(
       managedGroupSubscriptions || [],
+      /** @param {any} subscription */
       async subscription => {
         const managedUsersResults = await Modules.promises.hooks.fire(
           'hasManagedUsersFeature',
@@ -284,8 +266,8 @@ async function userSubscriptionPage(req, res) {
         )
       }
     )
-    groupSettingsEnabledFor = managedGroups.map(subscription =>
-      subscription._id.toString()
+    groupSettingsEnabledFor = managedGroups.map(
+      (/** @type {any} */ subscription) => subscription._id.toString()
     )
   } catch (error) {
     logger.error(
@@ -298,7 +280,7 @@ async function userSubscriptionPage(req, res) {
   try {
     const managedGroups = await async.filter(
       managedGroupSubscriptions || [],
-      async subscription => {
+      async (/** @type {any} */ subscription) => {
         const managedUsersResults = await Modules.promises.hooks.fire(
           'hasManagedUsersFeatureOnNonProfessionalPlan',
           subscription
@@ -319,8 +301,8 @@ async function userSubscriptionPage(req, res) {
         )
       }
     )
-    groupSettingsAdvertisedFor = managedGroups.map(subscription =>
-      subscription._id.toString()
+    groupSettingsAdvertisedFor = managedGroups.map(
+      (/** @type {any} */ subscription) => subscription._id.toString()
     )
   } catch (error) {
     logger.error(
@@ -337,9 +319,8 @@ async function userSubscriptionPage(req, res) {
     title: 'your_subscriptions',
     plans: plansData?.plans,
     planCodesChangingAtTermEnd: plansData?.planCodesChangingAtTermEnd,
-    user: _trimStaffAccess(user),
+    user,
     hasSubscription,
-    fromPlansPage,
     redirectedPaymentErrorCode,
     personalSubscription,
     userCanExtendTrial,
@@ -355,6 +336,7 @@ async function userSubscriptionPage(req, res) {
     groupSettingsAdvertisedFor,
     groupSettingsEnabledFor,
     isManagedAccount: !!req.managedBy,
+    isManagedGroupAdmin: !!req.isManagedGroupAdmin,
     userRestrictions: Array.from(req.userRestrictions || []),
     hasAiAssistViaWritefull,
     aiAssistViaWritefullSource,
@@ -362,6 +344,10 @@ async function userSubscriptionPage(req, res) {
   res.render('subscriptions/dashboard-react', data)
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ */
 async function successfulSubscription(req, res) {
   const user = SessionManager.getSessionUser(req.session)
   if (!user) {
@@ -374,6 +360,7 @@ async function successfulSubscription(req, res) {
     )
 
   const postCheckoutRedirect = req.session?.postCheckoutRedirect
+  const isUpgrade = req.query.upgrade === 'true'
 
   if (!personalSubscription) {
     res.redirect('/user/subscription/plans')
@@ -391,6 +378,7 @@ async function successfulSubscription(req, res) {
       title: 'thank_you',
       personalSubscription,
       postCheckoutRedirect,
+      isUpgrade,
       user: {
         _id: user._id,
         features: userInDb.features,
@@ -405,8 +393,21 @@ const pauseSubscriptionSchema = z.object({
   }),
 })
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 async function pauseSubscription(req, res, next) {
   const user = SessionManager.getSessionUser(req.session)
+  const { variant } = await SplitTestHandler.promises.getAssignment(
+    req,
+    res,
+    'pause-subscription'
+  )
+  if (variant !== 'enabled') {
+    return HttpErrorHandler.forbidden(req, res)
+  }
   const { params } = parseReq(req, pauseSubscriptionSchema)
   const pauseCycles = params.pauseCycles
   if (pauseCycles < 0) {
@@ -448,6 +449,11 @@ async function pauseSubscription(req, res, next) {
   }
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 async function resumeSubscription(req, res, next) {
   const user = SessionManager.getSessionUser(req.session)
   logger.debug({ userId: user._id }, `resuming subscription`)
@@ -464,6 +470,11 @@ async function resumeSubscription(req, res, next) {
   }
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 async function cancelSubscription(req, res, next) {
   const user = SessionManager.getSessionUser(req.session)
   logger.debug({ userId: user._id }, 'canceling subscription')
@@ -479,6 +490,9 @@ async function cancelSubscription(req, res, next) {
 }
 
 /**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
  * @returns {Promise<void>}
  */
 async function canceledSubscription(req, res, next) {
@@ -490,20 +504,32 @@ async function canceledSubscription(req, res, next) {
   })
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 function cancelV1Subscription(req, res, next) {
   const userId = SessionManager.getLoggedInUserId(req.session)
   logger.debug({ userId }, 'canceling v1 subscription')
-  V1SubscriptionManager.cancelV1Subscription(userId, function (err) {
-    if (err) {
-      OError.tag(err, 'something went wrong canceling v1 subscription', {
-        userId,
-      })
-      return next(err)
+  V1SubscriptionManager.cancelV1Subscription(
+    userId,
+    /** @param {any} err */ function (err) {
+      if (err) {
+        OError.tag(err, 'something went wrong canceling v1 subscription', {
+          userId,
+        })
+        return next(err)
+      }
+      res.redirect('/user/subscription')
     }
-    res.redirect('/user/subscription')
-  })
+  )
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ */
 async function previewAddonPurchase(req, res) {
   const user = SessionManager.getSessionUser(req.session)
   const userId = user._id
@@ -513,6 +539,18 @@ async function previewAddonPurchase(req, res) {
 
   if (addOnCode !== AI_ADD_ON_CODE) {
     return HttpErrorHandler.notFound(req, res, `Unknown add-on: ${addOnCode}`)
+  }
+
+  const { variant: plans2026Phase1Variant } =
+    await SplitTestHandler.promises.getAssignment(
+      req,
+      res,
+      'plans-2026-phase-1'
+    )
+  if (plans2026Phase1Variant === 'enabled') {
+    return res.redirect(
+      '/user/subscription?redirect-reason=ai-assist-unavailable'
+    )
   }
 
   const canUseAi = await PermissionsManager.promises.checkUserPermissions(
@@ -560,7 +598,9 @@ async function previewAddonPurchase(req, res) {
       err instanceof Error &&
       err.constructor.name === 'PaymentServiceResourceNotFoundError'
     ) {
-      return res.redirect('/user/subscription/plans#ai-assist')
+      return res.redirect(
+        '/user/subscription?redirect-reason=ai-assist-unavailable'
+      )
     }
     throw err
   }
@@ -586,34 +626,29 @@ async function previewAddonPurchase(req, res) {
       err instanceof Error &&
       err.constructor.name === 'PaymentServiceResourceNotFoundError'
     ) {
-      return res.redirect('/user/subscription/plans#ai-assist')
+      return res.redirect(
+        '/user/subscription?redirect-reason=ai-assist-unavailable'
+      )
     }
     throw err
   }
 
-  const subscription = subscriptionChange.subscription
-  const addOn = await RecurlyClient.promises.getAddOn(
-    subscription.planCode,
-    addOnCode
-  )
+  const addOn = PlansLocator.findLocalPlanInSettings(addOnCode)
+  if (!addOn) {
+    return HttpErrorHandler.notFound(req, res, `Unknown add-on: ${addOnCode}`)
+  }
 
   /** @type {SubscriptionChangePreview} */
   const changePreview = makeChangePreview(
     {
       type: 'add-on-purchase',
       addOn: {
-        code: addOn.code,
+        code: addOn.planCode,
         name: addOn.name,
       },
     },
     subscriptionChange,
     paymentMethod[0]
-  )
-
-  await SplitTestHandler.promises.getAssignment(
-    req,
-    res,
-    'overleaf-assist-bundle'
   )
 
   res.render('subscriptions/preview-change', {
@@ -629,6 +664,11 @@ const purchaseAddonSchema = z.object({
   }),
 })
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 async function purchaseAddon(req, res, next) {
   const user = SessionManager.getSessionUser(req.session)
   const { params } = parseReq(req, purchaseAddonSchema)
@@ -637,6 +677,16 @@ async function purchaseAddon(req, res, next) {
   const quantity = 1
   // currently we only support one add-on, the Ai add-on
   if (addOnCode !== AI_ADD_ON_CODE) {
+    return res.sendStatus(404)
+  }
+
+  const { variant: plans2026Phase1Variant } =
+    await SplitTestHandler.promises.getAssignment(
+      req,
+      res,
+      'plans-2026-phase-1'
+    )
+  if (plans2026Phase1Variant === 'enabled') {
     return res.sendStatus(404)
   }
 
@@ -671,22 +721,32 @@ async function purchaseAddon(req, res, next) {
       )
       return res.status(402).json({
         message: 'Payment action required',
-        clientSecret: err.info.clientSecret,
-        publicKey: err.info.publicKey,
+        clientSecret: /** @type {any} */ (err).info.clientSecret,
+        publicKey: /** @type {any} */ (err).info.publicKey,
       })
     } else if (err instanceof PaymentFailedError) {
       logger.debug(
         {
           userId: user._id,
-          reason: err.info.reason,
-          adviceCode: err.info.adviceCode,
+          reason: /** @type {any} */ (err).info.reason,
+          adviceCode: /** @type {any} */ (err).info.adviceCode,
         },
         'Payment failed for transaction'
       )
       return res.status(402).json({
         message: 'Payment failed',
-        reason: err.info.reason,
-        adviceCode: err.info.adviceCode,
+        reason: /** @type {any} */ (err).info.reason,
+        adviceCode: /** @type {any} */ (err).info.adviceCode,
+      })
+    } else if (err instanceof MultiplePendingChangesError) {
+      logger.warn(
+        { userId: user._id, err, addOnCode },
+        'Cannot purchase add-on: multiple pending changes'
+      )
+      return res.status(422).json({
+        code: 'multiple_pending_changes',
+        message:
+          'Cannot complete purchase while there are multiple pending subscription changes. Please contact support.',
       })
     } else {
       if (err instanceof Error) {
@@ -714,6 +774,11 @@ const removeAddonSchema = z.object({
   }),
 })
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 async function removeAddon(req, res, next) {
   const user = SessionManager.getSessionUser(req.session)
   const { params } = parseReq(req, removeAddonSchema)
@@ -736,6 +801,16 @@ async function removeAddon(req, res, next) {
         'Your subscription does not contain the requested add-on',
         { addon: addOnCode }
       )
+    } else if (err instanceof MultiplePendingChangesError) {
+      logger.warn(
+        { userId: user._id, err, addOnCode },
+        'Cannot remove add-on: multiple pending changes'
+      )
+      return res.status(422).json({
+        code: 'multiple_pending_changes',
+        message:
+          'Cannot remove add-on while there are multiple pending subscription changes. Please contact support.',
+      })
     } else {
       if (err instanceof Error) {
         OError.tag(err, 'something went wrong removing add-ons', {
@@ -758,6 +833,8 @@ const reactivateAddonSchema = z.object({
  * Reactivate an add-on pending cancellation
  *
  * This "cancels" the cancellation.
+ * @param {any} req
+ * @param {any} res
  */
 async function reactivateAddon(req, res) {
   const user = SessionManager.getSessionUser(req.session)
@@ -785,13 +862,20 @@ async function reactivateAddon(req, res) {
   }
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 async function previewSubscription(req, res, next) {
   const planCode = req.query.planCode
   if (!planCode) {
     return HttpErrorHandler.notFound(req, res, 'Missing plan code')
   }
-  // TODO: use PaymentService to fetch plan information
-  const plan = await RecurlyClient.promises.getPlan(planCode)
+  const plan = PlansLocator.findLocalPlanInSettings(planCode)
+  if (!plan) {
+    return HttpErrorHandler.notFound(req, res, `Unknown plan: ${planCode}`)
+  }
   const user = SessionManager.getSessionUser(req.session)
   const userId = user?._id
 
@@ -805,11 +889,22 @@ async function previewSubscription(req, res, next) {
     }
   }
 
-  const subscriptionChange =
-    await SubscriptionHandler.promises.previewSubscriptionChange(
-      userId,
-      planCode
-    )
+  let subscriptionChange
+  try {
+    subscriptionChange =
+      await SubscriptionHandler.promises.previewSubscriptionChange(
+        userId,
+        planCode
+      )
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      err.constructor.name === 'PaymentServiceResourceNotFoundError'
+    ) {
+      return res.redirect('/user/subscription/plans')
+    }
+    throw err
+  }
   /** @type {PaymentMethod[]} */
   const paymentMethod = await Modules.promises.hooks.fire(
     'getPaymentMethod',
@@ -818,7 +913,7 @@ async function previewSubscription(req, res, next) {
   const changePreview = makeChangePreview(
     {
       type: 'premium-subscription',
-      plan: { code: plan.code, name: plan.name },
+      plan: { code: plan.planCode, name: plan.name },
     },
     subscriptionChange,
     paymentMethod[0]
@@ -831,24 +926,37 @@ async function previewSubscription(req, res, next) {
   })
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 function cancelPendingSubscriptionChange(req, res, next) {
   const user = SessionManager.getSessionUser(req.session)
   logger.debug({ userId: user._id }, 'canceling pending subscription change')
-  SubscriptionHandler.cancelPendingSubscriptionChange(user, function (err) {
-    if (err) {
-      OError.tag(
-        err,
-        'something went wrong canceling pending subscription change',
-        {
-          user_id: user._id,
-        }
-      )
-      return next(err)
+  SubscriptionHandler.cancelPendingSubscriptionChange(
+    user,
+    /** @param {any} err */ function (err) {
+      if (err) {
+        OError.tag(
+          err,
+          'something went wrong canceling pending subscription change',
+          {
+            user_id: user._id,
+          }
+        )
+        return next(err)
+      }
+      res.redirect('/user/subscription')
     }
-    res.redirect('/user/subscription')
-  })
+  )
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 async function updateAccountEmailAddress(req, res, next) {
   const user = SessionManager.getSessionUser(req.session)
   try {
@@ -863,6 +971,11 @@ async function updateAccountEmailAddress(req, res, next) {
   }
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 function reactivateSubscription(req, res, next) {
   const user = SessionManager.getSessionUser(req.session)
   logger.debug({ userId: user._id }, 'reactivating subscription')
@@ -887,6 +1000,11 @@ function reactivateSubscription(req, res, next) {
   })
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 function recurlyCallback(req, res, next) {
   logger.debug({ data: req.body }, 'received recurly callback')
   const event = Object.keys(req.body)[0]
@@ -899,54 +1017,7 @@ function recurlyCallback(req, res, next) {
     )
   )
 
-  // this is a recurly only case which is required since Recurly does not have a reliable way to check credit info pre-upgrade purchase
-  if (event === 'failed_payment_notification') {
-    if (!Settings.planReverts?.enabled) {
-      return res.sendStatus(200)
-    }
-
-    // A manual charge may have no subscription, in which case we get a
-    // <subscription_id nil="true"/> element, which produces an object instead
-    // of a string subscription_id.
-    const subscriptionId = eventData.transaction?.subscription_id
-    if (!subscriptionId || typeof subscriptionId !== 'string') {
-      logger.info(
-        { transactionId: eventData.transaction?.id },
-        'ignoring failed_payment_notification without subscription_id'
-      )
-      return res.sendStatus(200)
-    }
-
-    SubscriptionHandler.getSubscriptionRestorePoint(
-      subscriptionId,
-      function (err, lastSubscription) {
-        if (err) {
-          return next(err)
-        }
-        // if theres no restore point it could be a failed renewal, or no restore set. Either way it will be handled through dunning automatically
-        if (!lastSubscription || !lastSubscription?.planCode) {
-          return res.sendStatus(200)
-        }
-        SubscriptionHandler.revertPlanChange(
-          eventData.transaction.subscription_id,
-          lastSubscription,
-          function (err) {
-            if (err instanceof IndeterminateInvoiceError) {
-              logger.warn(
-                { recurlySubscriptionId: err.info.recurlySubscriptionId },
-                'could not determine invoice to fail for subscription'
-              )
-              return res.sendStatus(200)
-            }
-            if (err) {
-              return next(err)
-            }
-            return res.sendStatus(200)
-          }
-        )
-      }
-    )
-  } else if (
+  if (
     [
       'new_subscription_notification',
       'updated_subscription_notification',
@@ -982,6 +1053,10 @@ function recurlyCallback(req, res, next) {
   }
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ */
 async function extendTrial(req, res) {
   const user = SessionManager.getSessionUser(req.session)
   const { subscription } =
@@ -1007,26 +1082,47 @@ async function extendTrial(req, res) {
   res.sendStatus(200)
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @param {any} next
+ */
 function recurlyNotificationParser(req, res, next) {
   let xml = ''
-  req.on('data', chunk => (xml += chunk))
+  req.on('data', /** @param {any} chunk */ chunk => (xml += chunk))
   req.on('end', () =>
-    RecurlyWrapper._parseXml(xml, function (error, body) {
-      if (error) {
-        return next(error)
+    RecurlyWrapper._parseXml(
+      xml,
+      /**
+       * @param {any} error
+       * @param {any} body
+       */
+      function (error, body) {
+        if (error) {
+          return next(error)
+        }
+        req.body = body
+        next()
       }
-      req.body = body
-      next()
-    })
+    )
   )
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ */
 async function refreshUserFeatures(req, res) {
   const { user_id: userId } = req.params
   await FeaturesUpdater.promises.refreshFeatures(userId, 'acceptance-test')
   res.sendStatus(200)
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ * @returns {Promise<{currency: CurrencyCode, recommendedCurrency: CurrencyCode, countryCode: string|undefined}>}
+ */
 async function getRecommendedCurrency(req, res) {
   const userId = SessionManager.getLoggedInUserId(req.session)
   let ip = req.ip
@@ -1055,6 +1151,10 @@ async function getRecommendedCurrency(req, res) {
   }
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ */
 async function getLatamCountryBannerDetails(req, res) {
   const userId = SessionManager.getLoggedInUserId(req.session)
   let ip = req.ip
@@ -1117,10 +1217,52 @@ function getPlanNameForDisplay(planName, planCode) {
   if (!match) return planName
 
   const [, type, category] = match
-  const prefix = type === 'collaborator' ? 'Standard' : 'Professional'
-  const suffix = category === 'educational' ? ' Educational' : ''
+  const prefix = type === 'collaborator' ? 'Standard' : 'Pro'
+  const suffix = category === 'educational' ? ' with edu discount' : ''
 
-  return `Overleaf ${prefix} Group${suffix}`
+  return `${prefix} group${suffix}`
+}
+
+/**
+ * Compute the date displayed as the user's next invoice on the preview page.
+ *
+ * Default: the current cycle's end (`subscription.periodEnd`).
+ *
+ * Exception: when the change is applied immediately AND flips cadence
+ * (monthly ↔ annual), the user starts a new term today and the next invoice
+ * lands one new-term-length from now. We reuse
+ * `SubscriptionHelper.shouldPlanChangeAtTermEnd` so the immediate-vs-deferred
+ * decision stays in step with the apply path (including the trial case).
+ *
+ * @param {PaymentProviderSubscription} subscription
+ * @param {Plan | null | undefined} currentPlan Plan settings for the current plan, or null/undefined when unknown.
+ * @param {Plan | null | undefined} nextPlan Plan settings for the post-change plan, or null/undefined when unknown.
+ * @return {Date}
+ */
+function _getNextInvoiceDate(subscription, currentPlan, nextPlan) {
+  if (currentPlan == null || nextPlan == null) {
+    return subscription.periodEnd
+  }
+  const isCadenceChange =
+    Boolean(currentPlan.annual) !== Boolean(nextPlan.annual)
+  if (!isCadenceChange) {
+    return subscription.periodEnd
+  }
+  const isAppliedImmediately = !SubscriptionHelper.shouldPlanChangeAtTermEnd(
+    currentPlan,
+    nextPlan,
+    SubscriptionHelper.isInTrial(subscription.trialPeriodEnd)
+  )
+  if (!isAppliedImmediately) {
+    return subscription.periodEnd
+  }
+  const nextInvoiceDate = new Date()
+  if (nextPlan.annual) {
+    nextInvoiceDate.setFullYear(nextInvoiceDate.getFullYear() + 1)
+  } else {
+    nextInvoiceDate.setMonth(nextInvoiceDate.getMonth() + 1)
+  }
+  return nextInvoiceDate
 }
 
 /**
@@ -1137,9 +1279,58 @@ function makeChangePreview(
   paymentMethod
 ) {
   const subscription = subscriptionChange.subscription
+
+  // For the future invoice display, if there's a pending change scheduled,
+  // we should show what will happen at renewal (the pending change state)
+  // merged with any new changes from this immediate update
+  const pendingChange = subscription.pendingChange
+
+  let futureInvoiceChange
+  if (pendingChange) {
+    const pendingAddOnCodes = new Set(pendingChange.nextAddOns.map(a => a.code))
+    const mergedAddOns = [...pendingChange.nextAddOns]
+
+    for (const addOn of subscriptionChange.nextAddOns) {
+      if (!pendingAddOnCodes.has(addOn.code)) {
+        mergedAddOns.push(addOn)
+      }
+    }
+
+    // If the current change is a plan change, it overrides the pending scheduled
+    // plan change — use the new plan for future payments, not the stale pending one.
+    const isPlanChange =
+      subscriptionChangeDescription.type === 'premium-subscription' ||
+      subscriptionChangeDescription.type === 'group-plan-upgrade'
+
+    futureInvoiceChange = new PaymentProviderSubscriptionChange({
+      subscription,
+      nextPlanCode: isPlanChange
+        ? subscriptionChange.nextPlanCode
+        : pendingChange.nextPlanCode,
+      nextPlanName: isPlanChange
+        ? subscriptionChange.nextPlanName
+        : pendingChange.nextPlanName,
+      nextPlanPrice: isPlanChange
+        ? subscriptionChange.nextPlanPrice
+        : pendingChange.nextPlanPrice,
+      nextAddOns: mergedAddOns,
+    })
+  } else {
+    futureInvoiceChange = subscriptionChange
+  }
+
   const nextPlan = PlansLocator.findLocalPlanInSettings(
-    subscriptionChange.nextPlanCode
+    futureInvoiceChange.nextPlanCode
   )
+  const currentPlan = PlansLocator.findLocalPlanInSettings(
+    subscription.planCode
+  )
+  const nextInvoiceDate = _getNextInvoiceDate(
+    subscription,
+    currentPlan,
+    nextPlan
+  )
+
   return {
     change: subscriptionChangeDescription,
     currency: subscription.currency,
@@ -1150,27 +1341,27 @@ function makeChangePreview(
       annual: nextPlan?.annual ?? false,
     },
     nextInvoice: {
-      date: subscription.periodEnd.toISOString(),
+      date: nextInvoiceDate.toISOString(),
       plan: {
         name: getPlanNameForDisplay(
-          subscriptionChange.nextPlanName,
-          subscriptionChange.nextPlanCode
+          nextPlan?.name ?? futureInvoiceChange.nextPlanName,
+          futureInvoiceChange.nextPlanCode
         ),
-        amount: subscriptionChange.nextPlanPrice,
+        amount: futureInvoiceChange.nextPlanPrice,
       },
-      addOns: subscriptionChange.nextAddOns.map(addOn => ({
+      addOns: futureInvoiceChange.nextAddOns.map(addOn => ({
         code: addOn.code,
         name: addOn.name,
         quantity: addOn.quantity,
         unitAmount: addOn.unitPrice,
         amount: addOn.preTaxTotal,
       })),
-      subtotal: subscriptionChange.subtotal,
+      subtotal: futureInvoiceChange.subtotal,
       tax: {
         rate: subscription.taxRate,
-        amount: subscriptionChange.tax,
+        amount: futureInvoiceChange.tax,
       },
-      total: subscriptionChange.total,
+      total: futureInvoiceChange.total,
     },
   }
 }

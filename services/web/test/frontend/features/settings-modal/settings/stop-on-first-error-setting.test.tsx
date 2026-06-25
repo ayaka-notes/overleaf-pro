@@ -1,14 +1,14 @@
 import { screen, render } from '@testing-library/react'
 import { expect } from 'chai'
 import fetchMock from 'fetch-mock'
-import { SettingsModalProvider } from '@/features/ide-redesign/contexts/settings-modal-context'
+import { SettingsModalProvider } from '@/features/settings/context/settings-modal-context'
 import {
   EditorProviders,
   projectDefaults,
 } from '../../../helpers/editor-providers'
 import localStorage from '@/infrastructure/local-storage'
 import userEvent from '@testing-library/user-event'
-import StopOnFirstErrorSetting from '@/features/ide-redesign/components/settings/compiler-settings/stop-on-first-error-setting'
+import StopOnFirstErrorSetting from '@/features/settings/components/compiler-settings/stop-on-first-error-setting'
 
 describe('<StopOnFirstErrorSetting />', function () {
   afterEach(function () {

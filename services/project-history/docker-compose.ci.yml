@@ -10,7 +10,7 @@ services:
       - ./reports:/overleaf/services/project-history/reports
       - ../../bin/shared/wait_for_it:/overleaf/bin/shared/wait_for_it
     entrypoint: /overleaf/bin/shared/wait_for_it mongo:27017 --timeout=60 --
-    command: npm run test:unit:_run
+    command: yarn run test:unit:_run
     environment:
       CI:
       MONGO_CONNECTION_STRING: mongodb://mongo/test-overleaf
@@ -20,23 +20,23 @@ services:
       QUEUES_REDIS_HOST: redis_test
       HISTORY_REDIS_HOST: redis_test
       ANALYTICS_QUEUES_REDIS_HOST: redis_test
+      ANALYTICS_QUEUES_BQ_SINK_REDIS_HOST: redis_test
     depends_on:
       mongo:
         condition: service_started
       redis_test:
         condition: service_healthy
 
-
   test_acceptance:
-    build: .
     image: ci/$PROJECT_NAME:$BRANCH_NAME-$BUILD_NUMBER
     environment:
       CI:
-      ELASTIC_SEARCH_DSN: es:9200
+      RETRIES:
       REDIS_HOST: redis_test
       QUEUES_REDIS_HOST: redis_test
       HISTORY_REDIS_HOST: redis_test
       ANALYTICS_QUEUES_REDIS_HOST: redis_test
+      ANALYTICS_QUEUES_BQ_SINK_REDIS_HOST: redis_test
       MONGO_HOST: mongo
       POSTGRES_HOST: postgres
       MOCHA_GREP: ${MOCHA_GREP}
@@ -52,8 +52,7 @@ services:
         condition: service_healthy
     user: node
     entrypoint: /overleaf/bin/shared/wait_for_it mongo:27017 --timeout=60 --
-    command: npm run test:acceptance
-
+    command: yarn run test:acceptance
 
   tar:
     build: .
@@ -62,8 +61,9 @@ services:
       - ./:/tmp/build/
     command: tar -czf /tmp/build/build.tar.gz --exclude=build.tar.gz --exclude-vcs .
     user: root
+
   redis_test:
-    image: redis:7.4.3
+    image: redis:7.4.8
     healthcheck:
       test: ping="$$(redis-cli ping)" && [ "$$ping" = 'PONG' ]
       interval: 1s

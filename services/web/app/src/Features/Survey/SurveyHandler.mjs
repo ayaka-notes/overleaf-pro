@@ -3,6 +3,7 @@ import crypto from 'node:crypto'
 
 import SurveyCache from './SurveyCache.mjs'
 import SubscriptionLocator from '../Subscription/SubscriptionLocator.mjs'
+import PlansHelper from '../Subscription/PlansHelper.mjs'
 import { callbackify } from '@overleaf/promise-utils'
 import UserGetter from '../User/UserGetter.mjs'
 
@@ -19,10 +20,32 @@ import UserGetter from '../User/UserGetter.mjs'
 async function getSurvey(userId) {
   const survey = await SurveyCache.get(true)
   if (survey) {
-    if (survey.options?.hasRecurlyGroupSubscription) {
-      const hasRecurlyGroupSubscription =
-        await SubscriptionLocator.promises.hasRecurlyGroupSubscription(userId)
-      if (!hasRecurlyGroupSubscription) {
+    const hasFilters =
+      survey.options.hasFreeSubscription ||
+      survey.options.hasIndividualStandardSubscription ||
+      survey.options.hasIndividualProfessionalSubscription ||
+      survey.options.hasGroupStandardSubscription ||
+      survey.options.hasGroupProfessionalSubscription ||
+      survey.options.hasEnterpriseSubscription
+
+    if (hasFilters) {
+      const subscriptions =
+        await SubscriptionLocator.promises.getAllAssociatedSubscriptions(
+          userId,
+          {
+            groupPlan: 1,
+            planCode: 1,
+          }
+        )
+      const isFreeSubscription = Boolean(!subscriptions?.length)
+
+      if (isFreeSubscription) {
+        if (!survey.options?.hasFreeSubscription) {
+          return
+        }
+      } else if (
+        !subscriptions.some(sub => _canDisplaySurvey(sub, survey.options))
+      ) {
         return
       }
     }
@@ -62,6 +85,28 @@ async function getSurvey(userId) {
 
     return { name, title, text, cta, url }
   }
+}
+
+function _canDisplaySurvey(subscription, options = {}) {
+  const {
+    hasIndividualStandardSubscription,
+    hasIndividualProfessionalSubscription,
+    hasGroupStandardSubscription,
+    hasGroupProfessionalSubscription,
+    hasEnterpriseSubscription,
+  } = options
+  const isGroupPlan = subscription.groupPlan
+  const isProfessional = PlansHelper.isProfessionalPlan(subscription.planCode)
+  const isEnterprise =
+    isGroupPlan && subscription.planCode?.includes('enterprise')
+
+  return (
+    (hasIndividualStandardSubscription && !isGroupPlan && !isProfessional) ||
+    (hasIndividualProfessionalSubscription && !isGroupPlan && isProfessional) ||
+    (hasGroupStandardSubscription && isGroupPlan && !isProfessional) ||
+    (hasGroupProfessionalSubscription && isGroupPlan && isProfessional) ||
+    (hasEnterpriseSubscription && isEnterprise)
+  )
 }
 
 function _userRolloutPercentile(userId, surveyName) {

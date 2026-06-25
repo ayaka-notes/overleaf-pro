@@ -29,7 +29,6 @@ export function SidebarFilter({ filter, text }: SidebarFilterProps) {
 
 export default function SidebarFilters() {
   const { t } = useTranslation()
-
   return (
     <ul className="list-unstyled project-list-filters">
       <SidebarFilter filter="all" text={t('all_projects')} />

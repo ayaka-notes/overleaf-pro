@@ -331,6 +331,7 @@ const DocumentManager = {
     if (changeIds == null) {
       changeIds = []
     }
+    let changeContributors = []
 
     const {
       lines,
@@ -374,7 +375,7 @@ const DocumentManager = {
       })
 
       if (historyUpdates.length === 0) {
-        return
+        return changeContributors
       }
 
       await ProjectHistoryRedisManager.promises.queueOps(
@@ -382,6 +383,11 @@ const DocumentManager = {
         ...historyUpdates.map(op => JSON.stringify(op))
       )
     }
+    changeContributors = (ranges.changes || [])
+      .filter(change => changeIds.includes(change.id))
+      .map(change => change?.metadata?.user_id)
+      .filter(userId => userId)
+    return changeContributors
   },
 
   async rejectChanges(projectId, docId, changeIds, userId) {
@@ -708,12 +714,13 @@ const DocumentManager = {
 
   async acceptChangesWithLock(projectId, docId, changeIds) {
     const UpdateManager = require('./UpdateManager')
-    await UpdateManager.promises.lockUpdatesAndDo(
+    const changeContributors = await UpdateManager.promises.lockUpdatesAndDo(
       DocumentManager.acceptChanges,
       projectId,
       docId,
       changeIds
     )
+    return changeContributors
   },
 
   async rejectChangesWithLock(projectId, docId, changeIds, userId) {

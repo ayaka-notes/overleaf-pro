@@ -1,5 +1,5 @@
 import { ComponentProps, useEffect, useState } from 'react'
-import { Meta } from '@storybook/react'
+import { Meta } from '@storybook/react-webpack5'
 import { figmaDesignUrl } from '../../../../.storybook/utils/figma-design-url'
 import DSFormGroup from '@/shared/components/ds/ds-form-group'
 import DSFormLabel from '@/shared/components/ds/ds-form-label'

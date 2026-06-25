@@ -1,4 +1,4 @@
-import { User, Features } from '../../../types/user'
+import { User, Features, FeatureUsage } from '../../../types/user'
 import { User as MinimalUser } from '../../../types/admin/user'
 import { User as ManagedUser } from '../../../types/group-management/user'
 import { UserSettings } from '../../../types/user-settings'
@@ -7,11 +7,12 @@ import { ExposedSettings } from '../../../types/exposed-settings'
 import {
   type ImageName,
   OverallThemeMeta,
+  ProjectCompiler,
   type SpellCheckLanguage,
 } from '../../../types/project-settings'
 import { CurrencyCode } from '../../../types/subscription/currency'
 import { PricingFormState } from '../../../types/subscription/payment-context-value'
-import { Plan } from '../../../types/subscription/plan'
+import { LocalIndividualPlans, Plan } from '../../../types/subscription/plan'
 import { Affiliation } from '../../../types/affiliation'
 import type { PortalTemplate } from '../../../types/portal-template'
 import { UserEmailData } from '../../../types/user-email'
@@ -28,6 +29,7 @@ import { Tag } from '../../../app/src/Features/Tags/types'
 import { Institution } from '../../../types/institution'
 import {
   GroupPolicy,
+  GroupSubscription,
   ManagedGroupSubscription,
   MemberGroupSubscription,
   StripePaymentProviderService,
@@ -61,12 +63,13 @@ import { SubscriptionCreationPreview } from '../../../types/subscription/subscri
 import { DefaultNavbarMetadata } from '@/shared/components/types/default-navbar-metadata'
 import { FooterMetadata } from '@/shared/components/types/footer-metadata'
 import type { ScriptLogType } from '../../../modules/admin-panel/frontend/js/features/script-logs/script-log'
-import { ActiveExperiment } from './labs-utils'
 import { Subscription as AdminSubscription } from '../../../types/admin/subscription'
 import { AdminCapability } from '../../../types/admin-capabilities'
 import { AlgoliaConfig } from '../../../modules/algolia-search/frontend/js/types'
 import { WritefullPublicEnv } from '@wf/domain/writefull-public-env'
 import { UserNotificationPreferences } from '../../../types/notifications'
+import { SharingPermissions } from '../../../modules/sharing-permissions/app/src/types'
+import { FullHistoryFailure } from '@ol-types/history/projectHistory'
 
 export interface Meta {
   'ol-ExposedSettings': ExposedSettings
@@ -111,27 +114,33 @@ export interface Meta {
   'ol-csrfToken': string
   'ol-currentInstitutionsWithLicence': Institution[]
   'ol-currentManagedUserAdminEmail': string
+  'ol-currentPlanCode': string | null
   'ol-currentUrl': string
   'ol-customerIoEnabled': boolean
   'ol-debugPdfDetach': boolean
+  'ol-defaultLatexCompiler': ProjectCompiler
   'ol-detachRole': 'detached' | 'detacher' | ''
   'ol-dictionariesRoot': 'string'
   'ol-domainCaptureEnabled': boolean | undefined
   'ol-domainCaptureTestURL': string | undefined
+  'ol-domainVerificationGracePeriodDays': number
+  'ol-domainVerificationUIEnabled': boolean
   'ol-dropbox': { error: boolean; registered: boolean }
   'ol-editorThemes': { name: string; dark: boolean }[]
   'ol-email': string
   'ol-emailAddressLimit': number
   'ol-error': { name: string } | undefined
+  'ol-errorType': string | undefined
   'ol-expired': boolean
+  'ol-featureUsage': FeatureUsage
   'ol-features': Features
   'ol-footer': FooterMetadata
-  'ol-fromPlansPage': boolean
   'ol-galleryTagName': string
   'ol-gitBridgeEnabled': boolean
   'ol-gitBridgePublicBaseUrl': string
   'ol-github': { enabled: boolean; error: boolean }
   'ol-groupAuditLogs': []
+  'ol-groupDomains': []
   'ol-groupId': string
   'ol-groupName': string
   'ol-groupPlans': GroupPlans
@@ -147,6 +156,7 @@ export interface Meta {
   'ol-groupSubscriptionsPendingEnrollment': PendingGroupSubscriptionEnrollment[]
   'ol-groupsAndEnterpriseBannerVariant': GroupsAndEnterpriseBannerVariant
   'ol-hasAiAssistViaWritefull': boolean
+  'ol-hasAiFreeTier': boolean
   'ol-hasGroupSSOFeature': boolean
   'ol-hasIndividualPaidSubscription': boolean
   'ol-hasManagedUsersFeature': boolean
@@ -155,6 +165,7 @@ export interface Meta {
   'ol-hasSplitTestWriteAccess': boolean
   'ol-hasSubscription': boolean
   'ol-hasTrackChangesFeature': boolean
+  'ol-hasUnlimitedAi': boolean
   'ol-hasWriteAccess': boolean
   'ol-hideLinkingWidgets': boolean // CI only
   'ol-historyBlobStats': {
@@ -177,22 +188,34 @@ export interface Meta {
   'ol-isCollectionMethodManual': boolean
   'ol-isExternalAuthenticationSystemUsed': boolean
   'ol-isManagedAccount': boolean
+  'ol-isManagedGroupAdmin': boolean
   'ol-isProfessional': boolean
   'ol-isRegisteredViaGoogle': boolean
   'ol-isRestrictedTokenMember': boolean
   'ol-isSaas': boolean
+  'ol-isUpgrade': boolean
   'ol-isUserGroupManager': boolean
   'ol-itm_campaign': string
   'ol-itm_content': string
   'ol-itm_referrer': string
   'ol-joinedGroupName': string
   'ol-labs': boolean
-  'ol-labsExperiments': ActiveExperiment[] | undefined
+  'ol-labsExperiments': Array<{
+    name: string
+    title: string
+    description: string
+    icon: string
+    surveyLink: string
+    isFull: boolean
+    optedIn: boolean
+    versionCreatedAt: string | null
+  }>
   'ol-languages': SpellCheckLanguage[]
   'ol-learnedWords': string[]
   'ol-legacyEditorThemes': { name: string; dark: boolean }[]
   'ol-licenseQuantity'?: number
   'ol-loadingText': string
+  'ol-localIndividualPlans': LocalIndividualPlans
   'ol-managedGroupSubscriptions': ManagedGroupSubscription[]
   'ol-managedInstitutions': ManagedInstitution[]
   'ol-managedPublishers': Publisher[]
@@ -205,7 +228,11 @@ export interface Meta {
   'ol-memberGroupSubscriptions': MemberGroupSubscription[]
   'ol-memberOfSSOEnabledGroups': GroupSSOLinkingStatus[]
   'ol-members': MinimalUser[]
+  'ol-multiple-group-subscriptions': Array<
+    Pick<GroupSubscription, 'teamName'> & { id: string; email: string }
+  >
   'ol-navbar': DefaultNavbarMetadata
+  'ol-newsletter-subscribed': boolean
   'ol-no-single-dollar': boolean
   'ol-notifications': NotificationType[]
   'ol-notificationsInstitution': InstitutionType[]
@@ -230,6 +257,7 @@ export interface Meta {
   'ol-primaryEmail': { email: string; confirmed: boolean }
   'ol-project': any // TODO
   'ol-projectEntityCounts': { files: number; docs: number }
+  'ol-projectHistoryFailures': FullHistoryFailure[]
   'ol-projectName': string
   'ol-projectSyncSuccessMessage': string
   'ol-projectTags': Tag[]
@@ -256,9 +284,11 @@ export interface Meta {
   'ol-script-logs': ScriptLogType[]
   'ol-settingsGroupSSO': { enabled: boolean } | undefined
   'ol-settingsPlans': Plan[]
+  'ol-sharingPermissions': SharingPermissions
   'ol-shouldAllowEditingDetails': boolean
   'ol-shouldLoadHotjar': boolean
-  'ol-showAiErrorAssistant': boolean
+  'ol-showAiFeatures': boolean
+  'ol-showAiFeaturesDisabled': boolean
   'ol-showCouponField': boolean
   'ol-showGroupDiscount': boolean
   'ol-showGroupsAndEnterpriseBanner': boolean

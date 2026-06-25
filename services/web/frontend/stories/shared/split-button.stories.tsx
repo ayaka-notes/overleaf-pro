@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import type { Meta } from '@storybook/react'
+import type { Meta } from '@storybook/react-webpack5'
 import { useTranslation } from 'react-i18next'
 import {
   Dropdown,

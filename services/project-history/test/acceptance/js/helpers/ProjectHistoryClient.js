@@ -1,8 +1,7 @@
 import { expect } from 'chai'
-import request from 'request'
 import Settings from '@overleaf/settings'
 import RedisWrapper from '@overleaf/redis-wrapper'
-import { db } from '../../../../app/js/mongodb.js'
+import { db, ObjectId } from '../../../../app/js/mongodb.js'
 import {
   fetchJson,
   fetchJsonWithResponse,
@@ -154,19 +153,27 @@ export function getQueueLength(projectId, callback) {
   rclient.llen(Keys.projectHistoryOps({ project_id: projectId }), callback)
 }
 
-export function getQueueCounts(callback) {
-  return request.get(
-    {
-      url: 'http://127.0.0.1:3054/status/queue',
-      json: true,
-    },
-    callback
-  )
-}
-
 export async function resyncHistory(projectId) {
   const response = await fetchNothing(
     `http://127.0.0.1:3054/project/${projectId}/resync`,
+    {
+      method: 'POST',
+      json: { origin: { kind: 'test-origin' } },
+    }
+  )
+  expect(response.status).to.equal(204)
+}
+
+export async function hardResyncHistory(
+  projectId,
+  { recoverCorruptedFiles } = {}
+) {
+  const params = new URLSearchParams({ force: 'true' })
+  if (recoverCorruptedFiles) {
+    params.set('recoverCorruptedFiles', 'true')
+  }
+  const response = await fetchNothing(
+    `http://127.0.0.1:3054/project/${projectId}/resync?${params}`,
     {
       method: 'POST',
       json: { origin: { kind: 'test-origin' } },
@@ -208,9 +215,9 @@ export async function deleteLabel(projectId, labelId) {
   expect(response.status).to.equal(204)
 }
 
-export async function setFailure(failureEntry) {
-  await db.projectHistoryFailures.deleteOne({ project_id: { $exists: true } })
-  return await db.projectHistoryFailures.insertOne(failureEntry)
+export async function setFailures(failureEntries) {
+  await db.projectHistoryFailures.deleteMany({})
+  return await db.projectHistoryFailures.insertMany(failureEntries)
 }
 
 export function getFailure(projectId, callback) {
@@ -227,6 +234,37 @@ export async function transferLabelOwnership(fromUser, toUser) {
 
 export async function getDump(projectId) {
   return await fetchJson(`http://127.0.0.1:3054/project/${projectId}/dump`)
+}
+
+export async function getFailures() {
+  const { failures } = await fetchJson('http://127.0.0.1:3054/status/failures')
+  return failures
+}
+
+export async function getSyncState(projectId) {
+  return await db.projectHistorySyncState.findOne({
+    project_id: new ObjectId(projectId),
+  })
+}
+
+export async function getResyncPending(projectId) {
+  return await fetchJson(
+    `http://127.0.0.1:3054/project/${projectId}/resync-pending`
+  )
+}
+
+export async function injectStuckSyncState(projectId, docPaths) {
+  await db.projectHistorySyncState.replaceOne(
+    { project_id: new ObjectId(projectId) },
+    {
+      project_id: new ObjectId(projectId),
+      resyncProjectStructure: false,
+      resyncDocContents: docPaths,
+      stuckClearCount: 0,
+      history: [],
+    },
+    { upsert: true }
+  )
 }
 
 export async function deleteProject(projectId) {

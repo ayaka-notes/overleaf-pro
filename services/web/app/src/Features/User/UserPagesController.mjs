@@ -5,7 +5,6 @@ import logger from '@overleaf/logger'
 import Settings from '@overleaf/settings'
 import AuthenticationController from '../Authentication/AuthenticationController.mjs'
 import SessionManager from '../Authentication/SessionManager.mjs'
-import NewsletterManager from '../Newsletter/NewsletterManager.mjs'
 import SubscriptionLocator from '../Subscription/SubscriptionLocator.mjs'
 import _ from 'lodash'
 import { expressify } from '@overleaf/promise-utils'
@@ -118,7 +117,11 @@ async function settingsPage(req, res) {
   }
 
   await SplitTestHandler.promises.getAssignment(req, res, 'email-notifications')
-
+  await SplitTestHandler.promises.getAssignment(
+    req,
+    res,
+    'domain-captured-by-group'
+  )
   res.render('user/settings', {
     title: 'account_settings',
     user: {
@@ -144,13 +147,8 @@ async function settingsPage(req, res) {
         zotero: Boolean(user.refProviders?.zotero),
         papers: Boolean(user.refProviders?.papers),
       },
-      writefull: {
-        enabled: Boolean(user.writefull?.enabled),
-      },
-      aiErrorAssistant: {
-        enabled: Boolean(user.aiErrorAssistant?.enabled),
-      },
     },
+    showAiFeatures: Boolean(user.aiFeatures?.enabled),
     labsExperiments: user.labsExperiments ?? [],
     hasPassword: !!user.hashedPassword,
     shouldAllowEditingDetails,
@@ -191,6 +189,14 @@ async function accountSuspended(req, res) {
   })
 }
 
+async function logout(req, res) {
+  const isLoggedIn = SessionManager.isUserLoggedIn(req.session)
+  if (!isLoggedIn) {
+    return res.redirect('/')
+  }
+  res.render('user/logout')
+}
+
 async function reconfirmAccountPage(req, res) {
   const pageData = {
     reconfirm_email: req.session.reconfirm_email,
@@ -199,8 +205,43 @@ async function reconfirmAccountPage(req, res) {
   res.render('user/reconfirm', pageData)
 }
 
+async function emailPreferencesPage(req, res) {
+  const userId = SessionManager.getLoggedInUserId(req.session)
+  const user = await UserGetter.promises.getUser(userId, {
+    _id: 1,
+    email: 1,
+    first_name: 1,
+    last_name: 1,
+  })
+
+  if (!user) {
+    throw new Error('User not found')
+  }
+
+  let subscribed = false
+
+  try {
+    const [preferences] = await Modules.promises.hooks.fire(
+      'getSubscriptionPreferences',
+      userId
+    )
+
+    subscribed = Boolean(preferences?.newsletter)
+  } catch (err) {
+    logger.error({ err, userId }, 'Error fetching newsletter subscription')
+  }
+
+  res.render('user/email-preferences', {
+    title: 'newsletter_info_title',
+    customerIoEnabled: true,
+    subscribed,
+    user,
+  })
+}
+
 const UserPagesController = {
   accountSuspended: expressify(accountSuspended),
+  logout: expressify(logout),
 
   registerPage(req, res) {
     const sharedProjectData = req.session.sharedProjectData || {}
@@ -279,28 +320,7 @@ const UserPagesController = {
     )
   },
 
-  emailPreferencesPage(req, res, next) {
-    const userId = SessionManager.getLoggedInUserId(req.session)
-    UserGetter.getUser(
-      userId,
-      { _id: 1, email: 1, first_name: 1, last_name: 1 },
-      (err, user) => {
-        if (err != null) {
-          return next(err)
-        }
-        NewsletterManager.subscribed(user, (err, subscribed) => {
-          if (err != null) {
-            OError.tag(err, 'error getting newsletter subscription status')
-            return next(err)
-          }
-          res.render('user/email-preferences', {
-            title: 'newsletter_info_title',
-            subscribed,
-          })
-        })
-      }
-    )
-  },
+  emailPreferencesPage: expressify(emailPreferencesPage),
 
   async compromisedPasswordPage(req, res) {
     res.render('user/compromised_password')

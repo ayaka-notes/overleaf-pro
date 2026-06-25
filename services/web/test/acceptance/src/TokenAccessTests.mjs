@@ -1112,11 +1112,7 @@ describe('TokenAccess', function () {
             this.owner.makePrivate(this.projectId, () => {
               db.projects.updateOne(
                 { _id: project._id },
-                {
-                  $set: {
-                    overleaf: { id: 1234 },
-                  },
-                },
+                { $set: { 'overleaf.id': 1234 } },
                 err => {
                   expect(err).not.to.exist
                   done()

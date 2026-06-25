@@ -9,6 +9,7 @@ export type FormTextProps = MergeAndOverride<
   BS5FormTextProps,
   {
     type?: TextType
+    unfilled?: boolean
     marginless?: boolean
   }
 >
@@ -22,16 +23,35 @@ const typeClassMap: Partial<Record<TextType, string>> = {
 export const getFormTextClass = (type?: TextType) =>
   typeClassMap[type || 'default']
 
-function FormTextIcon({ type }: { type?: TextType }) {
+function FormTextIcon({
+  type,
+  unfilled,
+}: Pick<FormTextProps, 'type' | 'unfilled'>) {
   switch (type) {
     case 'info':
-      return <MaterialIcon type="info" className="text-info" />
+      return unfilled ? (
+        <MaterialIcon type="info" className="text-info" unfilled />
+      ) : (
+        <MaterialIcon type="info" className="text-info" />
+      )
     case 'success':
-      return <MaterialIcon type="check_circle" />
+      return unfilled ? (
+        <MaterialIcon type="check_circle" unfilled />
+      ) : (
+        <MaterialIcon type="check_circle" />
+      )
     case 'warning':
-      return <MaterialIcon type="warning" />
+      return unfilled ? (
+        <MaterialIcon type="warning" unfilled />
+      ) : (
+        <MaterialIcon type="warning" />
+      )
     case 'error':
-      return <MaterialIcon type="error" />
+      return unfilled ? (
+        <MaterialIcon type="error" unfilled />
+      ) : (
+        <MaterialIcon type="error" />
+      )
     default:
       return null
   }
@@ -42,6 +62,7 @@ function FormText({
   marginless,
   children,
   className,
+  unfilled,
   ...rest
 }: FormTextProps) {
   return (
@@ -50,7 +71,7 @@ function FormText({
       {...rest}
     >
       <span className="form-text-inner">
-        <FormTextIcon type={type} />
+        <FormTextIcon type={type} unfilled={unfilled} />
         <span>{children}</span>
       </span>
     </Form.Text>

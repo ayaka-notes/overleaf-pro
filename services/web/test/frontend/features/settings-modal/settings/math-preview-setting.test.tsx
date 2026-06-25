@@ -2,8 +2,8 @@ import { screen, render } from '@testing-library/react'
 import { expect } from 'chai'
 import fetchMock from 'fetch-mock'
 import { EditorProviders } from '../../../helpers/editor-providers'
-import { SettingsModalProvider } from '@/features/ide-redesign/contexts/settings-modal-context'
-import MathPreviewSetting from '@/features/ide-redesign/components/settings/editor-settings/math-preview-setting'
+import { SettingsModalProvider } from '@/features/settings/context/settings-modal-context'
+import MathPreviewSetting from '@/features/settings/components/editor-settings/math-preview-setting'
 
 describe('<MathPreviewSetting />', function () {
   afterEach(function () {

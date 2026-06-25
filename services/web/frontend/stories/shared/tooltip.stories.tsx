@@ -1,6 +1,6 @@
 import OLButton from '@/shared/components/ol/ol-button'
 import OLTooltip from '@/shared/components/ol/ol-tooltip'
-import { Meta } from '@storybook/react'
+import { Meta } from '@storybook/react-webpack5'
 import { figmaDesignUrl } from '../../../.storybook/utils/figma-design-url'
 
 export const Tooltips = () => {

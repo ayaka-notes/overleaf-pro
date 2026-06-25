@@ -254,14 +254,12 @@ function PdfPreviewError({
 export default memo(PdfPreviewError)
 
 function ErrorLogEntry({
-  autoExpand,
+  autoExpand = true,
   title,
-  headerIcon,
   children,
 }: {
   autoExpand?: boolean
   title: string
-  headerIcon?: React.ReactElement
   children: React.ReactNode
 }) {
   const { t } = useTranslation()
@@ -270,7 +268,6 @@ function ErrorLogEntry({
     <PdfLogEntry
       autoExpand={autoExpand}
       headerTitle={title}
-      headerIcon={headerIcon}
       formattedContent={children}
       entryAriaLabel={t('compile_error_entry_description')}
       level="error"

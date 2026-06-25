@@ -113,5 +113,13 @@ describe('Project List', function () {
       cy.findByRole('button', { name: `Select tag ${tagName}` }).click()
       cy.findByRole('link', { name: nonTaggedProjectName }).should('not.exist')
     })
+
+    it('can change theme from the account menu', function () {
+      cy.findByRole('menuitem', { name: 'Account' }).click()
+      cy.findByLabelText('Dark').click()
+      cy.get('body').should('have.attr', 'data-theme', 'default')
+      cy.findByLabelText('Light').click()
+      cy.get('body').should('have.attr', 'data-theme', 'light')
+    })
   })
 })

@@ -1,8 +1,8 @@
-import SplitTestHandler from '../SplitTests/SplitTestHandler.mjs'
 import AnalyticsManager from '../Analytics/AnalyticsManager.mjs'
 import SubscriptionEmailHandler from './SubscriptionEmailHandler.mjs'
 import { AI_ADD_ON_CODE } from './AiHelper.mjs'
 import mongodb from 'mongodb-legacy'
+import SubscriptionLocator from './SubscriptionLocator.mjs'
 
 const { ObjectId } = mongodb
 
@@ -13,16 +13,16 @@ async function sendRecurlyAnalyticsEvent(event, eventData) {
   if (!ObjectId.isValid(userId)) {
     return
   }
+  const subscription =
+    await SubscriptionLocator.promises.getUsersSubscription(userId)
 
-  const customerIoEnabled =
-    await SplitTestHandler.promises.hasUserBeenAssignedToVariant(
-      {},
-      userId,
-      'customer-io-trial-conversion',
-      'enabled',
-      true
-    )
-  eventData['customerio-integration'] = customerIoEnabled || false
+  if (
+    subscription?.paymentProvider?.service &&
+    subscription.paymentProvider.service.includes('stripe')
+  ) {
+    // do not send recurly events for subscriptions managed by stripe
+    return
+  }
 
   switch (event) {
     case 'new_subscription_notification':
@@ -79,7 +79,6 @@ async function _sendSubscriptionResumedEvent(userId, eventData) {
       plan_code: planCode,
       subscriptionId,
       payment_provider: 'recurly',
-      'customerio-integration': eventData['customerio-integration'],
     }
   )
   AnalyticsManager.setUserPropertyForUserInBackground(
@@ -102,7 +101,6 @@ async function _sendSubscriptionPausedEvent(userId, eventData) {
       plan_code: planCode,
       subscriptionId,
       payment_provider: 'recurly',
-      'customerio-integration': eventData['customerio-integration'],
     }
   )
   AnalyticsManager.setUserPropertyForUserInBackground(
@@ -125,7 +123,6 @@ async function _sendSubscriptionStartedEvent(userId, eventData) {
       has_ai_add_on: hasAiAddOn,
       subscriptionId,
       payment_provider: 'recurly',
-      'customerio-integration': eventData['customerio-integration'],
     }
   )
   AnalyticsManager.setUserPropertyForUserInBackground(
@@ -146,17 +143,6 @@ async function _sendSubscriptionStartedEvent(userId, eventData) {
 
   if (isTrial) {
     await SubscriptionEmailHandler.sendTrialOnboardingEmail(userId, planCode)
-    const cioAssignment = await SplitTestHandler.promises.getAssignmentForUser(
-      userId,
-      'customer-io-trial-conversion'
-    )
-    if (cioAssignment.variant === 'enabled') {
-      AnalyticsManager.setUserPropertyForUserInBackground(
-        userId,
-        'customer-io-integration',
-        true
-      )
-    }
   }
 }
 
@@ -173,7 +159,6 @@ async function _sendSubscriptionUpdatedEvent(userId, eventData) {
       has_ai_add_on: hasAiAddOn,
       subscriptionId,
       payment_provider: 'recurly',
-      'customerio-integration': eventData['customerio-integration'],
     }
   )
   AnalyticsManager.setUserPropertyForUserInBackground(
@@ -206,7 +191,6 @@ async function _sendSubscriptionCancelledEvent(userId, eventData) {
       has_ai_add_on: hasAiAddOn,
       subscriptionId,
       payment_provider: 'recurly',
-      'customerio-integration': eventData['customerio-integration'],
     }
   )
   AnalyticsManager.setUserPropertyForUserInBackground(
@@ -234,7 +218,6 @@ async function _sendSubscriptionExpiredEvent(userId, eventData) {
       has_ai_add_on: hasAiAddOn,
       subscriptionId,
       payment_provider: 'recurly',
-      'customerio-integration': eventData['customerio-integration'],
     }
   )
   AnalyticsManager.setUserPropertyForUserInBackground(
@@ -267,7 +250,6 @@ async function _sendSubscriptionRenewedEvent(userId, eventData) {
       has_ai_add_on: hasAiAddOn,
       subscriptionId,
       payment_provider: 'recurly',
-      'customerio-integration': eventData['customerio-integration'],
     }
   )
   AnalyticsManager.setUserPropertyForUserInBackground(
@@ -299,7 +281,6 @@ async function _sendSubscriptionReactivatedEvent(userId, eventData) {
       has_ai_add_on: hasAiAddOn,
       subscriptionId,
       payment_provider: 'recurly',
-      'customerio-integration': eventData['customerio-integration'],
     }
   )
   AnalyticsManager.setUserPropertyForUserInBackground(

@@ -35,6 +35,7 @@ describe('UpdateManager', function () {
       promises: {
         setDocument: sinon.stub().resolves(),
         updateDocument: sinon.stub(),
+        recordProjectNotificationTimestamp: sinon.stub().resolves(),
       },
     }
 
@@ -74,6 +75,12 @@ describe('UpdateManager', function () {
       },
     }
 
+    this.WebApiManager = {
+      promises: {
+        notifyTrackChangesRejected: sinon.stub().resolves(),
+      },
+    }
+
     this.ProjectHistoryRedisManager = {
       promises: {
         queueOps: sinon
@@ -94,6 +101,7 @@ describe('UpdateManager', function () {
         './DocumentManager': this.DocumentManager,
         './RangesManager': this.RangesManager,
         './SnapshotManager': this.SnapshotManager,
+        './WebApiManager': this.WebApiManager,
         './Profiler': this.Profiler,
         './ProjectHistoryRedisManager': this.ProjectHistoryRedisManager,
       },
@@ -337,6 +345,7 @@ describe('UpdateManager', function () {
         newRanges: this.updated_ranges,
         rangesWereCollapsed: false,
         historyUpdates: this.historyUpdates,
+        removedChangeIds: [],
       })
       this.ShareJsUpdateManager.promises.applyUpdate = sinon.stub().resolves({
         updatedDocLines: this.updatedDocLines,
@@ -416,6 +425,56 @@ describe('UpdateManager', function () {
           this.historyUpdates.length
         )
       })
+
+      it('should record the project notification timestamp', function () {
+        this.RedisManager.promises.recordProjectNotificationTimestamp.should.have.been.calledWith(
+          this.project_id,
+          sinon.match.number
+        )
+      })
+    })
+
+    describe('when update has a timestamp in meta', function () {
+      beforeEach(async function () {
+        this.timestamp = 1234567890
+        this.update = {
+          op: [{ p: 42, i: 'foo' }],
+          meta: { ...this.updateMeta, ts: this.timestamp },
+        }
+        await this.UpdateManager.promises.applyUpdate(
+          this.project_id,
+          this.doc_id,
+          this.update
+        )
+      })
+
+      it('should record the project notification timestamp with the provided timestamp', function () {
+        this.RedisManager.promises.recordProjectNotificationTimestamp.should.have.been.calledWith(
+          this.project_id,
+          this.timestamp
+        )
+      })
+    })
+
+    describe('when there are no history updates', function () {
+      beforeEach(async function () {
+        this.RangesManager.applyUpdate.returns({
+          newRanges: this.updated_ranges,
+          rangesWereCollapsed: false,
+          historyUpdates: [],
+          removedChangeIds: [],
+        })
+        await this.UpdateManager.promises.applyUpdate(
+          this.project_id,
+          this.doc_id,
+          this.update
+        )
+      })
+
+      it('should not record the project notification timestamp', function () {
+        this.RedisManager.promises.recordProjectNotificationTimestamp.should.not
+          .have.been.called
+      })
     })
 
     describe('with UTF-16 surrogate pairs in the update', function () {
@@ -468,6 +527,7 @@ describe('UpdateManager', function () {
           newRanges: this.updated_ranges,
           rangesWereCollapsed: true,
           historyUpdates: this.historyUpdates,
+          removedChangeIds: [],
         })
         await this.UpdateManager.promises.applyUpdate(
           this.project_id,
@@ -521,6 +581,76 @@ describe('UpdateManager', function () {
           this.project_id,
           this.historyUpdates,
           this.historyUpdates.length
+        )
+      })
+    })
+
+    describe('when tracked changes are rejected', function () {
+      beforeEach(async function () {
+        this.rejectedChangeAuthorIds = ['author-1', 'author-2']
+        // The ranges that getDoc returned must include the changes whose IDs
+        // RangesManager reports as removed so UpdateManager can look up the
+        // authors locally.
+        this.ranges = {
+          changes: [
+            {
+              id: 'change-1',
+              metadata: { user_id: 'author-1' },
+            },
+            {
+              id: 'change-2',
+              metadata: { user_id: 'author-2' },
+            },
+            {
+              id: 'change-untouched',
+              metadata: { user_id: 'author-3' },
+            },
+          ],
+        }
+        this.DocumentManager.promises.getDoc.resolves({
+          lines: this.lines,
+          version: this.version,
+          ranges: this.ranges,
+          pathname: this.pathname,
+          projectHistoryId: this.projectHistoryId,
+          historyRangesSupport: false,
+          type: 'sharejs-text-ot',
+        })
+        this.RangesManager.applyUpdate.returns({
+          newRanges: this.updated_ranges,
+          rangesWereCollapsed: false,
+          historyUpdates: this.historyUpdates,
+          removedChangeIds: ['change-1', 'change-2'],
+        })
+        await this.UpdateManager.promises.applyUpdate(
+          this.project_id,
+          this.doc_id,
+          this.update
+        )
+      })
+
+      it('should notify web of the rejected tracked changes', function () {
+        this.WebApiManager.promises.notifyTrackChangesRejected.should.have.been.calledWith(
+          this.project_id,
+          this.doc_id,
+          this.rejectedChangeAuthorIds,
+          this.updateMeta.user_id
+        )
+      })
+    })
+
+    describe('when no tracked changes are rejected', function () {
+      beforeEach(async function () {
+        await this.UpdateManager.promises.applyUpdate(
+          this.project_id,
+          this.doc_id,
+          this.update
+        )
+      })
+
+      it('should not notify web', function () {
+        this.WebApiManager.promises.notifyTrackChangesRejected.called.should.equal(
+          false
         )
       })
     })

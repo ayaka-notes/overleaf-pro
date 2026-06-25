@@ -2,7 +2,6 @@ volumes:
   data:
 
 services:
-
   test_unit:
     build:
       context: ../..
@@ -13,9 +12,10 @@ services:
     user: node
     volumes:
       - ../../bin/shared/wait_for_it:/overleaf/bin/shared/wait_for_it
+      - ./data/coverage:/overleaf/services/web/data/coverage
       - ./data/reports:/overleaf/services/web/data/reports
     entrypoint: /overleaf/bin/shared/wait_for_it mongo:27017 --timeout=60 --
-    command: npm run test:unit:app
+    command: yarn run test:unit:app
     working_dir: /overleaf/services/web
     env_file: docker-compose.common.env
     environment:
@@ -28,6 +28,9 @@ services:
       NODE_OPTIONS: "--unhandled-rejections=strict"
       REDIS_HOST: redis_test
       VITEST_NO_CACHE: true
+      COVERAGE_UNIT_TESTS:
+      NO_COLOR: true
+      MONOREPO:
     depends_on:
       - redis_test
       - mongo
@@ -48,23 +51,27 @@ services:
       BASE_CONFIG:
       OVERLEAF_CONFIG:
       REDIS_HOST: redis_test
+      COVERAGE_ACCEPTANCE_TESTS:
+      NO_COLOR: true
+      MONOREPO:
+      RETRIES:
     extra_hosts:
-      - 'www.overleaf.test:127.0.0.1'
+      - "www.overleaf.test:127.0.0.1"
     volumes:
       - ../../bin/shared/wait_for_it:/overleaf/bin/shared/wait_for_it
+      - ./data/coverage:/overleaf/services/web/data/coverage
       - ./data/reports:/overleaf/services/web/data/reports
     entrypoint: /overleaf/bin/shared/wait_for_it mongo:27017 --timeout=60 --
-    command: npm run test:acceptance:app
-    user: root
+    command: yarn run test:acceptance:app
     depends_on:
       - redis_test
       - mongo
       - saml
       - ldap
     tmpfs:
-      - /overleaf/services/web/data
+      - /overleaf/services/web/data:uid=1000,gid=1000
 
-  test_frontend:
+  test_frontend_jsdom:
     build:
       context: ../..
       dockerfile: services/web/Dockerfile
@@ -75,28 +82,35 @@ services:
       driver: local
     user: node
     working_dir: /overleaf/services/web
-    command: npm run test:frontend
+    command: yarn run test:frontend
     environment:
       NODE_OPTIONS: "--unhandled-rejections=strict"
       CI:
       JUNIT_ROOT_SUITE_NAME:
+      NO_COLOR: true
 
   test_frontend_ct:
-    image: cypress/included:13.13.2
+    build:
+      context: ../../dockerfiles/cypress
+      args:
+        - USER_UID
+        - USER_GID
     logging:
       driver: local
     working_dir: /overleaf/services/web
-    user: "${DOCKER_USER:-1000:1000}"
     environment:
       CI:
       CYPRESS_DOWNLOADS:
       CYPRESS_RESULTS:
       CYPRESS_SPEC_PATTERN:
       CYPRESS_EXCLUDE_SPEC_PATTERN:
+      NO_COLOR: true
     volumes:
       - /dev/shm/overleaf:/overleaf
       - ./data/reports:/overleaf/services/web/data/reports
-    entrypoint: npm
+    tmpfs:
+      - /overleaf/services/web/node_modules/.cache:uid=1000,gid=1000
+    entrypoint: yarn
     command:
       - "run"
       - "cypress:run-ct"
@@ -110,13 +124,14 @@ services:
       driver: local
     user: node
     working_dir: /overleaf/services/web
-    command: npm run test:writefull
+    command: yarn run test:writefull
     volumes:
       - ./data/reports:/overleaf/services/web/data/reports
     environment:
       CI:
       JUNIT_ROOT_SUITE_NAME:
       NODE_OPTIONS: "--unhandled-rejections=strict"
+      NO_COLOR: true
 
   tar:
     image: ci/$PROJECT_NAME:$BRANCH_NAME-$BUILD_NUMBER-webpack
@@ -126,7 +141,7 @@ services:
     user: root
 
   redis_test:
-    image: redis:7.4.3
+    image: redis:7.4.8
 
   mongo:
     image: mongo:8.0.11
@@ -151,15 +166,15 @@ services:
     # REF: https://github.com/moby/moby/issues/8231#issuecomment-63877553
     # REF: https://github.com/moby/moby/issues/8231#issuecomment-63871343
     command:
-      - 'bash'
-      - '-c'
-      - 'ulimit -n 1024 && exec bash /run.sh'
+      - "bash"
+      - "-c"
+      - "ulimit -n 1024 && exec bash /run.sh"
 
   saml:
-      image: us-east1-docker.pkg.dev/overleaf-ops/ol-docker/saml-test
-      logging:
-        driver: none
-      environment:
-          SAML_BASE_URL_PATH: 'http://saml/simplesaml/'
-          SAML_TEST_SP_ENTITY_ID: 'overleaf-test-saml'
-          SAML_TEST_SP_LOCATION: 'http://www.overleaf.test:23000/saml/callback'
+    image: us-east1-docker.pkg.dev/overleaf-ops/ol-docker/saml-test
+    logging:
+      driver: none
+    environment:
+      SAML_BASE_URL_PATH: "http://saml/simplesaml/"
+      SAML_TEST_SP_ENTITY_ID: "overleaf-test-saml"
+      SAML_TEST_SP_LOCATION: "http://www.overleaf.test:23000/saml/callback"

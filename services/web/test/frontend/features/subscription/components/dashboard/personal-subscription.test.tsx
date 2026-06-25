@@ -115,6 +115,45 @@ describe('<PersonalSubscription />', function () {
       fetchMock.removeRoutes().clearHistory()
     })
 
+    it('hides reactivate button for managed users who cannot reactivate', function () {
+      renderWithSubscriptionDashContext(<PersonalSubscription />, {
+        metaTags: [
+          { name: 'ol-subscription', value: canceledSubscription },
+          { name: 'ol-cannot-reactivate-subscription', value: true },
+        ],
+      })
+
+      screen.getByText(
+        'Your subscription has been canceled and will terminate on',
+        { exact: false }
+      )
+      screen.getByRole('link', { name: 'View your invoices' })
+
+      // Should not show the reactivate button
+      expect(
+        screen.queryByRole('button', { name: 'Reactivate your subscription' })
+      ).to.be.null
+    })
+
+    it('shows reactivate button for managed group admins even if they have reactivate restriction', function () {
+      renderWithSubscriptionDashContext(<PersonalSubscription />, {
+        metaTags: [
+          { name: 'ol-subscription', value: canceledSubscription },
+          { name: 'ol-cannot-reactivate-subscription', value: true },
+          { name: 'ol-isManagedGroupAdmin', value: true },
+        ],
+      })
+
+      screen.getByText(
+        'Your subscription has been canceled and will terminate on',
+        { exact: false }
+      )
+      screen.getByRole('link', { name: 'View your invoices' })
+
+      // Should show the reactivate button for group admins
+      screen.getByRole('button', { name: 'Reactivate your subscription' })
+    })
+
     it('renders the expired dash', function () {
       renderWithSubscriptionDashContext(<PersonalSubscription />, {
         metaTags: [

@@ -1,10 +1,10 @@
-import type { ElementType, ReactNode, PropsWithChildren } from 'react'
+import type { ElementType, ReactNode, PropsWithChildren, AriaRole } from 'react'
 import type { ButtonProps } from '@/shared/components/types/button-props'
 import type { DropdownMenuProps as BS5DropdownMenuProps } from 'react-bootstrap'
 
 type SplitButtonVariants = Extract<
   ButtonProps['variant'],
-  'primary' | 'secondary' | 'danger' | 'link'
+  'primary' | 'secondary' | 'danger' | 'link' | 'ghost'
 >
 
 export type DropdownProps = {
@@ -26,6 +26,7 @@ export type DropdownProps = {
   drop?: 'up' | 'up-centered' | 'start' | 'end' | 'down' | 'down-centered'
   focusFirstItemOnShow?: false | true | 'keyboard'
   onKeyDown?: (event: React.KeyboardEvent) => void
+  role?: AriaRole
 }
 
 export type DropdownItemProps = PropsWithChildren<{
@@ -73,6 +74,8 @@ export type DropdownMenuProps = PropsWithChildren<{
   id?: string
   renderOnMount?: boolean
   popperConfig?: BS5DropdownMenuProps['popperConfig']
+  tabIndex?: number
+  onKeyDown?: (event: React.KeyboardEvent) => void
 }>
 
 export type DropdownDividerProps = PropsWithChildren<{

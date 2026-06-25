@@ -1,4 +1,8 @@
-import type { Preview } from '@storybook/react'
+import { definePreview } from '@storybook/react-webpack5'
+import addonA11y from '@storybook/addon-a11y'
+import addonDesigns from '@storybook/addon-designs'
+import addonDocs from '@storybook/addon-docs'
+import addonLinks from '@storybook/addon-links'
 
 // Storybook does not (currently) support async loading of "stories". Therefore
 // the strategy in frontend/js/i18n.ts does not work (because we cannot wait on
@@ -74,6 +78,9 @@ function resetMeta() {
       'gv',
       'mf',
       'lhs',
+      'lean',
+      'lean4',
+      'hs',
       'mk',
       'xmpdata',
       'cfg',
@@ -116,15 +123,18 @@ i18n.use(initReactI18next).init({
   },
 })
 
-const preview: Preview = {
+export default definePreview({
+  addons: [addonA11y(), addonDesigns(), addonDocs(), addonLinks()],
   parameters: {
     // Automatically mark prop-types like onClick, onToggle, etc as Storybook
     // "actions", so that they are logged in the Actions pane at the bottom of the
     // viewer
     actions: { argTypesRegex: '^on.*' },
     docs: {
-      // render stories in iframes, to isolate modals
-      inlineStories: false,
+      story: {
+        // render stories in iframes, to isolate modals
+        inline: false,
+      },
     },
     options: {
       storySort: {
@@ -179,9 +189,7 @@ const preview: Preview = {
       )
     },
   ],
-}
-
-export default preview
+})
 
 // Populate meta for top-level access in modules on import
 resetMeta()

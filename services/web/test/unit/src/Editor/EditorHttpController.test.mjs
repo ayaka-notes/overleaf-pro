@@ -131,13 +131,12 @@ describe('EditorHttpController', function () {
     }
     ctx.ProjectGetter = {
       promises: {
-        getProjectWithoutDocLines: sinon.stub().resolves(ctx.project),
+        getProject: sinon.stub().resolves(ctx.project),
       },
     }
     ctx.ProjectEditorHandler = {
       buildProjectModelView: sinon.stub().returns(ctx.projectView),
     }
-    ctx.Metrics = { inc: sinon.stub() }
     ctx.TokenAccessHandler = {
       getRequestToken: sinon.stub().returns(ctx.token),
     }
@@ -195,9 +194,6 @@ describe('EditorHttpController', function () {
         default: ctx.EditorController,
       })
     )
-    vi.doMock('@overleaf/metrics', () => ({
-      default: ctx.Metrics,
-    }))
     vi.doMock(
       '../../../../app/src/Features/Collaborators/CollaboratorsGetter.mjs',
       () => ({
@@ -461,7 +457,7 @@ describe('EditorHttpController', function () {
 
     describe('when project is not found', function () {
       beforeEach(async function (ctx) {
-        ctx.ProjectGetter.promises.getProjectWithoutDocLines.resolves(null)
+        ctx.ProjectGetter.promises.getProject.resolves(null)
         await new Promise(resolve => {
           ctx.next.callsFake(() => resolve())
           ctx.EditorHttpController.joinProject(ctx.req, ctx.res, ctx.next)

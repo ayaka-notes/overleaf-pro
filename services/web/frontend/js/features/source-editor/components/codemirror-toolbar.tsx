@@ -29,12 +29,14 @@ import { useTranslation } from 'react-i18next'
 import { ToggleSearchButton } from '@/features/source-editor/components/toolbar/toggle-search-button'
 import ReviewPanelHeader from '@/features/review-panel/components/review-panel-header'
 import useReviewPanelLayout from '@/features/review-panel/hooks/use-review-panel-layout'
-import { useIsNewEditorEnabled } from '@/features/ide-redesign/utils/new-editor-utils'
-import Breadcrumbs from '@/features/ide-redesign/components/breadcrumbs'
+import Breadcrumbs from '@/features/source-editor/extensions/breadcrumbs'
 import classNames from 'classnames'
 import { useUserSettingsContext } from '@/shared/context/user-settings-context'
 import { useFeatureFlag } from '@/shared/context/split-test-context'
 import importOverleafModules from '../../../../macros/import-overleaf-module.macro'
+import { useLayoutContext } from '@/shared/context/layout-context'
+import ReviewPanelHeaderBuffer from '@/features/review-panel/components/review-panel-header-buffer'
+import { useAreTabsEnabled } from '@/features/ide-react/hooks/use-are-tabs-enabled'
 
 const sourceEditorToolbarComponents = importOverleafModules(
   'sourceEditorToolbarComponents'
@@ -63,6 +65,7 @@ const Toolbar = memo(function Toolbar() {
     userSettings: { breadcrumbs },
   } = useUserSettingsContext()
   const visualPreviewEnabled = useFeatureFlag('visual-preview')
+  const { focusMode } = useLayoutContext()
 
   const [overflowed, setOverflowed] = useState(false)
 
@@ -73,7 +76,6 @@ const Toolbar = memo(function Toolbar() {
 
   const listDepth = minimumListDepthForSelection(state)
 
-  const newEditor = useIsNewEditorEnabled()
   const { showHeader: showReviewPanelHeader } = useReviewPanelLayout()
 
   const {
@@ -123,12 +125,20 @@ const Toolbar = memo(function Toolbar() {
     if (resizeRef.current) {
       buildOverflow(resizeRef.current.element)
     }
-  }, [buildOverflow, languageName, resizeRef, visual])
+  }, [buildOverflow, languageName, listDepth, resizeRef, visual])
 
-  // calculate overflow when buttons change
+  // calculate overflow when toolbar content changes
   const observerRef = useRef<MutationObserver | null>(null)
-  const handleButtons = useCallback(
+  const handleToolbar = useCallback(
     (node: HTMLDivElement) => {
+      // register the resize observer on the toolbar node
+      elementRef(node)
+
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+        observerRef.current = null
+      }
+
       if (!('MutationObserver' in window)) {
         return
       }
@@ -140,12 +150,10 @@ const Toolbar = memo(function Toolbar() {
           }
         })
 
-        observerRef.current.observe(node, { childList: true })
-      } else if (observerRef.current) {
-        observerRef.current.disconnect()
+        observerRef.current.observe(node, { childList: true, subtree: true })
       }
     },
-    [buildOverflow, resizeRef]
+    [buildOverflow, elementRef, resizeRef]
   )
 
   // calculate overflow when active element changes to/from inside a table
@@ -159,23 +167,28 @@ const Toolbar = memo(function Toolbar() {
   }, [buildOverflow, insideTable, resizeRef])
 
   const showActions = !state.readOnly && !insideTable
+  const tabsVisible = useAreTabsEnabled()
+
+  if (focusMode) {
+    return null
+  }
 
   return (
     <>
-      {newEditor && showReviewPanelHeader && <ReviewPanelHeader />}
+      {showReviewPanelHeader &&
+        (tabsVisible ? <ReviewPanelHeaderBuffer /> : <ReviewPanelHeader />)}
       <div
         id="ol-cm-toolbar-wrapper"
         className={classNames('ol-cm-toolbar-wrapper', {
-          'ol-cm-toolbar-wrapper-indented': newEditor && showReviewPanelHeader,
+          'ol-cm-toolbar-wrapper-indented': showReviewPanelHeader,
         })}
       >
         <div
           role="toolbar"
           aria-label={t('toolbar_editor')}
           className="ol-cm-toolbar toolbar-editor"
-          ref={elementRef}
+          ref={handleToolbar}
         >
-          {!visualPreviewEnabled && <EditorSwitch />}
           {showActions && (
             <ToolbarItems
               state={state}
@@ -204,10 +217,8 @@ const Toolbar = memo(function Toolbar() {
             )}
           </div>
 
-          <div
-            className="ol-cm-toolbar-button-group ol-cm-toolbar-end"
-            ref={handleButtons}
-          >
+          <div className="ol-cm-toolbar-button-group ol-cm-toolbar-end">
+            {!visualPreviewEnabled && <EditorSwitch />}
             {sourceEditorToolbarEndButtons.map(
               ({ import: { default: Component }, path }) => (
                 <Component key={path} />
@@ -224,7 +235,7 @@ const Toolbar = memo(function Toolbar() {
             <Component key={path} />
           )
         )}
-        {newEditor && breadcrumbs && <Breadcrumbs />}
+        {breadcrumbs && <Breadcrumbs />}
       </div>
     </>
   )

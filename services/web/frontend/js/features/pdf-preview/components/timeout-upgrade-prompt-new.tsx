@@ -7,13 +7,11 @@ import * as eventTracking from '../../../infrastructure/event-tracking'
 import getMeta from '@/utils/meta'
 import { populateEditorRedesignSegmentation } from '@/shared/hooks/use-editor-analytics'
 import CompileTimeoutPaywallModal from '@/features/pdf-preview/components/compile-timeout-paywall-modal'
-import { useIsNewEditorEnabled } from '@/features/ide-redesign/utils/new-editor-utils'
 import { isSplitTestEnabled } from '@/utils/splitTestUtils'
+import { useSplitTest } from '@/shared/context/split-test-context'
 
 function TimeoutUpgradePromptNew() {
   const { isProjectOwner } = useDetachCompileContext()
-  const newEditor = useIsNewEditorEnabled()
-
   const isCompileTimeoutTargetPlansEnabled = isSplitTestEnabled(
     'compile-timeout-target-plans'
   )
@@ -25,15 +23,12 @@ function TimeoutUpgradePromptNew() {
 
   const sharedSegmentation = useMemo(
     () =>
-      populateEditorRedesignSegmentation(
-        {
-          'is-owner': isProjectOwner,
-          compileTime: compileTimeout,
-          location: 'logs',
-        },
-        newEditor
-      ),
-    [isProjectOwner, compileTimeout, newEditor]
+      populateEditorRedesignSegmentation({
+        'is-owner': isProjectOwner,
+        compileTime: compileTimeout,
+        location: 'logs',
+      }),
+    [isProjectOwner, compileTimeout]
   )
 
   return (
@@ -66,12 +61,32 @@ const CompileTimeout = memo(function CompileTimeout({
   isCompileTimeoutTargetPlansEnabled,
 }: CompileTimeoutProps) {
   const { t } = useTranslation()
-  const newEditor = useIsNewEditorEnabled()
+  const { variant } = useSplitTest('compile-timeout-cta')
+
+  let ctaLabel = ''
+
+  switch (variant) {
+    case 'explore-plans':
+      ctaLabel = t('explore_plans')
+      break
+    case 'get-more-compile-time':
+      ctaLabel = t('get_more_compile_time')
+      break
+    case 'upgrade-now':
+      ctaLabel = t('upgrade_now')
+      break
+    case 'subscribe-now':
+      ctaLabel = t('subscribe_now')
+      break
+    default:
+      ctaLabel = t('start_free_trial')
+      break
+  }
   const extraSearchParams = useMemo(() => {
     return {
-      itm_content: newEditor ? 'new-editor' : 'old-editor',
+      itm_content: 'new-editor',
     }
-  }, [newEditor])
+  }, [])
 
   const handleFreeTrialClick = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -99,9 +114,7 @@ const CompileTimeout = memo(function CompileTimeout({
             {isProjectOwner ? (
               <p>
                 <strong>{t('upgrade_for_more_compile_time')}</strong>{' '}
-                {t(
-                  'plus_additional_collaborators_document_history_track_changes_and_more'
-                )}
+                {t('plus_additional_collaborators_and_more')}
               </p>
             ) : (
               <Trans
@@ -122,7 +135,7 @@ const CompileTimeout = memo(function CompileTimeout({
                   extraSearchParams={extraSearchParams}
                   handleClick={handleFreeTrialClick}
                 >
-                  {t('start_a_free_trial')}
+                  {ctaLabel}
                 </StartFreeTrialButton>
               </p>
             )}

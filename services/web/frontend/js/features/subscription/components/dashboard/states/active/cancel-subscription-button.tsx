@@ -4,9 +4,12 @@ import { useSubscriptionDashboardContext } from '../../../../context/subscriptio
 import OLButton from '@/shared/components/ol/ol-button'
 import { PaidSubscription } from '../../../../../../../../types/subscription/dashboard/subscription'
 import { useFeatureFlag } from '@/shared/context/split-test-context'
+import { useLocation } from '@/shared/hooks/use-location'
+import { stripHasSubscription } from '../../../../data/subscription-url'
 
 export function CancelSubscriptionButton() {
   const { t } = useTranslation()
+  const location = useLocation()
   const {
     recurlyLoadError,
     personalSubscription,
@@ -35,6 +38,10 @@ export function CancelSubscriptionButton() {
       plan_code: subscription?.planCode,
       is_trial: isInTrial,
     })
+    const url = location.toString()
+    if (url) {
+      window.history.replaceState(null, '', stripHasSubscription(url))
+    }
     if (enablePause) {
       setModalIdShown('pause-subscription')
     } else {

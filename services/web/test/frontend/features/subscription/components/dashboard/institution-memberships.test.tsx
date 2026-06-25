@@ -12,6 +12,7 @@ const memberships: Institution[] = [
     id: 9258,
     name: 'Test University',
     commonsAccount: true,
+    enterpriseCommons: false,
     isUniversity: true,
     confirmed: true,
     ssoBeta: false,
@@ -23,6 +24,7 @@ const memberships: Institution[] = [
     id: 9259,
     name: 'Example Institution',
     commonsAccount: true,
+    enterpriseCommons: false,
     isUniversity: true,
     confirmed: true,
     ssoBeta: false,
@@ -49,10 +51,10 @@ describe('<InstitutionMemberships />', function () {
     })
     expect(elements.length).to.equal(2)
     expect(elements[0].textContent).to.equal(
-      'You are on our Professional plan as a confirmed member of Test University'
+      'You are on our Commons plan as a confirmed member of Test University'
     )
     expect(elements[1].textContent).to.equal(
-      'You are on our Professional plan as a confirmed member of Example Institution'
+      'You are on our Commons plan as a confirmed member of Example Institution'
     )
   })
 

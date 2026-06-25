@@ -105,8 +105,6 @@ describe('SubscriptionHandler', function () {
           .resolves(ctx.activeRecurlyClientSubscription),
         pauseSubscriptionByUuid: sinon.stub().resolves(),
         resumeSubscriptionByUuid: sinon.stub().resolves(),
-        failInvoice: sinon.stub(),
-        getPastDueInvoices: sinon.stub(),
       },
     }
     ctx.SubscriptionUpdater = {
@@ -115,7 +113,6 @@ describe('SubscriptionHandler', function () {
         syncSubscription: sinon.stub().resolves(),
         syncStripeSubscription: sinon.stub().resolves(),
         startFreeTrial: sinon.stub().resolves(),
-        setSubscriptionWasReverted: sinon.stub().resolves(),
       },
     }
 
@@ -146,6 +143,14 @@ describe('SubscriptionHandler', function () {
       promises: {
         getAssignmentForUser: sinon.stub().resolves({ variant: 'default' }),
       },
+    }
+
+    ctx.WorkbenchRateLimiter = {
+      resetTokenUsage: sinon.stub().resolves(),
+    }
+
+    ctx.AiFeatureUsageRateLimiter = {
+      resetFeatureUsage: sinon.stub().resolves(),
     }
 
     vi.doMock(
@@ -229,6 +234,20 @@ describe('SubscriptionHandler', function () {
         },
       }),
     }))
+
+    vi.doMock(
+      '../../../../app/src/infrastructure/rate-limiters/WorkbenchRateLimiter',
+      () => ({
+        default: ctx.WorkbenchRateLimiter,
+      })
+    )
+
+    vi.doMock(
+      '../../../../app/src/infrastructure/rate-limiters/AiFeatureUsageRateLimiter',
+      () => ({
+        default: ctx.AiFeatureUsageRateLimiter,
+      })
+    )
 
     ctx.SubscriptionHandler = (await import(MODULE_PATH)).default
   })
@@ -382,6 +401,85 @@ describe('SubscriptionHandler', function () {
         ctx.user._id
       )
     })
+
+    it('should reset the ai rate limiter usages on a successful update', async function (ctx) {
+      ctx.LimitationsManager.promises.userHasSubscription.resolves({
+        hasSubscription: true,
+        subscription: ctx.subscription,
+      })
+      await ctx.SubscriptionHandler.promises.updateSubscription(
+        ctx.user,
+        ctx.plan_code
+      )
+      expect(ctx.WorkbenchRateLimiter.resetTokenUsage).to.have.been.calledWith(
+        ctx.user._id
+      )
+      expect(
+        ctx.AiFeatureUsageRateLimiter.resetFeatureUsage
+      ).to.have.been.calledWith(ctx.user._id)
+    })
+
+    it('should not reset the ai rate limiter usages when no subscription exists', async function (ctx) {
+      ctx.LimitationsManager.promises.userHasSubscription.resolves({
+        hasSubscription: false,
+        subscription: null,
+      })
+      await ctx.SubscriptionHandler.promises.updateSubscription(
+        ctx.user,
+        ctx.plan_code
+      )
+      expect(ctx.WorkbenchRateLimiter.resetTokenUsage).to.not.have.been.called
+      expect(ctx.AiFeatureUsageRateLimiter.resetFeatureUsage).to.not.have.been
+        .called
+    })
+
+    describe('previous_plan_type customer.io attribute', function () {
+      beforeEach(function (ctx) {
+        ctx.subscription.planCode = 'collaborator'
+        ctx.subscription.groupPlan = false
+        ctx.LimitationsManager.promises.userHasSubscription.resolves({
+          hasSubscription: true,
+          subscription: ctx.subscription,
+        })
+        ctx.Modules.promises.hooks.fire.resolves()
+      })
+
+      it('should not set previous_plan_type when the new plan code matches the current plan code', async function (ctx) {
+        await ctx.SubscriptionHandler.promises.updateSubscription(
+          ctx.user,
+          'collaborator'
+        )
+        expect(ctx.Modules.promises.hooks.fire).to.not.have.been.calledWith(
+          'setUserProperties',
+          sinon.match.any,
+          sinon.match.has('previous_plan_type')
+        )
+      })
+
+      it('should not set previous_plan_type when the new plan code resolves to the same normalised plan type', async function (ctx) {
+        await ctx.SubscriptionHandler.promises.updateSubscription(
+          ctx.user,
+          'collaborator-annual'
+        )
+        expect(ctx.Modules.promises.hooks.fire).to.not.have.been.calledWith(
+          'setUserProperties',
+          sinon.match.any,
+          sinon.match.has('previous_plan_type')
+        )
+      })
+
+      it('should set previous_plan_type when the new plan resolves to a different normalised plan type', async function (ctx) {
+        await ctx.SubscriptionHandler.promises.updateSubscription(
+          ctx.user,
+          'professional'
+        )
+        expect(ctx.Modules.promises.hooks.fire).to.have.been.calledWith(
+          'setUserProperties',
+          ctx.user._id,
+          { previous_plan_type: 'standard' }
+        )
+      })
+    })
   })
 
   describe('cancelPendingSubscriptionChange', function () {
@@ -395,7 +493,7 @@ describe('SubscriptionHandler', function () {
       })
     })
 
-    it('should not fire cancelPendingPaidSubscriptionChange hook if user has no subscription', async function (ctx) {
+    it('should not fire hooks if user has no subscription', async function (ctx) {
       ctx.LimitationsManager.promises.userHasSubscription.resolves({
         hasSubscription: false,
         subscription: null,
@@ -404,24 +502,90 @@ describe('SubscriptionHandler', function () {
         ctx.user,
         ctx.plan_code
       )
-      expect(ctx.Modules.promises.hooks.fire).to.not.have.been.calledWith(
-        'cancelPendingPaidSubscriptionChange',
-        sinon.match.any
-      )
+      expect(ctx.Modules.promises.hooks.fire).to.not.have.been.called
     })
 
-    it('should fire cancelPendingPaidSubscriptionChange to update a valid subscription', async function (ctx) {
+    it('should get payment record and apply change request', async function (ctx) {
+      const changeRequest = { subscription: { id: 'sub_123' } }
+      const paymentProviderSubscription = {
+        id: 'sub_123',
+        service: 'stripe',
+        getRequestForPlanChangeCancellation: sinon
+          .stub()
+          .returns(changeRequest),
+      }
+      const paymentRecord = { subscription: paymentProviderSubscription }
+
       ctx.LimitationsManager.promises.userHasSubscription.resolves({
         hasSubscription: true,
         subscription: ctx.subscription,
       })
+      ctx.Modules.promises.hooks.fire
+        .withArgs('getPaymentFromRecord', ctx.subscription)
+        .resolves([paymentRecord])
+      ctx.Modules.promises.hooks.fire
+        .withArgs(
+          'applySubscriptionChangeRequestAndSync',
+          changeRequest,
+          ctx.user._id.toString()
+        )
+        .resolves([Promise.resolve()])
+
       await ctx.SubscriptionHandler.promises.cancelPendingSubscriptionChange(
         ctx.user,
         ctx.plan_code
       )
+
+      expect(ctx.Modules.promises.hooks.fire).to.have.been.calledWith(
+        'getPaymentFromRecord',
+        ctx.subscription
+      )
+      expect(paymentProviderSubscription.getRequestForPlanChangeCancellation).to
+        .have.been.called
+      expect(ctx.Modules.promises.hooks.fire).to.have.been.calledWith(
+        'applySubscriptionChangeRequestAndSync',
+        changeRequest,
+        ctx.user._id.toString()
+      )
+    })
+
+    it('should remove pending change when there are no add-on changes to preserve', async function (ctx) {
+      const paymentProviderSubscription = {
+        id: 'sub_123',
+        service: 'stripe',
+        pendingChange: { nextPlanCode: 'student' },
+        getRequestForPlanChangeCancellation: sinon.stub().returns(null),
+      }
+      const paymentRecord = { subscription: paymentProviderSubscription }
+
+      ctx.LimitationsManager.promises.userHasSubscription.resolves({
+        hasSubscription: true,
+        subscription: ctx.subscription,
+      })
+      ctx.Modules.promises.hooks.fire
+        .withArgs('getPaymentFromRecord', ctx.subscription)
+        .resolves([paymentRecord])
+      ctx.Modules.promises.hooks.fire
+        .withArgs('cancelPendingPaidSubscriptionChange', ctx.subscription)
+        .resolves([Promise.resolve()])
+
+      await ctx.SubscriptionHandler.promises.cancelPendingSubscriptionChange(
+        ctx.user,
+        ctx.plan_code
+      )
+
+      expect(ctx.Modules.promises.hooks.fire).to.have.been.calledWith(
+        'getPaymentFromRecord',
+        ctx.subscription
+      )
+      expect(paymentProviderSubscription.getRequestForPlanChangeCancellation).to
+        .have.been.called
       expect(ctx.Modules.promises.hooks.fire).to.have.been.calledWith(
         'cancelPendingPaidSubscriptionChange',
         ctx.subscription
+      )
+      expect(ctx.Modules.promises.hooks.fire).to.not.have.been.calledWith(
+        'applySubscriptionChangeRequestAndSync'
       )
     })
   })
@@ -453,7 +617,7 @@ describe('SubscriptionHandler', function () {
       it('should send the email after 1 hour', function (ctx) {
         const ONE_HOUR_IN_MS = 1000 * 60 * 60
         expect(ctx.EmailHandler.sendDeferredEmail).to.have.been.calledWith(
-          'canceledSubscription',
+          'canceledSubscriptionOrAddOn',
           { to: ctx.user.email, first_name: ctx.user.first_name },
           ONE_HOUR_IN_MS
         )
@@ -555,7 +719,7 @@ describe('SubscriptionHandler', function () {
         it('should send the email after 1 hour', function (ctx) {
           const ONE_HOUR_IN_MS = 1000 * 60 * 60
           expect(ctx.EmailHandler.sendDeferredEmail).to.have.been.calledWith(
-            'canceledSubscription',
+            'canceledSubscriptionOrAddOn',
             { to: ctx.user.email, first_name: ctx.user.first_name },
             ONE_HOUR_IN_MS
           )
@@ -935,152 +1099,6 @@ describe('SubscriptionHandler', function () {
 
       it('should return true', function (ctx) {
         expect(ctx.isValid).to.equal(true)
-      })
-    })
-  })
-
-  describe('revertPlanChange', function () {
-    describe('with correct invoices', function () {
-      beforeEach(async function (ctx) {
-        ctx.subscriptionRestorePoint = {
-          planCode: 'collaborator',
-          addOns: [
-            { addOnCode: 'addon-1', quantity: 1, unitAmountInCents: 500 },
-          ],
-          _id: 'restore-point-id',
-        }
-        ctx.pastDueInvoice = {
-          id: 'invoice-123',
-          dueAt: new Date(),
-          collectionMethod: 'automatic',
-        }
-        ctx.user.id = ctx.activeRecurlySubscription.account.account_code
-        ctx.User.findById = (userId, projection) => ({
-          exec: () => {
-            userId.should.equal(ctx.user.id)
-            return Promise.resolve(ctx.user)
-          },
-        })
-        ctx.RecurlyClient.promises.getSubscription.resolves(
-          ctx.activeRecurlyClientSubscription
-        )
-        ctx.RecurlyClient.promises.getPastDueInvoices.resolves([
-          ctx.pastDueInvoice,
-        ])
-        ctx.RecurlyClient.promises.failInvoice.resolves()
-        ctx.SubscriptionUpdater.promises.setSubscriptionWasReverted.resolves()
-        ctx.RecurlyClient.promises.applySubscriptionChangeRequest.resolves()
-
-        await ctx.SubscriptionHandler.promises.revertPlanChange(
-          ctx.activeRecurlyClientSubscription.id,
-          ctx.subscriptionRestorePoint
-        )
-      })
-
-      it('should fetch the subscription from recurly', async function (ctx) {
-        expect(
-          ctx.RecurlyClient.promises.getSubscription.calledWith(
-            ctx.activeRecurlyClientSubscription.id
-          )
-        ).to.be.true
-      })
-
-      it('should fail the invoice', async function (ctx) {
-        expect(
-          ctx.RecurlyClient.promises.failInvoice.calledWith(
-            ctx.pastDueInvoice.id
-          )
-        ).to.be.true
-      })
-
-      it('should call setSubscriptionWasReverted', async function (ctx) {
-        expect(
-          ctx.SubscriptionUpdater.promises.setSubscriptionWasReverted.calledWith(
-            ctx.subscriptionRestorePoint._id
-          )
-        ).to.be.true
-      })
-
-      it('should sync the subscription', async function (ctx) {
-        ctx.SubscriptionUpdater.promises.syncSubscription.calledOnce.should.equal(
-          true
-        )
-        ctx.SubscriptionUpdater.promises.syncSubscription.args[0][0].should.deep.equal(
-          ctx.activeRecurlySubscription
-        )
-        ctx.SubscriptionUpdater.promises.syncSubscription.args[0][1].should.deep.equal(
-          ctx.user._id
-        )
-      })
-    })
-
-    describe('should throw an IndeterminateInvoiceError when', function () {
-      beforeEach(function (ctx) {
-        ctx.subscriptionRestorePoint = {
-          planCode: 'collaborator',
-          addOns: [
-            { addOnCode: 'addon-1', quantity: 1, unitAmountInCents: 500 },
-          ],
-          _id: 'restore-point-id',
-        }
-        ctx.RecurlyClient.promises.getSubscription.resolves(
-          ctx.activeRecurlyClientSubscription
-        )
-      })
-
-      it('finds a past due invoice older than 24 hours', async function (ctx) {
-        const oldInvoice = {
-          id: 'invoice-123',
-          dueAt: new Date(Date.now() - 25 * 60 * 60 * 1000), // 25 hours ago
-          collectionMethod: 'automatic',
-        }
-        ctx.RecurlyClient.promises.getPastDueInvoices.resolves([oldInvoice])
-
-        await expect(
-          ctx.SubscriptionHandler.promises.revertPlanChange(
-            ctx.activeRecurlyClientSubscription.id,
-            ctx.subscriptionRestorePoint
-          )
-        ).to.be.rejectedWith('cant determine invoice to fail for plan revert')
-      })
-
-      it('finds more than one past due invoice', async function (ctx) {
-        const invoices = [
-          {
-            id: 'invoice-123',
-            dueAt: new Date(),
-            collectionMethod: 'automatic',
-          },
-          {
-            id: 'invoice-456',
-            dueAt: new Date(),
-            collectionMethod: 'automatic',
-          },
-        ]
-        ctx.RecurlyClient.promises.getPastDueInvoices.resolves(invoices)
-
-        await expect(
-          ctx.SubscriptionHandler.promises.revertPlanChange(
-            ctx.activeRecurlyClientSubscription.id,
-            ctx.subscriptionRestorePoint
-          )
-        ).to.be.rejectedWith('cant determine invoice to fail for plan revert')
-      })
-
-      it('finds an invoice with a collectionMethod other than automatic', async function (ctx) {
-        const manualInvoice = {
-          id: 'invoice-123',
-          dueAt: new Date(),
-          collectionMethod: 'manual',
-        }
-        ctx.RecurlyClient.promises.getPastDueInvoices.resolves([manualInvoice])
-
-        await expect(
-          ctx.SubscriptionHandler.promises.revertPlanChange(
-            ctx.activeRecurlyClientSubscription.id,
-            ctx.subscriptionRestorePoint
-          )
-        ).to.be.rejectedWith('cant determine invoice to fail for plan revert')
       })
     })
   })

@@ -9,7 +9,10 @@ export function stopCompile(options: { delay?: number } = {}) {
   cy.wait(delay)
   cy.log('Stop compile')
   cy.findByRole('button', { name: 'Toggle compile options menu' }).click()
-  cy.findByRole('menuitem', { name: 'Stop compilation' }).click()
+  cy.findByRole('menuitem', { name: 'Stop compilation' })
+    .should('not.have.class', 'disabled')
+    .and('not.have.attr', 'aria-disabled', 'true')
+    .click()
 }
 
 export function prepareWaitForNextCompileSlot() {

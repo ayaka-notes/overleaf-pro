@@ -217,4 +217,121 @@ describe('zodHelpers', () => {
       ])
     })
   })
+  describe('buildId', () => {
+    it('fails to parse when provided with an invalid buildId', () => {
+      const parsed = zz.buildId().safeParse('aa')
+      expect(parsed.success).toBe(false)
+      expect(parsed.error?.issues).toHaveLength(1)
+      expect(parsed.error?.issues).toMatchObject([
+        expect.objectContaining({
+          message: 'invalid buildId',
+        }),
+      ])
+    })
+
+    it('parses successfully when provided with a valid buildId', () => {
+      const parsed = zz.buildId().safeParse('19d6c341530-878fff6cdab7fb0c')
+      expect(parsed.success).toBe(true)
+      expect(parsed.data).toBe('19d6c341530-878fff6cdab7fb0c')
+    })
+
+    it('fails to parse when provided with an editorBuildId', () => {
+      const parsed = zz
+        .buildId()
+        .safeParse(
+          '03b1d773-6203-4669-b365-6a0aa5625878-19d6c341530-878fff6cdab7fb0c'
+        )
+      expect(parsed.success).toBe(false)
+      expect(parsed.error?.issues).toHaveLength(1)
+      expect(parsed.error?.issues).toMatchObject([
+        expect.objectContaining({
+          message: 'invalid buildId',
+        }),
+      ])
+    })
+  })
+
+  describe('editorBuildId', () => {
+    it('fails to parse when provided with an invalid buildId', () => {
+      const parsed = zz.editorBuildId().safeParse('aa')
+      expect(parsed.success).toBe(false)
+      expect(parsed.error?.issues).toHaveLength(1)
+      expect(parsed.error?.issues).toMatchObject([
+        expect.objectContaining({
+          message: 'invalid editorId-buildId',
+        }),
+      ])
+    })
+
+    it('fails to parse when provided with a buildId', () => {
+      const parsed = zz
+        .editorBuildId()
+        .safeParse('19d6c341530-878fff6cdab7fb0c')
+      expect(parsed.success).toBe(false)
+      expect(parsed.error?.issues).toHaveLength(1)
+      expect(parsed.error?.issues).toMatchObject([
+        expect.objectContaining({
+          message: 'invalid editorId-buildId',
+        }),
+      ])
+    })
+
+    it('parses successfully when provided with a valid editorId-buildId', () => {
+      const parsed = zz
+        .editorBuildId()
+        .safeParse(
+          '03b1d773-6203-4669-b365-6a0aa5625878-19d6c341530-878fff6cdab7fb0c'
+        )
+      expect(parsed.success).toBe(true)
+      expect(parsed.data).toBe(
+        '03b1d773-6203-4669-b365-6a0aa5625878-19d6c341530-878fff6cdab7fb0c'
+      )
+    })
+  })
+  describe('filepath', () => {
+    it('fails to parse with empty input', () => {
+      const parsed = zz.filepath().safeParse('')
+      expect(parsed.success).toBe(false)
+      expect(parsed.error?.issues).toHaveLength(1)
+      expect(parsed.error?.issues).toMatchObject([
+        expect.objectContaining({
+          message: 'path is empty',
+        }),
+      ])
+    })
+
+    it('fails to parse with absolute path', () => {
+      const parsed = zz.filepath().safeParse('/output.pdf')
+      expect(parsed.success).toBe(false)
+      expect(parsed.error?.issues).toHaveLength(1)
+      expect(parsed.error?.issues).toMatchObject([
+        expect.objectContaining({
+          message: 'path is absolute',
+        }),
+      ])
+    })
+
+    it('fails to parse when provided with path traversal', () => {
+      const parsed = zz.filepath().safeParse('../output.pdf')
+      expect(parsed.success).toBe(false)
+      expect(parsed.error?.issues).toHaveLength(1)
+      expect(parsed.error?.issues).toMatchObject([
+        expect.objectContaining({
+          message: 'path traversal detected',
+        }),
+      ])
+    })
+
+    it('parses successfully when provided a valid path', () => {
+      const parsed = zz.filepath().safeParse('output.pdf')
+      expect(parsed.success).toBe(true)
+      expect(parsed.data).toBe('output.pdf')
+    })
+
+    it('parses successfully when provided a valid nested path', () => {
+      const parsed = zz.filepath().safeParse('foo/output.pdf')
+      expect(parsed.success).toBe(true)
+      expect(parsed.data).toBe('foo/output.pdf')
+    })
+  })
 })

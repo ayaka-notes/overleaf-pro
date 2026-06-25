@@ -1,5 +1,5 @@
 import { Form, FormSelectProps } from 'react-bootstrap'
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import FormGroup from '@/shared/components/form/form-group'
 import FormText from '@/shared/components/form/form-text'
 import { figmaDesignUrl } from '../../../../.storybook/utils/figma-design-url'

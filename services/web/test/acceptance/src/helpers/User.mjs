@@ -1,3 +1,4 @@
+import Crypto from 'node:crypto'
 import OError from '@overleaf/o-error'
 import request from './request.js'
 import settings from '@overleaf/settings'
@@ -37,6 +38,7 @@ class User {
     })
     this.signUpDate = options.signUpDate ?? new Date()
     this.labsProgram = options.labsProgram || false
+    this.analyticsId = options.analyticsId || Crypto.randomUUID()
   }
 
   getSession(options, callback) {
@@ -96,37 +98,6 @@ class User {
         }
       )
     })
-  }
-
-  getSplitTestAssignment(splitTestName, query, callback) {
-    if (!callback) {
-      callback = query
-    }
-    const params = new URLSearchParams({
-      splitTestName,
-      ...query,
-    }).toString()
-    this.request.get(
-      {
-        url: `/dev/split_test/get_assignment?${params}`,
-      },
-      (err, response, body) => {
-        if (err != null) {
-          return callback(err)
-        }
-        if (response.statusCode !== 200) {
-          return callback(
-            new Error(
-              `get split test assignment failed: status=${
-                response.statusCode
-              } body=${JSON.stringify(body)}`
-            )
-          )
-        }
-        const assignment = JSON.parse(response.body)
-        callback(null, assignment)
-      }
-    )
   }
 
   doSessionMaintenance(callback) {
@@ -249,6 +220,7 @@ class User {
     this.first_name = user.first_name
     this.referal_id = user.referal_id
     this.enrollment = user.enrollment
+    this.analyticsId = user.analyticsId
   }
 
   get(callback) {
@@ -444,6 +416,7 @@ class User {
               emails: this.emails,
               signUpDate: this.signUpDate,
               labsProgram: this.labsProgram,
+              analyticsId: this.analyticsId,
             },
           },
           options
@@ -580,13 +553,7 @@ class User {
   }
 
   ensureAdminRole(role, callback) {
-    this.mongoUpdate({ $addToSet: { adminRoles: 'engineering' } }, callback)
-  }
-
-  ensureStaffAccess(flag, callback) {
-    const update = { $set: {} }
-    update.$set[`staffAccess.${flag}`] = true
-    this.mongoUpdate(update, callback)
+    this.mongoUpdate({ $addToSet: { adminRoles: role } }, callback)
   }
 
   upgradeSomeFeatures(callback) {
@@ -1350,6 +1317,31 @@ User.promises.prototype.doRequest = async function (method, params) {
       }
     })
   })
+}
+
+User.promises.prototype.getSplitTestAssignment = async function (
+  splitTestName,
+  query,
+  referer,
+  includeReferer
+) {
+  const params = new URLSearchParams({
+    splitTestName,
+    includeReferer,
+    ...query,
+  }).toString()
+  const { response, body } = await this.doRequest('GET', {
+    url: `/dev/split_test/get_assignment?${params}`,
+    headers: { referer },
+  })
+  if (response.statusCode !== 200) {
+    throw new Error(
+      `get split test assignment failed: status=${
+        response.statusCode
+      } body=${JSON.stringify(body)}`
+    )
+  }
+  return JSON.parse(response.body)
 }
 
 export default User

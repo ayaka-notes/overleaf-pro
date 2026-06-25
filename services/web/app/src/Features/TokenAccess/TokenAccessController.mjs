@@ -6,7 +6,9 @@ import logger from '@overleaf/logger'
 import OError from '@overleaf/o-error'
 import { expressify } from '@overleaf/promise-utils'
 import AuthorizationManager from '../Authorization/AuthorizationManager.mjs'
-import PrivilegeLevels from '../Authorization/PrivilegeLevels.mjs'
+import PrivilegeLevels, {
+  isPrivilegeUpgrade,
+} from '../Authorization/PrivilegeLevels.mjs'
 import ProjectAuditLogHandler from '../Project/ProjectAuditLogHandler.mjs'
 import CollaboratorsInviteHandler from '../Collaborators/CollaboratorsInviteHandler.mjs'
 import CollaboratorsHandler from '../Collaborators/CollaboratorsHandler.mjs'
@@ -20,16 +22,10 @@ import UrlHelper from '../Helpers/UrlHelper.mjs'
 import UserGetter from '../User/UserGetter.mjs'
 import Settings from '@overleaf/settings'
 import LimitationsManager from '../Subscription/LimitationsManager.mjs'
+import SplitTestHandler from '../SplitTests/SplitTestHandler.mjs'
 
 const { getSafeAdminDomainRedirect } = UrlHelper
 const { canRedirectToAdminDomain } = AdminAuthorizationHelper
-const orderedPrivilegeLevels = [
-  PrivilegeLevels.NONE,
-  PrivilegeLevels.READ_ONLY,
-  PrivilegeLevels.REVIEW,
-  PrivilegeLevels.READ_AND_WRITE,
-  PrivilegeLevels.OWNER,
-]
 
 async function _userAlreadyHasHigherPrivilege(userId, projectId, tokenType) {
   if (!Object.values(TokenAccessHandler.TOKEN_TYPES).includes(tokenType)) {
@@ -43,10 +39,7 @@ async function _userAlreadyHasHigherPrivilege(userId, projectId, tokenType) {
       userId,
       projectId
     )
-  return (
-    orderedPrivilegeLevels.indexOf(privilegeLevel) >=
-    orderedPrivilegeLevels.indexOf(tokenType)
-  )
+  return !isPrivilegeUpgrade(privilegeLevel, tokenType)
 }
 
 const makePostUrl = token => {
@@ -113,7 +106,15 @@ async function tokenAccessPage(req, res, next) {
       }
     }
 
-    res.render('project/token/access-react', {
+    const { variant: sharingUpdates } =
+      await SplitTestHandler.promises.getAssignment(req, res, 'sharing-updates')
+
+    const viewPath =
+      sharingUpdates === 'enabled'
+        ? 'project/token/access-react'
+        : 'project/token/access-react-legacy'
+
+    res.render(viewPath, {
       postUrl: makePostUrl(token),
     })
   } catch (err) {
@@ -231,6 +232,7 @@ async function checkAndGetProjectOrResponseAction(
     projectId,
     tokenType
   )
+  logger.debug({ userHasPrivilege }, 'checking user privilege')
   if (userHasPrivilege) {
     return [
       null,
@@ -542,13 +544,17 @@ async function moveReadWriteToCollaborators(req, res, next) {
       userId,
       projectId
     )
+
+    const auditInfo = { ipAddress: req.ip, initiatorId: userId }
+
     await CollaboratorsHandler.promises.setCollaboratorPrivilegeLevel(
       projectId,
       userId,
       pendingEditor
         ? PrivilegeLevels.READ_ONLY
         : PrivilegeLevels.READ_AND_WRITE,
-      { pendingEditor }
+      { pendingEditor },
+      auditInfo
     )
   } else {
     // Normal case, not invited, joining via link sharing

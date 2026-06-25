@@ -9,7 +9,10 @@ import {
 import getMeta from '../../../../../../../../utils/meta'
 import { useSubscriptionDashboardContext } from '../../../../../../context/subscription-dashboard-context'
 import GenericErrorAlert from '../../../../generic-error-alert'
-import { subscriptionUpdateUrl } from '../../../../../../data/subscription-url'
+import {
+  subscriptionUpdateUrl,
+  reloadWithoutHasSubscription,
+} from '../../../../../../data/subscription-url'
 import { getRecurlyGroupPlanCode } from '../../../../../../util/recurly-group-plan-code'
 import { useLocation } from '../../../../../../../../shared/hooks/use-location'
 import {
@@ -35,13 +38,7 @@ function GroupPlanCollaboratorCount({ planCode }: { planCode: string }) {
   const { t } = useTranslation()
 
   if (planCode === 'collaborator') {
-    return (
-      <>
-        {t('collabs_per_proj', {
-          collabcount: 10,
-        })}
-      </>
-    )
+    return <>{t('collabs_per_proj', { count: 10 })}</>
   } else if (planCode === 'professional') {
     return <>{t('unlimited_collabs')}</>
   }
@@ -139,11 +136,11 @@ export function ChangeToGroupModal() {
           ),
         },
       })
-      location.reload()
+      reloadWithoutHasSubscription(location)
     } catch (e) {
       const { handled } = await handleStripePaymentAction(e as FetchError)
       if (handled) {
-        location.reload()
+        reloadWithoutHasSubscription(location)
         return
       }
       setError(true)

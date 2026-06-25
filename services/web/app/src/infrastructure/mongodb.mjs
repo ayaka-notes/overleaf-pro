@@ -4,6 +4,7 @@ import Settings from '@overleaf/settings'
 import MongoUtils from '@overleaf/mongo-utils'
 import Mongoose from './Mongoose.mjs'
 import { addConnectionDrainer } from './GracefulShutdown.mjs'
+import Metrics from '@overleaf/metrics'
 
 // Ensure Mongoose is using the same mongodb instance as the mongodb module,
 // otherwise we will get multiple versions of the ObjectId class. Mongoose
@@ -27,6 +28,7 @@ const mongoClient = new mongodb.MongoClient(
   Settings.mongo.url,
   Settings.mongo.options
 )
+Metrics.mongodb.monitor(mongoClient, 'native')
 
 addConnectionDrainer('mongodb', async () => {
   await mongoClient.close()
@@ -38,6 +40,7 @@ export const db = {
   deletedProjects: internalDb.collection('deletedProjects'),
   deletedSubscriptions: internalDb.collection('deletedSubscriptions'),
   deletedUsers: internalDb.collection('deletedUsers'),
+  domainVerifications: internalDb.collection('domainVerifications'),
   dropboxEntities: internalDb.collection('dropboxEntities'),
   dropboxProjects: internalDb.collection('dropboxProjects'),
   docSnapshots: internalDb.collection('docSnapshots'),
@@ -50,6 +53,7 @@ export const db = {
   grouppolicies: internalDb.collection('grouppolicies'),
   groupAuditLogEntries: internalDb.collection('groupAuditLogEntries'),
   institutions: internalDb.collection('institutions'),
+  libraryReferences: internalDb.collection('libraryReferences'),
   messages: internalDb.collection('messages'),
   migrations: internalDb.collection('migrations'),
   notifications: internalDb.collection('notifications'),

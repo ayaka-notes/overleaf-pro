@@ -4,7 +4,7 @@ import { webpackConfig } from './cypress/support/webpack.cypress'
 let reporterOptions = {}
 if (process.env.CI) {
   reporterOptions = {
-    reporter: '/overleaf/node_modules/cypress-multi-reporters',
+    reporter: 'cypress-multi-reporters',
     reporterOptions: {
       configFile: 'cypress/cypress-multi-reporters.json',
     },
@@ -34,7 +34,7 @@ export default defineConfig({
     excludeSpecPattern: process.env.CYPRESS_EXCLUDE_SPEC_PATTERN,
   },
   retries: {
-    runMode: 3,
+    runMode: parseInt(process.env.CYPRESS_RETRIES || '3', 10) || 3,
   },
   ...reporterOptions,
 })

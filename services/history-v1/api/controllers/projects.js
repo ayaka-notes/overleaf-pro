@@ -22,6 +22,7 @@ const {
   HashCheckBlobStore,
   ProjectArchive,
   zipStore,
+  persistBuffer,
 } = require('../../storage')
 
 const render = require('./render')
@@ -31,6 +32,7 @@ const StreamSizeLimit = require('./stream_size_limit')
 const { getProjectBlobsBatch } = require('../../storage/lib/blob_store')
 const assert = require('../../storage/lib/assert')
 const { getChunkMetadataForVersion } = require('../../storage/lib/chunk_store')
+const { IncrementalResponse } = require('@overleaf/stream-utils')
 
 const pipeline = promisify(Stream.pipeline)
 
@@ -47,6 +49,62 @@ async function initializeProject(req, res, next) {
     } else {
       throw err
     }
+  }
+}
+
+async function cloneProject(req, res) {
+  const {
+    body: { targetProjectId },
+    params: { project_id: sourceProjectId },
+  } = parseReq(req, schemas.cloneProject)
+
+  const incrResp = new IncrementalResponse({
+    res,
+    timeout: 10 * 60_000 - 5_000,
+    logger,
+    label: 'clone history in history-v1',
+    info: { targetProjectId, sourceProjectId },
+  })
+  const signal = incrResp.signal()
+
+  try {
+    try {
+      // Use the same limits importChanges, since these are passed to persistChanges
+      const farFuture = new Date()
+      farFuture.setTime(farFuture.getTime() + 7 * 24 * 3600 * 1000)
+      const limits = {
+        maxChanges: 0,
+        minChangeTimestamp: farFuture,
+        maxChangeTimestamp: farFuture,
+        autoResync: true,
+      }
+      incrResp.sendUpdate('flushing redis buffer: pending')
+      await persistBuffer(sourceProjectId, limits)
+      incrResp.sendUpdate('flushing redis buffer: done')
+    } catch (err) {
+      incrResp.sendUpdate('failed to flush redis buffer')
+      logger.error(
+        { err, targetProjectId, sourceProjectId },
+        'failed to persist buffer during clone'
+      )
+    }
+
+    await chunkStore.cloneProject(
+      sourceProjectId,
+      targetProjectId,
+      progress => {
+        if (signal.aborted) return
+        incrResp.sendUpdate(progress)
+      },
+      signal
+    )
+    if (!signal.aborted) {
+      incrResp.sendUpdate('cloning full project history data: done')
+    }
+  } catch (err) {
+    incrResp.fail(err)
+  } finally {
+    incrResp.end()
   }
 }
 
@@ -186,6 +244,29 @@ async function getChanges(req, res, next) {
   }
 }
 
+async function getLatestZip(req, res, next) {
+  const { params } = parseReq(req, schemas.getLatestZip)
+  const projectId = params.project_id
+  const blobStore = new BlobStore(projectId)
+
+  let snapshot
+  try {
+    const chunk = await chunkStore.loadLatest(projectId)
+    snapshot = chunk.getSnapshot()
+    snapshot.applyAll(chunk.getChanges())
+
+    res.setHeader('X-History-Version', chunk.getEndVersion())
+  } catch (err) {
+    if (err instanceof Chunk.NotFoundError) {
+      return render.notFound(res)
+    } else {
+      throw err
+    }
+  }
+
+  await streamZip(snapshot, blobStore, res)
+}
+
 async function getZip(req, res, next) {
   const { params } = parseReq(req, schemas.getZip)
   const projectId = params.project_id
@@ -203,9 +284,14 @@ async function getZip(req, res, next) {
     }
   }
 
+  await streamZip(snapshot, blobStore, res)
+}
+
+async function streamZip(snapshot, blobStore, res) {
   await withTmpDir('get-zip-', async tmpDir => {
     const tmpFilename = Path.join(tmpDir, 'project.zip')
-    const archive = new ProjectArchive(snapshot)
+    const zipTimeoutMs = parseInt(config.get('zipStore.zipTimeoutMs'), 10)
+    const archive = new ProjectArchive(snapshot, zipTimeoutMs)
     await archive.writeZip(blobStore, tmpFilename)
     res.set('Content-Type', 'application/octet-stream')
     res.set('Content-Disposition', 'attachment; filename=project.zip')
@@ -373,7 +459,10 @@ async function getProjectBlob(req, res, next) {
     try {
       await pipeline(stream, res)
     } catch (err) {
-      if (err?.code === 'ERR_STREAM_PREMATURE_CLOSE') {
+      if (
+        err?.code === 'ERR_STREAM_PREMATURE_CLOSE' ||
+        err?.code === 'ERR_STREAM_UNABLE_TO_PIPE'
+      ) {
         res.end()
       } else {
         throw OError.tag(err, 'error transferring stream', { projectId, hash })
@@ -507,6 +596,7 @@ async function getProjectBlobsStats(req, res) {
 
 module.exports = {
   initializeProject: expressify(initializeProject),
+  cloneProject: expressify(cloneProject),
   getLatestContent: expressify(getLatestContent),
   getContentAtVersion: expressify(getContentAtVersion),
   getLatestHashedContent: expressify(getLatestHashedContent),
@@ -516,6 +606,7 @@ module.exports = {
   getHistory: expressify(getHistory),
   getHistoryBefore: expressify(getHistoryBefore),
   getChanges: expressify(getChanges),
+  getLatestZip: expressify(getLatestZip),
   getZip: expressify(getZip),
   createZip: expressify(createZip),
   deleteProject: expressify(deleteProject),

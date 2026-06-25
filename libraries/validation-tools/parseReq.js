@@ -1,5 +1,5 @@
 // @ts-check
-const { ParamsError } = require('./Errors')
+const { InvalidRequestError, InvalidParamsError } = require('./Errors')
 
 /**
  * @typedef {import('zod').ZodType} ZodType
@@ -25,9 +25,9 @@ function parseReq(req, schema) {
     return parsed.data
   } else if (parsed.error.issues.some(issue => issue.path[0] === 'params')) {
     // Parts of the URL path failed to validate; throw a specific error
-    throw new ParamsError('Invalid params').withCause(parsed.error)
+    throw new InvalidParamsError(parsed.error)
   } else {
-    throw parsed.error
+    throw new InvalidRequestError(parsed.error)
   }
 }
 

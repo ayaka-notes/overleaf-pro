@@ -1,17 +1,20 @@
-const express = require('express')
-const {
+import express from 'express'
+import {
   fetchJson,
   fetchNothing,
+  fetchStream,
   fetchString,
-} = require('@overleaf/fetch-utils')
-const fs = require('node:fs')
-const fsPromises = require('node:fs/promises')
-const Settings = require('@overleaf/settings')
+} from '@overleaf/fetch-utils'
+import fs from 'node:fs'
+import fsPromises from 'node:fs/promises'
+import Settings from '@overleaf/settings'
+import FormData from 'form-data'
 
 const host = Settings.apis.clsi.url
 
 function randomId() {
-  return Math.random().toString(16).slice(2)
+  // Avoid ids starting with 0, which get a dummy PDF served.
+  return 'a' + Math.random().toString(16).slice(2)
 }
 
 function compile(projectId, data) {
@@ -27,6 +30,60 @@ function compile(projectId, data) {
   })
 }
 
+async function convertDocument(path, type) {
+  const formData = new FormData()
+  formData.append('qqfile', fs.createReadStream(path))
+  try {
+    const stream = await fetchStream(
+      `${host}/convert/document-to-latex?type=${type}`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    )
+    return { status: 200, stream, body: null }
+  } catch (err) {
+    if (!err.response) throw err
+    let body = err.body
+    const contentType = err.response.headers.get?.('content-type') ?? ''
+    if (contentType.includes('application/json')) {
+      body = JSON.parse(body)
+    }
+    return { status: err.response.status, stream: null, body }
+  }
+}
+
+async function convertPdfToJpeg(path, mode) {
+  const formData = new FormData()
+  formData.append('qqfile', await fsPromises.readFile(path), 'input.pdf')
+  return await fetch(`${host}/convert/pdf-to-jpeg?mode=${mode}`, {
+    method: 'POST',
+    headers: formData.getHeaders(),
+    body: formData.getBuffer(),
+  })
+}
+
+async function convertProjectToDocument(
+  projectId,
+  userId,
+  type,
+  request,
+  responseFormat
+) {
+  const url = new URL(
+    `${host}/project/${projectId}/user/${userId}/download/project-to-document`
+  )
+  url.searchParams.set('type', type)
+  if (responseFormat) {
+    url.searchParams.set('responseFormat', responseFormat)
+  }
+  const opts = { method: 'POST', json: { compile: request } }
+  if (responseFormat === 'json') {
+    return await fetchJson(url.href, opts)
+  }
+  return await fetchStream(url.href, opts)
+}
+
 async function stopCompile(projectId) {
   return await fetchNothing(`${host}/project/${projectId}/compile/stop`, {
     method: 'POST',
@@ -34,7 +91,7 @@ async function stopCompile(projectId) {
 }
 
 async function clearCache(projectId) {
-  await fetchNothing(`${host}/project/${projectId}`, {
+  return await fetchNothing(`${host}/project/${projectId}`, {
     method: 'DELETE',
   })
 }
@@ -187,9 +244,12 @@ function smokeTest() {
   })
 }
 
-module.exports = {
+export default {
   randomId,
   compile,
+  convertProjectToDocument,
+  convertDocument,
+  convertPdfToJpeg,
   stopCompile,
   clearCache,
   getOutputFile,

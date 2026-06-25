@@ -1,7 +1,8 @@
-import { callbackify } from 'node:util'
+import { callbackify, callbackifyMultiResult } from '@overleaf/promise-utils'
 import {
   fetchJson,
   fetchNothing,
+  fetchStream,
   fetchStreamWithResponse,
   RequestFailedError,
 } from '@overleaf/fetch-utils'
@@ -35,6 +36,10 @@ async function loadGlobalBlobs() {
 
 // END copy from services/history-v1/storage/lib/blob_store/index.js
 
+function isGlobalBlob(hash) {
+  return GLOBAL_BLOBS.has(hash)
+}
+
 function getFilestoreBlobURL(historyId, hash) {
   if (GLOBAL_BLOBS.has(hash)) {
     return `${settings.apis.filestore.url}/history/global/hash/${hash}`
@@ -46,13 +51,24 @@ function getFilestoreBlobURL(historyId, hash) {
 async function initializeProject(projectId) {
   const body = await fetchJson(`${settings.apis.project_history.url}/project`, {
     method: 'POST',
-    json: { historyId: projectId.toString() },
+    json: { historyId: projectId },
   })
   const historyId = body && body.project && body.project.id
   if (!historyId) {
     throw new OError('project-history did not provide an id', { body })
   }
   return historyId
+}
+
+async function cloneProject(sourceProjectId, targetProjectId) {
+  return await fetchStream(
+    `${settings.apis.project_history.url}/project/${sourceProjectId}/clone`,
+    {
+      method: 'POST',
+      json: { targetProjectId },
+      signal: AbortSignal.timeout(10 * 60_000),
+    }
+  )
 }
 
 async function flushProject(projectId) {
@@ -190,6 +206,7 @@ async function requestBlob(historyId, hash, method = 'GET', range = '') {
   try {
     ;({ stream, response } = await fetchStreamWithResponse(url, {
       ...opts,
+      signal: AbortSignal.timeout(10 * 60 * 1000),
       basicAuth: {
         user: settings.apis.v1_history.user,
         password: settings.apis.v1_history.pass,
@@ -269,11 +286,55 @@ async function getContentAtVersion(projectId, version) {
 async function getLatestHistory(projectId) {
   const historyId = await getHistoryId(projectId)
 
+  return await getLatestHistoryWithHistoryId(historyId)
+}
+
+/**
+ * Get the latest chunk from history using already resolved historyId
+ *
+ * @param {string} historyId
+ */
+async function getLatestHistoryWithHistoryId(historyId) {
   return await fetchJson(
     `${HISTORY_V1_URL}/projects/${historyId}/latest/history`,
     {
       basicAuth: HISTORY_V1_BASIC_AUTH,
     }
+  )
+}
+
+/**
+ * Get the latest chunk from history using already resolved historyId
+ *
+ * @param {string} historyId
+ */
+async function getLatestZipWithHistoryId(historyId) {
+  const { response, stream } = await fetchStreamWithResponse(
+    `${HISTORY_V1_URL}/projects/${historyId}/latest/zip`,
+    {
+      basicAuth: HISTORY_V1_BASIC_AUTH,
+      signal: AbortSignal.timeout(10 * 60 * 1000),
+    }
+  )
+  return { stream, historyVersion: response.headers.get('X-History-Version') }
+}
+
+async function ensureNoResyncPending(projectId) {
+  const { resyncPending } = await fetchJson(
+    `${settings.apis.project_history.url}/project/${projectId}/resync-pending`
+  )
+  if (resyncPending) throw new OError('broken history with pending resync')
+}
+
+async function getDebugInfo(projectId) {
+  return await fetchJson(
+    `${settings.apis.project_history.url}/project/${projectId}/debug-info`
+  )
+}
+
+async function getHistoryFailures() {
+  return await fetchJson(
+    `${settings.apis.project_history.url}/status/failures-full`
   )
 }
 
@@ -286,7 +347,17 @@ async function getLatestHistory(projectId) {
  */
 async function getChanges(projectId, opts = {}) {
   const historyId = await getHistoryId(projectId)
+  return await getChangesWithHistoryId(historyId, opts)
+}
 
+/**
+ * Get history changes since a given version and historyId
+ *
+ * @param {string} historyId
+ * @param {object} [opts]
+ * @param {number} [opts.since] - The start version of changes to get
+ */
+async function getChangesWithHistoryId(historyId, opts = {}) {
   const url = new URL(`${HISTORY_V1_URL}/projects/${historyId}/changes`)
   if (opts.since) {
     url.searchParams.set('since', opts.since)
@@ -405,6 +476,7 @@ function _userView(user) {
 const loadGlobalBlobsPromise = loadGlobalBlobs()
 
 export default {
+  isGlobalBlob,
   getFilestoreBlobURL,
   loadGlobalBlobsPromise,
   initializeProject: callbackify(initializeProject),
@@ -419,9 +491,14 @@ export default {
   requestBlob: callbackify(requestBlob),
   requestBlobWithProjectId: callbackify(requestBlobWithProjectId),
   getLatestHistory: callbackify(getLatestHistory),
+  getLatestZipWithHistoryId: callbackifyMultiResult(getLatestZipWithHistoryId, [
+    'stream',
+    'historyVersion',
+  ]),
   getChanges: callbackify(getChanges),
   promises: {
     initializeProject,
+    cloneProject,
     flushProject,
     resyncProject,
     deleteProject,
@@ -434,8 +511,14 @@ export default {
     requestBlob,
     requestBlobWithProjectId,
     getLatestHistory,
+    getLatestZipWithHistoryId,
     getChanges,
+    getChangesWithHistoryId,
     getProjectBlobStats,
     getBlobStats,
+    getLatestHistoryWithHistoryId,
+    ensureNoResyncPending,
+    getDebugInfo,
+    getHistoryFailures,
   },
 }

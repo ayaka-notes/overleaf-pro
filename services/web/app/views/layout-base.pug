@@ -103,8 +103,9 @@ html(
 			'thin-footer': showThinFooter,
 			'website-redesign': isWebsiteRedesign === true || websiteRedesignOverride,
 			'application-page': isApplicationPage,
+			'red-nav-bar-for-admins': !settings.isDevEnv && hasFeature('saas') && hasAdminAccess(),
 		}
-		data-theme='default'
+		data-theme='light'
 	)
 		if settings.recaptcha && settings.recaptcha.siteKeyV3
 			script(

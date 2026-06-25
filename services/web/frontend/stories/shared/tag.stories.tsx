@@ -1,6 +1,6 @@
 import OLTagIcon from '@/shared/components/ol/ol-tag-icon'
 import Tag from '@/shared/components/tag'
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import { figmaDesignUrl } from '../../../.storybook/utils/figma-design-url'
 
 const meta: Meta<typeof Tag> = {

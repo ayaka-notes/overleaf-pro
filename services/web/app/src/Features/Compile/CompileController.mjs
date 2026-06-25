@@ -1,7 +1,4 @@
-import { URL } from 'node:url'
 import { pipeline } from 'node:stream/promises'
-import { Cookie } from 'tough-cookie'
-import OError from '@overleaf/o-error'
 import Metrics from '@overleaf/metrics'
 import ProjectGetter from '../Project/ProjectGetter.mjs'
 import CompileManager from './CompileManager.mjs'
@@ -12,7 +9,6 @@ import Errors from '../Errors/Errors.js'
 import SessionManager from '../Authentication/SessionManager.mjs'
 import { RateLimiter } from '../../infrastructure/RateLimiter.mjs'
 import Validation from '../../infrastructure/Validation.mjs'
-import ClsiCookieManagerFactory from './ClsiCookieManager.mjs'
 import Path from 'node:path'
 import AnalyticsManager from '../Analytics/AnalyticsManager.mjs'
 import SplitTestHandler from '../SplitTests/SplitTestHandler.mjs'
@@ -22,13 +18,18 @@ import {
   RequestFailedError,
 } from '@overleaf/fetch-utils'
 import Features from '../../infrastructure/Features.mjs'
+import ClsiCacheController from './ClsiCacheController.mjs'
+import { prepareZipAttachment } from '../../infrastructure/Response.mjs'
+import ClsiCacheHandler from './ClsiCacheHandler.mjs'
+import {
+  getFilePath,
+  getOutputFileURL,
+  getOutputZipURL,
+} from './ClsiURLHelpers.mjs'
 
 const { z, zz, parseReq } = Validation
-const ClsiCookieManager = ClsiCookieManagerFactory(
-  Settings.apis.clsi?.backendGroupName
-)
 
-const COMPILE_TIMEOUT_MS = 10 * 60 * 1000
+const COMPILE_TIMEOUT_MS = 12 * 60 * 1000
 
 const pdfDownloadRateLimiter = new RateLimiter('full-pdf-download', {
   points: 1000,
@@ -39,23 +40,19 @@ function getOutputFilesArchiveSpecification(projectId, userId, buildId) {
   const fileName = 'output.zip'
   return {
     path: fileName,
-    url: _CompileController._getFileUrl(projectId, userId, buildId, fileName),
+    url: getFilePath(projectId, userId, buildId, fileName),
     type: 'zip',
   }
 }
 
-function getPdfCachingMinChunkSize(req, res) {
-  return Settings.pdfCachingMinChunkSize
-}
-
-function _getSplitTestOptions(req, res) {
-  // Use the query flags from the editor request for overriding the split test.
-  let query = {}
-  try {
-    const u = new URL(req.headers.referer || req.url, Settings.siteUrl)
-    query = Object.fromEntries(u.searchParams.entries())
-  } catch (e) {}
-  const editorReq = { ...req, query }
+async function _getSplitTestOptions(req, res) {
+  const { variant } = await SplitTestHandler.promises.getAssignment(
+    req,
+    res,
+    'compile-from-history',
+    { includeReferer: true }
+  )
+  const compileFromHistory = variant === 'enabled'
 
   const pdfDownloadDomain = Settings.pdfDownloadDomain
   const enablePdfCaching = Settings.enablePdfCaching
@@ -63,13 +60,15 @@ function _getSplitTestOptions(req, res) {
   if (!enablePdfCaching || !req.query.enable_pdf_caching) {
     // The frontend does not want to do pdf caching.
     return {
+      compileFromHistory,
       pdfDownloadDomain,
       enablePdfCaching: false,
     }
   }
 
-  const pdfCachingMinChunkSize = getPdfCachingMinChunkSize(editorReq, res)
+  const pdfCachingMinChunkSize = Settings.pdfCachingMinChunkSize
   return {
+    compileFromHistory,
     pdfDownloadDomain,
     enablePdfCaching,
     pdfCachingMinChunkSize,
@@ -106,7 +105,7 @@ const deleteAuxFilesSchema = z.object({
     Project_id: zz.objectId(),
   }),
   query: z.object({
-    clsiserverid: z.string().optional(),
+    clsiserverid: zz.clsiServerId().optional(),
   }),
 })
 
@@ -115,8 +114,52 @@ const wordCountSchema = z.object({
     Project_id: zz.objectId(),
   }),
   query: z.object({
-    clsiserverid: z.string().optional(),
+    clsiserverid: zz.clsiServerId().optional(),
     file: z.string().optional(),
+  }),
+})
+
+const getFileForSubmissionFromClsiSchema = z.object({
+  params: z.object({
+    submissionId: zz.submissionId(),
+    build_id: zz.buildId(),
+    file: zz.filepath(),
+  }),
+  query: z.object({
+    clsiserverid: zz.clsiServerId().optional(),
+  }),
+})
+
+const getFileFromClsiSchema = z.object({
+  params: z.object({
+    Project_id: zz.objectId(),
+    build_id: zz.buildId(),
+    file: zz.filepath(),
+  }),
+  query: z.object({
+    clsiserverid: zz.clsiServerId().optional(),
+    editorId: z.uuid().optional(),
+  }),
+})
+
+const getOutputPDFFromClsiSchema = z.object({
+  params: z.object({
+    Project_id: zz.objectId(),
+    build_id: zz.buildId(),
+  }),
+  query: z.object({
+    clsiserverid: zz.clsiServerId().optional(),
+    editorId: z.uuid().optional(),
+  }),
+})
+
+const getOutputZipFromClsiSchema = z.object({
+  params: z.object({
+    Project_id: zz.objectId(),
+    build_id: zz.buildId(),
+  }),
+  query: z.object({
+    clsiserverid: zz.clsiServerId().optional(),
   }),
 })
 
@@ -133,6 +176,7 @@ const _CompileController = {
       fileLineErrors,
       stopOnFirstError,
       editorId: req.body.editorId,
+      rootResourcePath: req.body.rootResourcePath,
     }
 
     if (req.body.rootDoc_id) {
@@ -157,11 +201,16 @@ const _CompileController = {
       options.incrementalCompilesEnabled = true
     }
 
-    let { enablePdfCaching, pdfCachingMinChunkSize, pdfDownloadDomain } =
-      _getSplitTestOptions(req, res)
+    let {
+      enablePdfCaching,
+      pdfCachingMinChunkSize,
+      pdfDownloadDomain,
+      compileFromHistory,
+    } = await _getSplitTestOptions(req, res)
     if (Features.hasFeature('saas')) {
       options.compileFromClsiCache = true
       options.populateClsiCache = true
+      options.compileFromHistory = compileFromHistory
     }
     options.enablePdfCaching = enablePdfCaching
     if (enablePdfCaching) {
@@ -179,6 +228,7 @@ const _CompileController = {
       outputUrlPrefix,
       buildId,
       clsiCacheShard,
+      instanceType,
     } = await CompileManager.promises
       .compile(projectId, userId, options)
       .catch(error => {
@@ -212,8 +262,15 @@ const _CompileController = {
           status,
           compileTime: timings?.compileE2E,
           timeout: limits.timeout,
-          server: clsiServerId?.includes('-c4d-') ? 'faster' : 'normal',
+          server: instanceType
+            ? instanceType === 'c4d'
+              ? 'faster'
+              : 'normal'
+            : clsiServerId?.includes('-c4d-')
+              ? 'faster'
+              : 'normal',
           clsiServerId,
+          instanceType,
           isAutoCompile,
           isInitialCompile: stats?.isInitialCompile === 1,
           restoredClsiCache: stats?.restoredClsiCache === 1,
@@ -294,18 +351,23 @@ const _CompileController = {
   },
 
   async downloadPdf(req, res) {
+    const {
+      params: { Project_id: projectId, build_id: buildId },
+      query: { clsiserverid: clsiServerId, editorId },
+    } = parseReq(req, getOutputPDFFromClsiSchema)
     Metrics.inc('pdf-downloads')
-    const projectId = req.params.Project_id
-    const rateLimit = () =>
-      pdfDownloadRateLimiter
-        .consume(req.ip, 1, { method: 'ip' })
-        .then(() => true)
-        .catch(err => {
-          if (err instanceof Error) {
-            throw err
-          }
-          return false
-        })
+    try {
+      await pdfDownloadRateLimiter.consume(req.ip, 1, { method: 'ip' })
+    } catch (err) {
+      if (err instanceof Error) {
+        logger.err({ err }, 'error checking rate limit for pdf download')
+        res.status(500).end()
+        return
+      }
+      logger.debug({ projectId, ip: req.ip }, 'rate limit hit downloading pdf')
+      res.status(429).end()
+      return
+    }
 
     const project = await ProjectGetter.promises.getProject(projectId, {
       name: 1,
@@ -320,36 +382,18 @@ const _CompileController = {
       res.setContentDisposition('inline', { filename })
     }
 
-    let canContinue
-    try {
-      canContinue = await rateLimit()
-    } catch (err) {
-      logger.err({ err }, 'error checking rate limit for pdf download')
-      res.sendStatus(500)
-      return
-    }
-
-    if (!canContinue) {
-      logger.debug({ projectId, ip: req.ip }, 'rate limit hit downloading pdf')
-      res.sendStatus(500) // should it be 429?
-    } else {
-      const userId = CompileController._getUserIdForCompile(req)
-
-      const url = _CompileController._getFileUrl(
-        projectId,
-        userId,
-        req.params.build_id,
-        'output.pdf'
-      )
-      await CompileController._proxyToClsi(
-        projectId,
-        'output-file',
-        url,
-        {},
-        req,
-        res
-      )
-    }
+    const userId = CompileController._getUserIdForCompile(req)
+    await _downloadFromClsiNginx(
+      projectId,
+      userId,
+      editorId,
+      buildId,
+      'output.pdf',
+      clsiServerId,
+      'output-file',
+      req,
+      res
+    )
   },
 
   // Keep in sync with the logic for zip files in ProjectDownloadsController
@@ -358,10 +402,11 @@ const _CompileController = {
   },
 
   async deleteAuxFiles(req, res) {
-    const { params, query } = parseReq(req, deleteAuxFilesSchema)
-    const projectId = params.Project_id
-    const { clsiserverid } = query
-    const userId = await CompileController._getUserIdForCompile(req)
+    const {
+      params: { Project_id: projectId },
+      query: { clsiserverid },
+    } = parseReq(req, deleteAuxFilesSchema)
+    const userId = CompileController._getUserIdForCompile(req)
     await CompileManager.promises.deleteAuxFiles(
       projectId,
       userId,
@@ -374,9 +419,9 @@ const _CompileController = {
   async compileAndDownloadPdf(req, res) {
     const projectId = req.params.project_id
 
-    let outputFiles
+    let outputFiles, clsiServerId, buildId
     try {
-      ;({ outputFiles } = await CompileManager.promises
+      ;({ outputFiles, clsiServerId, buildId } = await CompileManager.promises
         // pass userId as null, since templates are an "anonymous" compile
         .compile(projectId, null, {}))
     } catch (err) {
@@ -396,77 +441,81 @@ const _CompileController = {
       res.sendStatus(500)
       return
     }
-    await CompileController._proxyToClsi(
+    await _downloadFromClsiNginx(
       projectId,
+      null,
+      null,
+      buildId,
+      'output.pdf',
+      clsiServerId,
       'output-file',
-      pdf.url,
-      {},
+      req,
+      res
+    )
+  },
+
+  async getOutputZipFromClsi(req, res) {
+    const userId = CompileController._getUserIdForCompile(req)
+    const {
+      params: { Project_id: projectId, build_id: buildId },
+      query: { clsiserverid: clsiServerId },
+    } = parseReq(req, getOutputZipFromClsiSchema)
+
+    const project = await ProjectGetter.promises.getProject(projectId, {
+      name: 1,
+    })
+    const filename = `${_CompileController._getSafeProjectName(project)}-output.zip`
+    prepareZipAttachment(res, filename)
+
+    await _downloadFromClsi(
+      projectId,
+      userId,
+      null,
+      buildId,
+      'output.zip',
+      clsiServerId,
+      'output-zip-file',
       req,
       res
     )
   },
 
   async getFileFromClsi(req, res) {
-    const projectId = req.params.Project_id
     const userId = CompileController._getUserIdForCompile(req)
+    const {
+      params: { Project_id: projectId, build_id: buildId, file },
+      query: { clsiserverid: clsiServerId, editorId },
+    } = parseReq(req, getFileFromClsiSchema)
 
-    const qs = {}
-
-    const url = _CompileController._getFileUrl(
+    await _downloadFromClsiNginx(
       projectId,
       userId,
-      req.params.build_id,
-      req.params.file
-    )
-    await CompileController._proxyToClsi(
-      projectId,
+      editorId,
+      buildId,
+      file,
+      clsiServerId,
       'output-file',
-      url,
-      qs,
       req,
       res
     )
   },
 
-  async getFileFromClsiWithoutUser(req, res) {
-    const submissionId = req.params.submission_id
-    const url = _CompileController._getFileUrl(
+  async getFileForSubmissionFromClsi(req, res) {
+    const {
+      params: { submissionId, build_id: buildId, file },
+      query: { clsiserverid: clsiServerId },
+    } = parseReq(req, getFileForSubmissionFromClsiSchema)
+    await _downloadFromClsiNginx(
       submissionId,
       null,
-      req.params.build_id,
-      req.params.file
-    )
-    const limits = {
-      compileGroup:
-        req.body?.compileGroup ||
-        req.query?.compileGroup ||
-        Settings.defaultFeatures.compileGroup,
-      compileBackendClass: Settings.apis.clsi.submissionBackendClass,
-    }
-    await CompileController._proxyToClsiWithLimits(
-      submissionId,
+      null,
+      buildId,
+      file,
+      clsiServerId,
       'output-file',
-      url,
-      {},
-      limits,
       req,
       res
     )
-  },
-
-  // compute a GET file url for a given project, user (optional), build (optional) and file
-  _getFileUrl(projectId, userId, buildId, file) {
-    let url
-    if (userId != null && buildId != null) {
-      url = `/project/${projectId}/user/${userId}/build/${buildId}/output/${file}`
-    } else if (userId != null) {
-      url = `/project/${projectId}/user/${userId}/output/${file}`
-    } else if (buildId != null) {
-      url = `/project/${projectId}/build/${buildId}/output/${file}`
-    } else {
-      url = `/project/${projectId}/output/${file}`
-    }
-    return url
   },
 
   async proxySyncPdf(req, res) {
@@ -506,124 +555,6 @@ const _CompileController = {
     await _syncTeX(req, res, 'code', { file, line, column })
   },
 
-  async _proxyToClsi(projectId, action, url, qs, req, res) {
-    const limits =
-      await CompileManager.promises.getProjectCompileLimits(projectId)
-    return CompileController._proxyToClsiWithLimits(
-      projectId,
-      action,
-      url,
-      qs,
-      limits,
-      req,
-      res
-    )
-  },
-
-  async _proxyToClsiWithLimits(projectId, action, url, qs, limits, req, res) {
-    const persistenceOptions = await _getPersistenceOptions(
-      req,
-      projectId,
-      limits.compileGroup,
-      limits.compileBackendClass
-    ).catch(err => {
-      OError.tag(err, 'error getting cookie jar for clsi request')
-      throw err
-    })
-
-    url = new URL(`${Settings.apis.clsi.url}${url}`)
-
-    const searchParams = {
-      ...persistenceOptions.qs,
-      ...qs,
-    }
-    for (const [key, value] of Object.entries(searchParams)) {
-      if (value !== undefined) {
-        // avoid sending "undefined" as a string value
-        url.searchParams.set(key, value)
-      }
-    }
-
-    const timer = new Metrics.Timer(
-      'proxy_to_clsi',
-      1,
-      { path: action },
-      [0, 100, 1000, 2000, 5000, 10000, 15000, 20000, 30000, 45000, 60000]
-    )
-    Metrics.inc('proxy_to_clsi', 1, { path: action, status: 'start' })
-    try {
-      const { stream, response } = await fetchStreamWithResponse(url.href, {
-        method: req.method,
-        signal: AbortSignal.timeout(60 * 1000),
-        headers: persistenceOptions.headers,
-      })
-      if (req.destroyed) {
-        // The client has disconnected already, avoid trying to write into the broken connection.
-        Metrics.inc('proxy_to_clsi', 1, {
-          path: action,
-          status: 'req-aborted',
-        })
-        return
-      }
-      Metrics.inc('proxy_to_clsi', 1, {
-        path: action,
-        status: response.status,
-      })
-
-      for (const key of ['Content-Length', 'Content-Type']) {
-        if (response.headers.has(key)) {
-          res.setHeader(key, response.headers.get(key))
-        }
-      }
-      res.writeHead(response.status)
-      await pipeline(stream, res)
-      timer.labels.status = 'success'
-      timer.done()
-    } catch (err) {
-      const reqAborted = Boolean(req.destroyed)
-      const status = reqAborted ? 'req-aborted-late' : 'error'
-      timer.labels.status = status
-      const duration = timer.done()
-      Metrics.inc('proxy_to_clsi', 1, { path: action, status })
-      const streamingStarted = Boolean(res.headersSent)
-      if (!streamingStarted) {
-        if (err instanceof RequestFailedError) {
-          res.sendStatus(err.response.status)
-        } else {
-          res.sendStatus(500)
-        }
-      }
-      if (
-        streamingStarted &&
-        reqAborted &&
-        err.code === 'ERR_STREAM_PREMATURE_CLOSE'
-      ) {
-        // Ignore noisy spurious error
-        return
-      }
-      if (
-        err instanceof RequestFailedError &&
-        ['sync-to-code', 'sync-to-pdf', 'output-file'].includes(action)
-      ) {
-        // Ignore noisy error
-        // https://github.com/overleaf/internal/issues/15201
-        return
-      }
-      logger.warn(
-        {
-          err,
-          projectId,
-          url,
-          action,
-          reqAborted,
-          streamingStarted,
-          duration,
-        },
-        'CLSI proxy error'
-      )
-    }
-  },
-
   async wordCount(req, res) {
     const { params, query } = parseReq(req, wordCountSchema)
     const projectId = params.Project_id
@@ -641,38 +572,199 @@ const _CompileController = {
   },
 }
 
-async function _getPersistenceOptions(
+async function _downloadFromClsi(
+  projectIdOrSubmissionId,
+  userId,
+  editorId,
+  buildId,
+  file,
+  clsiServerId,
+  action,
   req,
-  projectId,
-  compileGroup,
-  compileBackendClass
+  res
 ) {
-  const { clsiserverid } = req.query
-  const userId = SessionManager.getLoggedInUserId(req)
-  if (clsiserverid && typeof clsiserverid === 'string') {
-    return {
-      qs: { clsiserverid, compileGroup, compileBackendClass },
-      headers: {},
-    }
-  } else {
-    const clsiServerId = await ClsiCookieManager.promises.getServerId(
-      projectId,
-      userId,
-      compileGroup,
-      compileBackendClass
+  const { compileBackendClass } =
+    await CompileManager.promises.getProjectCompileLimits(
+      projectIdOrSubmissionId
     )
-    return {
-      qs: { compileGroup, compileBackendClass },
-      headers: clsiServerId
-        ? {
-            Cookie: new Cookie({
-              key: Settings.clsiCookie.key,
-              value: clsiServerId,
-            }).cookieString(),
-          }
-        : {},
+  const url = getOutputZipURL(
+    projectIdOrSubmissionId,
+    userId,
+    buildId,
+    compileBackendClass,
+    clsiServerId
+  )
+  return await _proxyToClsi(
+    url,
+    projectIdOrSubmissionId,
+    userId,
+    editorId,
+    buildId,
+    file,
+    action,
+    req,
+    res
+  )
+}
+
+async function _downloadFromClsiNginx(
+  projectIdOrSubmissionId,
+  userId,
+  editorId,
+  buildId,
+  file,
+  clsiServerId,
+  action,
+  req,
+  res
+) {
+  const url = getOutputFileURL(
+    projectIdOrSubmissionId,
+    userId,
+    buildId,
+    file,
+    clsiServerId
+  )
+  return await _proxyToClsi(
+    url,
+    projectIdOrSubmissionId,
+    userId,
+    editorId,
+    buildId,
+    file,
+    action,
+    req,
+    res
+  )
+}
+
+async function _proxyToClsi(
+  url,
+  projectIdOrSubmissionId,
+  userId,
+  editorId,
+  buildId,
+  file,
+  action,
+  req,
+  res
+) {
+  const timer = new Metrics.Timer(
+    'proxy_to_clsi',
+    1,
+    { path: action },
+    [0, 100, 1000, 2000, 5000, 10000, 15000, 20000, 30000, 45000, 60000]
+  )
+  Metrics.inc('proxy_to_clsi', 1, { path: action, status: 'start' })
+  const ac = new AbortController()
+  let timeout = setTimeout(() => ac.abort(), 10_000)
+  try {
+    const { stream, response } = await fetchStreamWithResponse(url.href, {
+      method: req.method,
+      signal: ac.signal,
+    })
+    if (req.destroyed) {
+      // The client has disconnected already, avoid trying to write into the broken connection.
+      Metrics.inc('proxy_to_clsi', 1, {
+        path: action,
+        status: 'req-aborted',
+      })
+      stream.destroy(new Error('user aborted the request'))
+      return
     }
+    Metrics.inc('proxy_to_clsi', 1, {
+      path: action,
+      status: response.status,
+    })
+
+    for (const key of ['Content-Length', 'Content-Type']) {
+      if (response.headers.has(key)) {
+        res.setHeader(key, response.headers.get(key))
+      }
+    }
+
+    // Downloads can take a while on a slow connection, increase timeouts to 10min
+    const TEN_MINUTES_IN_MS = 10 * 60 * 1000
+    res.setTimeout(TEN_MINUTES_IN_MS)
+    clearTimeout(timeout)
+    timeout = setTimeout(() => ac.abort(), TEN_MINUTES_IN_MS)
+
+    // Disable buffering in nginx
+    res.setHeader('X-Accel-Buffering', 'no')
+
+    res.writeHead(response.status)
+    await pipeline(stream, res)
+    timer.labels.status = 'success'
+    timer.done()
+  } catch (err) {
+    if (canTryClsiCacheFallback(req, res, editorId, file, action, err)) {
+      await ClsiCacheController._downloadFromCacheWithParams(
+        req,
+        res,
+        projectIdOrSubmissionId,
+        `${editorId}-${buildId}`,
+        file
+      )
+      return
+    }
+    const reqAborted = Boolean(req.destroyed)
+    const status = reqAborted ? 'req-aborted-late' : 'error'
+    timer.labels.status = status
+    const duration = timer.done()
+    Metrics.inc('proxy_to_clsi', 1, { path: action, status })
+    const streamingStarted = Boolean(res.headersSent)
+    if (!streamingStarted) {
+      if (err instanceof RequestFailedError) {
+        res.status(err.response.status).end()
+      } else {
+        res.status(500).end()
+      }
+    }
+    if (
+      streamingStarted &&
+      reqAborted &&
+      (err.code === 'ERR_STREAM_PREMATURE_CLOSE' ||
+        err.code === 'ERR_STREAM_UNABLE_TO_PIPE')
+    ) {
+      // Ignore noisy spurious error
+      return
+    }
+    if (err instanceof RequestFailedError) {
+      // Ignore noisy error: https://github.com/overleaf/internal/issues/15201
+      return
+    }
+    logger.warn(
+      {
+        err,
+        projectId: projectIdOrSubmissionId,
+        userId,
+        url,
+        action,
+        reqAborted,
+        streamingStarted,
+        duration,
+      },
+      'CLSI proxy error'
+    )
+  } finally {
+    clearTimeout(timeout)
   }
+}
+
+function canTryClsiCacheFallback(req, res, editorId, file, action, err) {
+  const reqAborted = Boolean(req.destroyed)
+  const streamingStarted = Boolean(res.headersSent)
+  return (
+    action === 'output-file' &&
+    err instanceof RequestFailedError &&
+    err.response.status === 404 &&
+    !streamingStarted &&
+    !reqAborted &&
+    editorId &&
+    // clsi-cache only has a small subset of files available outside the tar-ball.
+    // The ClsiCacheHandler will validate the filename again.
+    ClsiCacheHandler.isAllowedFilename(file)
+  )
 }
 
 const CompileController = {
@@ -683,9 +775,10 @@ const CompileController = {
   downloadPdf: expressify(_CompileController.downloadPdf), //
   compileAndDownloadPdf: expressify(_CompileController.compileAndDownloadPdf),
   deleteAuxFiles: expressify(_CompileController.deleteAuxFiles),
+  getOutputZipFromClsi: expressify(_CompileController.getOutputZipFromClsi),
   getFileFromClsi: expressify(_CompileController.getFileFromClsi),
-  getFileFromClsiWithoutUser: expressify(
-    _CompileController.getFileFromClsiWithoutUser
+  getFileForSubmissionFromClsi: expressify(
+    _CompileController.getFileForSubmissionFromClsi
   ),
   proxySyncPdf: expressify(_CompileController.proxySyncPdf),
   proxySyncCode: expressify(_CompileController.proxySyncCode),
@@ -694,8 +787,6 @@ const CompileController = {
   _getSafeProjectName: _CompileController._getSafeProjectName,
   _getSplitTestOptions,
   _getUserIdForCompile: _CompileController._getUserIdForCompile,
-  _proxyToClsi: _CompileController._proxyToClsi,
-  _proxyToClsiWithLimits: _CompileController._proxyToClsiWithLimits,
 }
 
 export default CompileController

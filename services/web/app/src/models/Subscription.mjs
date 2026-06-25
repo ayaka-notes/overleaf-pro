@@ -50,13 +50,6 @@ export const SubscriptionSchema = new Schema(
     invited_emails: [String],
     teamInvites: [TeamInviteSchema],
     recurlySubscription_id: String,
-    lastSuccesfulSubscription: {
-      planCode: {
-        type: String,
-      },
-      addOns: Schema.Types.Mixed,
-    },
-    timesRevertedDueToFailedPayment: { type: Number, default: 0 },
     teamName: { type: String },
     teamNotice: { type: String },
     planCode: { type: String },
@@ -119,6 +112,18 @@ export const SubscriptionSchema = new Schema(
       },
     },
     ssoConfig: { type: ObjectId, ref: 'SSOConfig' },
+    sharingPermissions: {
+      byEmail: {
+        type: String,
+        enum: ['anyone_in_x', 'anyone'],
+        default: 'anyone',
+      },
+      byLinkSharing: {
+        type: String,
+        enum: ['no_one', 'anyone_in_x', 'anyone'],
+        default: 'anyone',
+      },
+    },
   },
   { minimize: false }
 )

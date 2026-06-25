@@ -1,5 +1,5 @@
 import { Container, Row, Col } from 'react-bootstrap'
-import { Meta } from '@storybook/react'
+import { Meta } from '@storybook/react-webpack5'
 
 type Args = React.ComponentProps<typeof Row>
 

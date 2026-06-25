@@ -67,12 +67,10 @@ module.exports = {
     },
     clsi: {
       url: 'http://127.0.0.1:23013',
+      downloadHost: 'http://127.0.0.1:23080',
     },
     realTime: {
       url: 'http://127.0.0.1:23026',
-    },
-    contacts: {
-      url: 'http://127.0.0.1:23036',
     },
     notifications: {
       url: 'http://127.0.0.1:23042',
@@ -115,6 +113,7 @@ module.exports = {
       compileGroup: 'standard',
       trackChanges: false,
       symbolPalette: false,
+      aiUsageQuota: 'basic',
       aiErrorAssistant: false,
     },
     personal: {
@@ -132,6 +131,7 @@ module.exports = {
       compileGroup: 'standard',
       trackChanges: false,
       symbolPalette: false,
+      aiUsageQuota: 'basic',
       aiErrorAssistant: false,
     },
     collaborator: {
@@ -149,6 +149,7 @@ module.exports = {
       compileGroup: 'priority',
       trackChanges: true,
       symbolPalette: true,
+      aiUsageQuota: 'basic',
       aiErrorAssistant: false,
     },
     professional: {
@@ -166,6 +167,7 @@ module.exports = {
       compileGroup: 'priority',
       trackChanges: true,
       symbolPalette: true,
+      aiUsageQuota: 'basic',
       aiErrorAssistant: false,
     },
   }),
@@ -189,19 +191,19 @@ module.exports = {
     },
     {
       planCode: 'collaborator',
-      name: 'Collaborator',
+      name: 'Standard monthly',
       price_in_cents: 1500,
       features: features.collaborator,
     },
     {
       planCode: 'professional',
-      name: 'Professional',
+      name: 'Pro monthly',
       price_in_cents: 3000,
       features: features.professional,
     },
     {
       planCode: 'group_professional',
-      name: 'Professional - Group Account - Enterprise',
+      name: 'Pro group',
       hideFromUsers: true,
       price_in_cents: 0,
       annual: true,
@@ -213,7 +215,7 @@ module.exports = {
     },
     {
       planCode: 'group_collaborator',
-      name: 'Collaborator - Group Account - Enterprise',
+      name: 'Standard group',
       hideFromUsers: true,
       price_in_cents: 0,
       annual: true,
@@ -291,6 +293,13 @@ module.exports = {
 
   devToolbar: {
     enabled: false,
+  },
+
+  projectInviteEncryptorOptions: {
+    cipherLabel: '2026.3-v3',
+    cipherPasswords: {
+      '2026.3-v3': 'this-is-a-weak-secret-for-tests-web-2026.3-v3',
+    },
   },
 }
 

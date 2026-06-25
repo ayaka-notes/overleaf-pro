@@ -9,14 +9,12 @@ import { useFileTreeMainContext } from '../contexts/file-tree-main'
 
 import FileTreeItemMenuItems from './file-tree-item/file-tree-item-menu-items'
 import classNames from 'classnames'
-import { useIsNewEditorEnabled } from '@/features/ide-redesign/utils/new-editor-utils'
 
 function FileTreeContextMenu() {
   const { fileTreeReadOnly } = useFileTreeData()
   const { contextMenuCoords, setContextMenuCoords } = useFileTreeMainContext()
   const toggleButtonRef = useRef<HTMLButtonElement | null>(null)
   const keyboardInputRef = useRef(false)
-  const newEditor = useIsNewEditorEnabled()
 
   useEffect(() => {
     if (contextMenuCoords) {
@@ -67,15 +65,26 @@ function FileTreeContextMenu() {
     keyboardInputRef.current = false
   }, [])
 
+  const handleShiftContextMenu = useCallback(
+    (event: MouseEvent) => {
+      if (event.shiftKey) {
+        setContextMenuCoords(null)
+      }
+    },
+    [setContextMenuCoords]
+  )
+
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown)
     document.addEventListener('mousedown', handleMouseDown)
+    document.addEventListener('contextmenu', handleShiftContextMenu)
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('mousedown', handleMouseDown)
+      document.removeEventListener('contextmenu', handleShiftContextMenu)
     }
-  }, [handleKeyDown, handleMouseDown])
+  }, [handleKeyDown, handleMouseDown, handleShiftContextMenu])
 
   if (!contextMenuCoords || fileTreeReadOnly) return null
 
@@ -90,7 +99,7 @@ function FileTreeContextMenu() {
       style={contextMenuCoords}
       // TODO ide-redesign-cleanup: remove 'ide-redesign-main' class when old editor is removed
       // It is only used to apply dark theme styles to the context menu in the new editor
-      className={classNames('context-menu', { 'ide-redesign-main': newEditor })}
+      className="context-menu ide-redesign-main"
     >
       <Dropdown
         show

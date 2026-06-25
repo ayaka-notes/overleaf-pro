@@ -76,11 +76,12 @@ describe('DocumentUpdaterHandler', function () {
       },
     }))
 
+    ctx.modulesHooksFire = sinon.stub().resolves()
     vi.doMock('../../../../app/src/infrastructure/Modules', () => ({
       default: {
         promises: {
           hooks: {
-            fire: sinon.stub().resolves(),
+            fire: ctx.modulesHooksFire,
           },
         },
       },
@@ -548,22 +549,70 @@ describe('DocumentUpdaterHandler', function () {
   describe('acceptChanges', function () {
     beforeEach(function (ctx) {
       ctx.change_id = 'mock-change-id-1'
+      ctx.change_contributors = ['mock-user-id-1', 'mock-user-id-2']
     })
 
     describe('successfully', function () {
-      beforeEach(function (ctx) {
+      beforeEach(async function (ctx) {
         ctx.docUpdaterMock
           .post(`/project/${ctx.project_id}/doc/${ctx.doc_id}/change/accept`, {
             change_ids: [ctx.change_id],
           })
-          .reply(200)
+          .reply(200, { changeContributors: ctx.change_contributors })
+        await ctx.handler.promises.acceptChanges(
+          ctx.project_id,
+          ctx.doc_id,
+          [ctx.change_id],
+          ctx.user_id
+        )
       })
 
-      it('should accept the change in the document updater', async function (ctx) {
-        await ctx.handler.promises.acceptChanges(ctx.project_id, ctx.doc_id, [
-          ctx.change_id,
-        ])
+      it('should accept the change in the document updater', function (ctx) {
         expect(ctx.docUpdaterMock.isDone()).to.be.true
+      })
+
+      it('should fire the changesAccepted hook with change contributors', function (ctx) {
+        expect(ctx.modulesHooksFire).to.have.been.calledWith(
+          'changesAccepted',
+          ctx.project_id,
+          ctx.doc_id,
+          ctx.user_id,
+          ctx.change_contributors
+        )
+      })
+    })
+
+    describe('when there are no change contributors', function () {
+      beforeEach(async function (ctx) {
+        ctx.docUpdaterMock
+          .post(`/project/${ctx.project_id}/doc/${ctx.doc_id}/change/accept`)
+          .reply(200, { changeContributors: [] })
+        await ctx.handler.promises.acceptChanges(
+          ctx.project_id,
+          ctx.doc_id,
+          [ctx.change_id],
+          ctx.user_id
+        )
+      })
+    })
+
+    describe('when there are duplicate change contributors', function () {
+      beforeEach(async function (ctx) {
+        ctx.docUpdaterMock
+          .post(`/project/${ctx.project_id}/doc/${ctx.doc_id}/change/accept`)
+          .reply(200, {
+            changeContributors: [
+              'mock-user-id-1',
+              'mock-user-id-1',
+              'mock-user-id-2',
+            ],
+          })
+        await ctx.handler.promises.acceptChanges(
+          ctx.project_id,
+          ctx.doc_id,
+          [ctx.change_id],
+          ctx.user_id
+        )
       })
     })
 

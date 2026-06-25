@@ -21,6 +21,7 @@ export function AccountMenuItems({
   const { t } = useTranslation()
   const logOutFormId = 'logOutForm'
   const dsNavStyle = useDsNavStyle()
+  const hasOverallThemes = Boolean(getMeta('ol-overallThemes'))
 
   return (
     <>
@@ -36,7 +37,7 @@ export function AccountMenuItems({
           {t('subscription')}
         </NavDropdownLinkItem>
       ) : null}
-      {showThemeToggle && (
+      {showThemeToggle && hasOverallThemes && (
         <DropdownListItem>
           <ThemeToggle />
         </DropdownListItem>

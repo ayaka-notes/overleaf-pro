@@ -2,7 +2,7 @@ const path = require('path')
 const { globSync } = require('glob')
 const webpack = require('webpack')
 const CopyPlugin = require('copy-webpack-plugin')
-const WebpackAssetsManifest = require('webpack-assets-manifest')
+const { WebpackAssetsManifest } = require('webpack-assets-manifest')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const {
   LezerGrammarCompilerPlugin,
@@ -62,6 +62,7 @@ function getModuleDirectory(moduleName) {
 const mathjaxDir = getModuleDirectory('mathjax')
 const pdfjsDir = getModuleDirectory('pdfjs-dist')
 const dictionariesDir = getModuleDirectory('@overleaf/dictionaries')
+const pyodideDir = getModuleDirectory('pyodide')
 
 const vendorDir = path.join(__dirname, 'frontend/js/vendor')
 
@@ -96,10 +97,6 @@ module.exports = {
 
     // By default write into js directory
     filename: 'js/[name]-[contenthash].js',
-
-    // Output as UMD bundle (allows main JS to import with CJS, AMD or global
-    // style code bundles
-    libraryTarget: 'umd',
   },
 
   optimization: {
@@ -126,8 +123,8 @@ module.exports = {
           {
             loader: 'babel-loader',
             options: {
-              cacheDirectory: true,
-              configFile: path.join(__dirname, './babel.config.json'),
+              cacheDirectory: path.join(__dirname, '.cache/babel-loader'),
+              configFile: path.join(__dirname, './babel.config.cjs'),
             },
           },
           {
@@ -159,8 +156,8 @@ module.exports = {
             options: {
               // Configure babel-loader to cache compiled output so that
               // subsequent compile runs are much faster
-              cacheDirectory: true,
-              configFile: path.join(__dirname, './babel.config.json'),
+              cacheDirectory: path.join(__dirname, '.cache/babel-loader'),
+              configFile: path.join(__dirname, './babel.config.cjs'),
               plugins: [
                 process.env.REACT_REFRESH_ENABLED === 'true' &&
                   'react-refresh/babel',
@@ -310,15 +307,11 @@ module.exports = {
     ],
   },
   resolve: {
+    tsconfig: path.resolve(__dirname, 'tsconfig.json'),
     alias: {
-      // custom prefixes for import paths
-      '@': path.resolve(__dirname, './frontend/js/'),
-      '@modules': path.resolve(__dirname, './modules/'),
-      '@ol-types': path.resolve(__dirname, './types/'),
-      '@wf': path.resolve(
-        __dirname,
-        './modules/writefull/frontend/js/integration/src/'
-      ),
+      // Ensure all packages use the same jQuery instance (prevents duplicate
+      // copies from Yarn hoisting breaking jQuery plugins like daterangepicker)
+      jquery: require.resolve('jquery'),
     },
     // symlinks: false, // enable this while using `npm link`
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.json'],
@@ -370,37 +363,25 @@ module.exports = {
         // Copy the required files for loading MathJax from MathJax NPM package
         // https://www.npmjs.com/package/mathjax#user-content-hosting-your-own-copy-of-the-mathjax-components
         {
-          from: 'es5/tex-svg-full.js',
-          to: `js/libs/mathjax-${PackageVersions.version.mathjax}/es5`,
-          toType: 'dir',
-          context: mathjaxDir,
-        },
-        {
-          from: 'es5/input/tex/extensions/**/*.js',
+          from: 'tex-svg.js',
           to: `js/libs/mathjax-${PackageVersions.version.mathjax}`,
           toType: 'dir',
           context: mathjaxDir,
         },
         {
-          from: 'es5/ui/**/*',
+          from: 'input/tex/extensions/**/*.js',
           to: `js/libs/mathjax-${PackageVersions.version.mathjax}`,
           toType: 'dir',
           context: mathjaxDir,
         },
         {
-          from: 'es5/a11y/**/*',
+          from: 'ui/**/*',
           to: `js/libs/mathjax-${PackageVersions.version.mathjax}`,
           toType: 'dir',
           context: mathjaxDir,
         },
         {
-          from: 'es5/input/mml.js',
-          to: `js/libs/mathjax-${PackageVersions.version.mathjax}/es5/input`,
-          toType: 'dir',
-          context: mathjaxDir,
-        },
-        {
-          from: 'es5/sre/**/*',
+          from: 'sre/**/*',
           to: `js/libs/mathjax-${PackageVersions.version.mathjax}`,
           toType: 'dir',
           context: mathjaxDir,
@@ -410,6 +391,39 @@ module.exports = {
           to: `js/dictionaries/${PackageVersions.version.dictionaries}`,
           toType: 'dir',
           context: `${dictionariesDir}/dictionaries`,
+        },
+        // Copy Pyodide runtime assets from the npm package so the loader is
+        // always available. Python package wheels are fetched separately by
+        // scripts/fetch-pyodide-packages.mjs into the same directory on disk.
+        {
+          from: 'pyodide.mjs',
+          to: 'js/libs/pyodide',
+          toType: 'dir',
+          context: pyodideDir,
+        },
+        {
+          from: 'pyodide.asm.js',
+          to: 'js/libs/pyodide',
+          toType: 'dir',
+          context: pyodideDir,
+        },
+        {
+          from: 'pyodide.asm.wasm',
+          to: 'js/libs/pyodide',
+          toType: 'dir',
+          context: pyodideDir,
+        },
+        {
+          from: 'python_stdlib.zip',
+          to: 'js/libs/pyodide',
+          toType: 'dir',
+          context: pyodideDir,
+        },
+        {
+          from: 'pyodide-lock.json',
+          to: 'js/libs/pyodide',
+          toType: 'dir',
+          context: pyodideDir,
         },
         // Copy CMap files (used to provide support for non-Latin characters),
         // wasm, ICC profiles, fonts and images from pdfjs-dist package to build output.

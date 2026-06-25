@@ -5,12 +5,15 @@ import { ComponentProps } from 'react'
 export type FormFeedbackProps = Pick<
   ComponentProps<typeof Form.Control.Feedback>,
   'type' | 'className' | 'children'
->
+> & { unfilled?: boolean }
 
-function FormFeedback(props: FormFeedbackProps) {
+function FormFeedback({ unfilled, ...props }: FormFeedbackProps) {
   return (
     <Form.Control.Feedback {...props}>
-      <FormText type={props.type === 'invalid' ? 'error' : 'success'}>
+      <FormText
+        type={props.type === 'invalid' ? 'error' : 'success'}
+        unfilled={unfilled}
+      >
         {props.children}
       </FormText>
     </Form.Control.Feedback>

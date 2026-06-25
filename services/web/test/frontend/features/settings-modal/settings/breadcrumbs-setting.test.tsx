@@ -1,9 +1,9 @@
 import { screen, render } from '@testing-library/react'
 import { expect } from 'chai'
 import fetchMock from 'fetch-mock'
-import { SettingsModalProvider } from '@/features/ide-redesign/contexts/settings-modal-context'
+import { SettingsModalProvider } from '@/features/settings/context/settings-modal-context'
 import { EditorProviders } from '../../../helpers/editor-providers'
-import BreadcrumbsSetting from '@/features/ide-redesign/components/settings/editor-settings/breadcrumbs-setting'
+import BreadcrumbsSetting from '@/features/settings/components/editor-settings/breadcrumbs-setting'
 
 describe('<BreadcrumbsSetting />', function () {
   afterEach(function () {

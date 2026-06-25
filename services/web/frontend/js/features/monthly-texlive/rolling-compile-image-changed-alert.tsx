@@ -1,5 +1,4 @@
 import useTutorial from '@/shared/hooks/promotions/use-tutorial'
-import { useEditorContext } from '@/shared/context/editor-context'
 import { useProjectContext } from '@/shared/context/project-context'
 import OLNotification from '@/shared/components/ol/ol-notification'
 import { useTranslation, Trans } from 'react-i18next'
@@ -9,9 +8,9 @@ import { onRollingBuild } from '@/shared/utils/rolling-build'
 export const TUTORIAL_KEY = 'rolling-compile-image-changed'
 
 const RollingCompileImageChangedAlert = () => {
-  const { completeTutorial } = useTutorial(TUTORIAL_KEY)
+  const { completeTutorial, checkCompletion: hasCompleted } =
+    useTutorial(TUTORIAL_KEY)
   const { project } = useProjectContext()
-  const { inactiveTutorials } = useEditorContext()
 
   const { t } = useTranslation()
 
@@ -19,10 +18,7 @@ const RollingCompileImageChangedAlert = () => {
     completeTutorial({ event: 'promo-click', action: 'complete' })
   }, [completeTutorial])
 
-  if (
-    inactiveTutorials.includes(TUTORIAL_KEY) ||
-    !onRollingBuild(project?.imageName)
-  ) {
+  if (hasCompleted() || !onRollingBuild(project?.imageName)) {
     return null
   }
 

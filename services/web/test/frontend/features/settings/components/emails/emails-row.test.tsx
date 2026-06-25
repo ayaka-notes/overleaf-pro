@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { expect } from 'chai'
 import fetchMock from 'fetch-mock'
 import { cloneDeep } from 'lodash'
@@ -11,12 +11,15 @@ import { UserEmailData } from '../../../../../../types/user-email'
 import { UserEmailsProvider } from '../../../../../../frontend/js/features/settings/context/user-email-context'
 import { Affiliation } from '../../../../../../types/affiliation'
 import getMeta from '@/utils/meta'
+import { SplitTestProvider } from '@/shared/context/split-test-context'
 
 function renderEmailsRow(data: UserEmailData) {
   return render(
-    <UserEmailsProvider>
-      <EmailsRow userEmailData={data} />
-    </UserEmailsProvider>
+    <SplitTestProvider>
+      <UserEmailsProvider>
+        <EmailsRow userEmailData={data} />
+      </UserEmailsProvider>
+    </SplitTestProvider>
   )
 }
 
@@ -33,6 +36,7 @@ describe('<EmailsRow/>', function () {
       samlInitPath: '/saml',
       hasSamlBeta: true,
     })
+    window.metaAttributesCache.set('ol-splitTestVariants', {})
     fetchMock.get('/user/emails?ensureAffiliation=true', [])
   })
 
@@ -116,6 +120,15 @@ describe('<EmailsRow/>', function () {
         expect(screen.queryByRole('button', { name: 'Link accounts' })).to.be
           .null
       })
+
+      it('shows unlink button and opens unlink modal', function () {
+        renderEmailsRow(affiliatedEmail)
+
+        fireEvent.click(screen.getByRole('button', { name: 'Unlink SSO' }))
+
+        screen.getByRole('dialog')
+        screen.getByText('Unlink institutional login')
+      })
     })
 
     describe('and domain capture is also on for group and Commons SSO also enabled', function () {
@@ -155,6 +168,37 @@ describe('<EmailsRow/>', function () {
         )
         expect(screen.queryByRole('button', { name: 'Link accounts' })).to.be
           .null
+      })
+
+      it('uses `domainCapturedByGroup` when the feature flag is enabled', function () {
+        affiliatedEmailWithDomainCaptureAndCommons.affiliation.group = {
+          _id: 'grou123',
+          domainCaptureEnabled: true,
+          managedUsersEnabled: true,
+        }
+        affiliatedEmailWithDomainCaptureAndCommons.affiliation.domainCapturedByGroup = true
+        window.metaAttributesCache.set('ol-splitTestVariants', {
+          'domain-captured-by-group': 'enabled',
+        })
+
+        renderEmailsRow(affiliatedEmailWithDomainCaptureAndCommons)
+
+        expect(screen.queryByRole('button', { name: 'Link accounts' })).to.be
+          .null
+      })
+
+      it('ignores group domain capture when the feature flag is enabled and the domain is not captured', function () {
+        affiliatedEmailWithDomainCaptureAndCommons.affiliation.domainCapturedByGroup = false
+        window.metaAttributesCache.set('ol-splitTestVariants', {
+          'domain-captured-by-group': 'enabled',
+        })
+
+        renderEmailsRow(affiliatedEmailWithDomainCaptureAndCommons)
+
+        getByTextContent(
+          'You can now link your Overleaf account to your Overleaf institutional account.'
+        )
+        screen.getByRole('button', { name: 'Link accounts' })
       })
     })
   })

@@ -1,5 +1,5 @@
 import { Select } from '@/shared/components/select'
-import { Meta } from '@storybook/react'
+import { Meta } from '@storybook/react-webpack5'
 
 type Args = Pick<
   React.ComponentProps<typeof Select>,

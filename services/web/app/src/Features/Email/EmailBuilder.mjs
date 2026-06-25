@@ -3,7 +3,7 @@ import settings from '@overleaf/settings'
 import moment from 'moment'
 import EmailMessageHelper from './EmailMessageHelper.mjs'
 import StringHelper from '../Helpers/StringHelper.mjs'
-import BaseWithHeaderEmailLayout from './Layouts/BaseWithHeaderEmailLayout.mjs'
+import BaseEmailLayout from './Layouts/BaseEmailLayout.mjs'
 import SpamSafe from './SpamSafe.mjs'
 import ctaEmailBody from './Bodies/cta-email.mjs'
 import NoCTAEmailBody from './Bodies/NoCTAEmailBody.mjs'
@@ -38,6 +38,12 @@ function _emailBodyPlainText(content, opts, ctaEmail) {
     emailBody += settings.email.template.customFooter
   }
 
+  const footerMessage = content.footerMessage(opts, true)
+  if (footerMessage) {
+    emailBody += `\r\n\r\n`
+    emailBody += footerMessage
+  }
+
   return emailBody
 }
 
@@ -62,11 +68,19 @@ function ctaTemplate(content) {
   if (!content.gmailGoToAction) {
     content.gmailGoToAction = () => {}
   }
+  if (!content.footerMessage) {
+    content.footerMessage = () => {}
+  }
   return {
     subject(opts) {
       return content.subject(opts)
     },
-    layout: BaseWithHeaderEmailLayout,
+    layout(opts) {
+      return BaseEmailLayout(opts)
+    },
+    footerMessage(opts) {
+      return content.footerMessage(opts)
+    },
     plainTextTemplate(opts) {
       return _emailBodyPlainText(content, opts, true)
     },
@@ -96,7 +110,9 @@ function NoCTAEmailTemplate(content) {
     subject(opts) {
       return content.subject(opts)
     },
-    layout: BaseWithHeaderEmailLayout,
+    layout(opts) {
+      return BaseEmailLayout(opts)
+    },
     plainTextTemplate(opts) {
       return `\
 ${content.greeting(opts)}
@@ -125,8 +141,10 @@ The ${settings.appName} Team - ${settings.siteUrl}\
 
 function buildEmail(templateName, opts) {
   const template = templates[templateName]
-  opts.siteUrl = settings.siteUrl
   opts.body = template.compiledTemplate(opts)
+  opts.footerMessage = template.footerMessage
+    ? template.footerMessage(opts)
+    : ''
   return {
     subject: template.subject(opts),
     html: template.layout(opts),
@@ -174,7 +192,7 @@ templates.canceledSubscription = ctaTemplate({
     return ['Thank you in advance!']
   },
   ctaText() {
-    return 'Leave Feedback'
+    return 'Leave feedback'
   },
   ctaURL(opts) {
     return 'https://docs.google.com/forms/d/e/1FAIpQLSfa7z_s-cucRRXm70N4jEcSbFsZeb0yuKThHGQL8ySEaQzF0Q/viewform?usp=sf_link'
@@ -237,32 +255,6 @@ templates.passwordResetRequested = ctaTemplate({
   },
   ctaURL(opts) {
     return opts.setNewPasswordUrl
-  },
-})
-
-templates.confirmEmail = ctaTemplate({
-  subject() {
-    return `Confirm email - ${settings.appName}`
-  },
-  title() {
-    return 'Confirm email'
-  },
-  message(opts) {
-    return [
-      `Please confirm that you have added a new email, ${opts.to}, to your ${settings.appName} account.`,
-    ]
-  },
-  secondaryMessage() {
-    return [
-      `If you did not request this, please let us know at <a href="mailto:${settings.adminEmail}">${settings.adminEmail}</a>.`,
-      `If you have any questions or trouble confirming your email address, please get in touch with our support team at ${settings.adminEmail}.`,
-    ]
-  },
-  ctaText() {
-    return 'Confirm email'
-  },
-  ctaURL(opts) {
-    return opts.confirmEmailUrl
   },
 })
 
@@ -357,32 +349,6 @@ templates.projectInvite = ctaTemplate({
         SpamSafe.safeProjectName(opts.project.name, 'project')
       )} at ${settings.appName}`,
     }
-  },
-})
-
-templates.reconfirmEmail = ctaTemplate({
-  subject() {
-    return `Reconfirm Email - ${settings.appName}`
-  },
-  title() {
-    return 'Reconfirm Email'
-  },
-  message(opts) {
-    return [
-      `Please reconfirm your email address, ${opts.to}, on your ${settings.appName} account.`,
-    ]
-  },
-  secondaryMessage() {
-    return [
-      'If you did not request this, you can simply ignore this message.',
-      `If you have any questions or trouble confirming your email address, please get in touch with our support team at ${settings.adminEmail}.`,
-    ]
-  },
-  ctaText() {
-    return 'Reconfirm Email'
-  },
-  ctaURL(opts) {
-    return opts.confirmEmailUrl
   },
 })
 
@@ -858,6 +824,71 @@ templates.securityAlert = NoCTAEmailTemplate({
   },
 })
 
+const GIT_TOKEN_DOCS_URL =
+  'https://docs.overleaf.com/integrations-and-add-ons/git-integration-and-github-synchronization/git-integration/git-integration-authentication-tokens#how-to-generate-authentication-tokens'
+
+templates.gitTokenExpiringSoon = NoCTAEmailTemplate({
+  subject() {
+    return 'Your Overleaf token is about to expire'
+  },
+  title() {
+    return 'Your token is about to expire'
+  },
+  greeting(opts) {
+    return opts.firstName ? `Hi ${opts.firstName},` : 'Hi,'
+  },
+  message(opts, isPlainText) {
+    const settingsLink = EmailMessageHelper.displayLink(
+      'account settings',
+      `${settings.siteUrl}/user/settings`,
+      isPlainText
+    )
+    const docsLink = EmailMessageHelper.displayLink(
+      'our docs',
+      GIT_TOKEN_DOCS_URL,
+      isPlainText
+    )
+    return [
+      `One of your Git authentication tokens is about to expire. This means you won't be able to use your token to authenticate when performing git operations.`,
+      `If you haven't already, you'll need to generate a new token in your ${settingsLink}.`,
+      `Take a look at ${docsLink} if you need more help.`,
+      'All the best,',
+      'Team Overleaf',
+    ]
+  },
+})
+
+templates.gitTokenExpired = NoCTAEmailTemplate({
+  subject() {
+    return 'Your Overleaf token has expired'
+  },
+  title() {
+    return 'Token expired'
+  },
+  greeting(opts) {
+    return opts.firstName ? `Hi ${opts.firstName},` : 'Hi,'
+  },
+  message(opts, isPlainText) {
+    const settingsLink = EmailMessageHelper.displayLink(
+      'account settings',
+      `${settings.siteUrl}/user/settings`,
+      isPlainText
+    )
+    const docsLink = EmailMessageHelper.displayLink(
+      'our docs',
+      GIT_TOKEN_DOCS_URL,
+      isPlainText
+    )
+    return [
+      `One of your Git authentication tokens has expired. This means you won't be able to use it to authenticate when performing git operations.`,
+      `If you haven't already, you'll need to generate a new token in your ${settingsLink}.`,
+      `Take a look at ${docsLink} if you need more help.`,
+      'All the best,',
+      'Team Overleaf',
+    ]
+  },
+})
+
 templates.SAMLDataCleared = ctaTemplate({
   subject(opts) {
     return `Institutional Login No Longer Linked - ${settings.appName}`
@@ -879,56 +910,10 @@ templates.SAMLDataCleared = ctaTemplate({
     ]
   },
   ctaText(opts) {
-    return 'Update my Emails and affiliations'
+    return 'Update my emails and affiliations'
   },
   ctaURL(opts) {
     return `${settings.siteUrl}/user/settings`
-  },
-})
-
-templates.welcome = ctaTemplate({
-  subject() {
-    return `Welcome to ${settings.appName}`
-  },
-  title() {
-    return `Welcome to ${settings.appName}`
-  },
-  greeting() {
-    return 'Hi,'
-  },
-  message(opts, isPlainText) {
-    const logInAgainDisplay = EmailMessageHelper.displayLink(
-      'log in again',
-      `${settings.siteUrl}/login`,
-      isPlainText
-    )
-    const helpGuidesDisplay = EmailMessageHelper.displayLink(
-      'Help Guides',
-      `${settings.siteUrl}/learn`,
-      isPlainText
-    )
-    const templatesDisplay = EmailMessageHelper.displayLink(
-      'Templates',
-      `${settings.siteUrl}/templates`,
-      isPlainText
-    )
-
-    return [
-      `Thanks for signing up to ${settings.appName}! If you ever get lost, you can ${logInAgainDisplay} with the email address '${opts.to}'.`,
-      `If you're new to LaTeX, take a look at our ${helpGuidesDisplay} and ${templatesDisplay}.`,
-      `Please also take a moment to confirm your email address for ${settings.appName}:`,
-    ]
-  },
-  secondaryMessage() {
-    return [
-      `PS. We love talking to our users about ${settings.appName}. Reply to this email to get in touch with us directly, whatever the reason. Questions, comments, problems, suggestions, all welcome!`,
-    ]
-  },
-  ctaText() {
-    return 'Confirm email'
-  },
-  ctaURL(opts) {
-    return opts.confirmEmailUrl
   },
 })
 
@@ -1025,24 +1010,26 @@ templates.taxExemptCertificateRequired = NoCTAEmailTemplate({
 
 templates.groupMemberLimitWarning = ctaTemplate({
   subject(opts) {
-    return `${opts.groupName || 'Your group'} is approaching its member limit`
+    return `Action needed: Your Overleaf group is nearly out of licenses`
   },
   title(opts) {
-    return `${opts.groupName || 'Your group'} is approaching its member limit`
+    return `Action needed: Your Overleaf group is nearly out of licenses`
   },
   greeting(opts) {
-    return opts.firstName ? `Hi ${opts.firstName},` : 'Hi,'
+    return opts.firstName ? `Hi ${opts.firstName},` : 'Hi there,'
   },
   message(opts) {
     return [
-      `Your group "${opts.groupName}" is approaching its member limit.`,
-      `<b>Current usage:</b> ${opts.currentMembers} of ${opts.membersLimit} licenses used (${opts.remainingSeats} remaining)`,
-      'With domain capture enabled, users with verified email addresses from your domain can automatically join the group via SSO. Once the member limit is reached, new users will be blocked from joining.',
-    ]
-  },
-  secondaryMessage() {
-    return [
-      'To ensure uninterrupted access for your users, consider adding more licenses or removing inactive members.',
+      `Your Overleaf group <b>${opts.groupName}</b> is close to its license limit.`,
+      `<b>${opts.currentMembers} of ${opts.membersLimit} licenses are in use (${opts.remainingSeats} remaining).</b>`,
+      'Because domain capture is enabled, users from your domain can join automatically via SSO.' +
+        '<br/>' +
+        '<b>Once all licenses are used, new users won’t be able to join.</b>',
+      '<b>What you can do now:</b>',
+      '<ul>' +
+        '<li>Add more licenses, or</li>' +
+        '<li>Remove inactive users to free up licenses</li>' +
+        '</ul>',
     ]
   },
   ctaText() {
@@ -1050,6 +1037,36 @@ templates.groupMemberLimitWarning = ctaTemplate({
   },
   ctaURL() {
     return `${settings.siteUrl}/user/subscription/group/add-users`
+  },
+})
+
+templates.groupDomainCapturedByGroupChanged = ctaTemplate({
+  subject(opts) {
+    return opts.domainCapturedByGroup
+      ? `Domain capture now active for ${opts.domain}`
+      : `Domain capture now inactive for ${opts.domain}`
+  },
+  title(opts) {
+    return opts.domainCapturedByGroup
+      ? `Domain capture is active for ${_.escape(opts.domain)}`
+      : `Domain capture is inactive for ${_.escape(opts.domain)}`
+  },
+  message(opts) {
+    if (opts.domainCapturedByGroup) {
+      return [
+        `Users with a <b>${_.escape(opts.domain)}</b> email address on their account will be able to join your group through domain capture.`,
+      ]
+    }
+    return [
+      `Users with a <b>${_.escape(opts.domain)}</b> email address on their account will no longer be able to join your group through domain capture. Anyone already in your group is unaffected.`,
+      `If you didn't expect this or want to re-enable it, please contact ${settings.adminEmail}.`,
+    ]
+  },
+  ctaText() {
+    return 'Manage domains'
+  },
+  ctaURL(opts) {
+    return `${settings.siteUrl}/manage/groups/${opts.groupId}/settings`
   },
 })
 

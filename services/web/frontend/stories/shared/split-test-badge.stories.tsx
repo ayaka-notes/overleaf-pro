@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import SplitTestBadge from '../../js/shared/components/split-test-badge'
 import { SplitTestContext } from '../../js/shared/context/split-test-context'
 

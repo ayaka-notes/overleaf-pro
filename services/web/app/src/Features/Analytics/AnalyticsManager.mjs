@@ -1,5 +1,5 @@
 import SessionManager from '../Authentication/SessionManager.mjs'
-import UserAnalyticsIdCache from './UserAnalyticsIdCache.mjs'
+import UserAnalyticsDataCache from './UserAnalyticsDataCache.mjs'
 import Settings from '@overleaf/settings'
 import Metrics from '../../infrastructure/Metrics.mjs'
 import Queues from '../../infrastructure/Queues.mjs'
@@ -34,7 +34,7 @@ const ONE_MINUTE_MS = 60 * 1000
 
 const UUID_REGEXP = /^[\w]{8}(-[\w]{4}){3}-[\w]{12}$/
 
-function identifyUser(userId, analyticsId, isNewUser) {
+function identifyUser(userId, analyticsId, isNewUser, isLabsUser = false) {
   if (!userId || !analyticsId || !analyticsId.toString().match(UUID_REGEXP)) {
     return
   }
@@ -46,7 +46,13 @@ function identifyUser(userId, analyticsId, isNewUser) {
     'analytics-events',
     {
       name: 'identify',
-      data: { userId, analyticsId, isNewUser, createdAt: new Date() },
+      data: {
+        userId,
+        analyticsId,
+        isNewUser,
+        isLabsUser,
+        createdAt: new Date(),
+      },
     },
     ONE_MINUTE_MS
   )
@@ -65,9 +71,20 @@ async function recordEventForUser(userId, event, segmentation) {
   if (_isAnalyticsDisabled() || _isSmokeTestUser(userId)) {
     return
   }
-  const analyticsId = await UserAnalyticsIdCache.get(userId)
+  const { analyticsId, labsProgram } =
+    await UserAnalyticsDataCache.getAnalyticsData(
+      userId,
+      `recordEventForUser:${event}`
+    )
   if (analyticsId) {
-    _recordEvent({ analyticsId, userId, event, segmentation, isLoggedIn: true })
+    _recordEvent({
+      analyticsId,
+      userId,
+      event,
+      segmentation,
+      isLabsUser: Boolean(labsProgram),
+      isLoggedIn: true,
+    })
   }
 }
 
@@ -88,10 +105,14 @@ function recordEventForSession(session, event, segmentation) {
   if (_isAnalyticsDisabled() || _isSmokeTestUser(userId)) {
     return
   }
+
+  const isLabsUser = getIsLabsUserFromSession(session)
+
   _recordEvent({
     analyticsId,
     userId,
     event,
+    isLabsUser,
     segmentation,
     isLoggedIn: !!userId,
     createdAt: new Date(),
@@ -113,9 +134,18 @@ async function setUserPropertyForUser(userId, propertyName, propertyValue) {
 
   _checkPropertyValue(propertyValue)
 
-  const analyticsId = await UserAnalyticsIdCache.get(userId)
+  const { analyticsId, labsProgram } =
+    await UserAnalyticsDataCache.getAnalyticsData(
+      userId,
+      `setUserPropertyForUser:${propertyName}`
+    )
   if (analyticsId) {
-    await _setUserProperty({ analyticsId, propertyName, propertyValue })
+    await _setUserProperty({
+      analyticsId,
+      isLabsUser: Boolean(labsProgram),
+      propertyName,
+      propertyValue,
+    })
   }
 }
 
@@ -151,7 +181,13 @@ async function setUserPropertyForSession(session, propertyName, propertyValue) {
   _checkPropertyValue(propertyValue)
 
   if (analyticsId) {
-    await _setUserProperty({ analyticsId, propertyName, propertyValue })
+    const isLabsUser = getIsLabsUserFromSession(session)
+    await _setUserProperty({
+      analyticsId,
+      isLabsUser,
+      propertyName,
+      propertyValue,
+    })
   }
 }
 
@@ -305,7 +341,7 @@ function updateEditingSession(userId, projectId, countryCode, segmentation) {
 }
 
 function _recordEvent(
-  { analyticsId, userId, event, segmentation, isLoggedIn },
+  { analyticsId, userId, event, segmentation, isLabsUser, isLoggedIn },
   { delay } = {}
 ) {
   if (!_isAttributeValid(event)) {
@@ -327,6 +363,7 @@ function _recordEvent(
       analyticsId,
       userId,
       event,
+      isLabsUser,
       segmentation,
       isLoggedIn: !!userId,
       createdAt: new Date(),
@@ -342,6 +379,7 @@ function _recordEvent(
         userId,
         event,
         segmentation,
+        isLabsUser,
         isLoggedIn,
         createdAt: new Date(),
       },
@@ -355,7 +393,12 @@ function _recordEvent(
     })
 }
 
-async function _setUserProperty({ analyticsId, propertyName, propertyValue }) {
+async function _setUserProperty({
+  analyticsId,
+  isLabsUser,
+  propertyName,
+  propertyValue,
+}) {
   if (!_isAttributeValid(propertyName)) {
     logger.info(
       { analyticsId, propertyName, propertyValue },
@@ -377,6 +420,7 @@ async function _setUserProperty({ analyticsId, propertyName, propertyValue }) {
   await analyticsUserPropertiesQueue
     .add('user-property', {
       analyticsId,
+      isLabsUser,
       propertyName,
       propertyValue,
       createdAt: new Date(),
@@ -442,12 +486,26 @@ function getIdsFromSession(session) {
   return { analyticsId, userId }
 }
 
+function getIsLabsUserFromSession(session) {
+  const user = SessionManager.getSessionUser(session)
+  return user?.labsProgram ?? false
+}
+
 async function analyticsIdMiddleware(req, res, next) {
   const session = req.session
   const sessionUser = SessionManager.getSessionUser(session)
 
   if (sessionUser) {
-    session.analyticsId = await UserAnalyticsIdCache.get(sessionUser._id)
+    // For old sessions, session.analyticsId is the anon id immediately after login. Do not use it!
+    session.analyticsId = sessionUser.analyticsId
+    if (!session.analyticsId) {
+      session.analyticsId = sessionUser.analyticsId =
+        await UserAnalyticsDataCache.getAnalyticsId(
+          sessionUser._id,
+          // Do not drill down further, this middleware is on all endpoints.
+          'analyticsIdMiddleware'
+        )
+    }
   } else if (!session.analyticsId) {
     // generate an `analyticsId` if needed
     session.analyticsId = crypto.randomUUID()

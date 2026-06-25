@@ -63,13 +63,22 @@ function getFile(req, res, next) {
         return
       }
 
+      if (res.destroyed) {
+        fileStream.destroy()
+        return
+      }
+
       if (req.query.cacheWarm) {
         fileStream.destroy()
         return res.sendStatus(200).end()
       }
 
       pipeline(fileStream, res, err => {
-        if (err && err.code === 'ERR_STREAM_PREMATURE_CLOSE') {
+        if (
+          err &&
+          (err.code === 'ERR_STREAM_PREMATURE_CLOSE' ||
+            err.code === 'ERR_STREAM_UNABLE_TO_PIPE')
+        ) {
           res.end()
         } else if (err) {
           next(

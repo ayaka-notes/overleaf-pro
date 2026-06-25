@@ -1,5 +1,5 @@
 import { UpgradePrompt } from '@/shared/components/upgrade-prompt'
-import { StoryObj } from '@storybook/react/*'
+import { StoryObj } from '@storybook/react-webpack5'
 
 type Story = StoryObj<typeof UpgradePrompt>
 

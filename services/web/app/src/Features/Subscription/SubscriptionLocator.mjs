@@ -1,7 +1,3 @@
-/**
- * @import { AddOn } from '../../../../types/subscription/plan'
- */
-
 import { callbackifyAll } from '@overleaf/promise-utils'
 
 import { Subscription } from '../../models/Subscription.mjs'
@@ -75,18 +71,19 @@ const SubscriptionLocator = {
     return subscription?.admin_id
   },
 
-  async hasRecurlyGroupSubscription(userOrId) {
-    if (!Features.hasFeature('saas')) return false
+  async getAllAssociatedSubscriptions(userOrId, projection = {}) {
+    if (!Features.hasFeature('saas')) return []
     const userId = SubscriptionLocator._getUserId(userOrId)
-    return await Subscription.exists({
-      groupPlan: true,
-      recurlySubscription_id: { $exists: true },
-      $or: [
-        { member_ids: userId },
-        { manager_ids: userId },
-        { admin_id: userId },
-      ],
-    }).exec()
+    return await Subscription.find(
+      {
+        $or: [
+          { admin_id: userId },
+          { manager_ids: userId },
+          { member_ids: userId },
+        ],
+      },
+      projection
+    ).exec()
   },
 
   async getSubscription(subscriptionId) {
@@ -183,25 +180,25 @@ const SubscriptionLocator = {
     }
   },
 
-  /**
-   * Retrieves the last successful subscription for a given user.
-   *
-   * @async
-   * @function
-   * @param {string} recurlyId - The ID of the recurly subscription tied to the mongo subscription to check for a previous successful state.
-   * @returns {Promise<{_id: ObjectId, planCode: string, addOns: [AddOn]}|null>} A promise that resolves to the last successful planCode and addon state,
-   *   or null if we havent stored a previous
-   */
-  async getLastSuccessfulSubscription(recurlyId) {
-    const subscription = await Subscription.findOne({
-      recurlySubscription_id: recurlyId,
-    }).exec()
-    return subscription && subscription.lastSuccesfulSubscription
-      ? {
-          ...subscription.lastSuccesfulSubscription,
-          _id: subscription._id,
-        }
-      : null
+  async getUserActiveGroupSubscriptions(userOrId, projection = {}) {
+    if (!Features.hasFeature('saas')) return []
+
+    const userId = SubscriptionLocator._getUserId(userOrId)
+    return await Subscription.find(
+      {
+        groupPlan: true,
+        $and: [
+          { $or: [{ admin_id: userId }, { member_ids: userId }] },
+          {
+            $or: [
+              { 'recurlyStatus.state': 'active' },
+              { 'paymentProvider.state': 'active' },
+            ],
+          },
+        ],
+      },
+      projection
+    ).exec()
   },
 
   async getUserSubscriptionStatus(userId) {

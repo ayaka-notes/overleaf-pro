@@ -30,6 +30,23 @@ describe('InstitutionsFeatures', function () {
       default: {
         institutionPlanCode: ctx.institutionPlanCode,
         overleaf: {},
+        writefull: {
+          quotaTierGranted: 'unlimited',
+        },
+        aiFeatures: {
+          freeQuota: 'free',
+          standardQuota: 'standard',
+          basicQuota: 'basic',
+          unlimitedQuota: 'unlimited',
+        },
+        quotaGrants: {
+          ai: {
+            free: 5,
+            basic: 5,
+            standard: 10,
+            unlimited: 200,
+          },
+        },
       },
     }))
 
@@ -52,10 +69,18 @@ describe('InstitutionsFeatures', function () {
     }
     ctx.testFeatures = { features: { institution: 'all' } }
     ctx.testFeaturesWithAiAddon = {
-      features: { institution: 'all', aiErrorAssistant: true },
+      features: {
+        institution: 'all',
+        aiUsageQuota: 'unlimited',
+        aiErrorAssistant: true,
+      },
     }
     ctx.testFeaturesWithNoAddon = {
-      features: { institution: 'all', aiErrorAssistant: false },
+      features: {
+        institution: 'all',
+        aiUsageQuota: 'basic',
+        aiErrorAssistant: false,
+      },
     }
   })
 

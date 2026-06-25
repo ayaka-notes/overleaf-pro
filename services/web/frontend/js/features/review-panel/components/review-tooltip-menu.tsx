@@ -18,6 +18,8 @@ import {
   buildAddNewCommentRangeEffect,
   reviewTooltipStateField,
 } from '@/features/source-editor/extensions/review-tooltip'
+import { selectHighlightedOrNearestToken } from '@/features/source-editor/utils/select-highlighted-or-nearest-token'
+import { EditorSelection } from '@codemirror/state'
 import { EditorView, getTooltip } from '@codemirror/view'
 import usePreviousValue from '@/shared/hooks/use-previous-value'
 import { useLayoutContext } from '@/shared/context/layout-context'
@@ -36,6 +38,7 @@ import classNames from 'classnames'
 import useEventListener from '@/shared/hooks/use-event-listener'
 import useReviewPanelLayout from '../hooks/use-review-panel-layout'
 import { usePermissionsContext } from '@/features/ide-react/context/permissions-context'
+import { sendMB } from '@/infrastructure/event-tracking'
 
 const EDIT_MODE_SWITCH_WIDGET_HEIGHT = 40
 const CM_LINE_RIGHT_PADDING = 8
@@ -57,10 +60,40 @@ const ReviewTooltipMenu: FC = () => {
     }
   }, [tooltipState, previousTooltipState])
 
-  const addComment = useCallback(() => {
-    const { main } = view.state.selection
-    if (main.empty || !permissions.comment) {
+  useEffect(() => {
+    if (!show || !tooltipState || !permissions.comment) {
       return
+    }
+    const handleMouseDown = (event: MouseEvent) => {
+      const target = event.target as Element | null
+      if (
+        !view.contentDOM.contains(target) &&
+        !target?.closest?.('.review-tooltip-menu-container') &&
+        !target?.closest?.('.modal') &&
+        !target?.closest?.('.modal-backdrop')
+      ) {
+        setShow(false)
+      }
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown)
+    }
+  }, [show, tooltipState, permissions.comment, view])
+
+  const addComment = useCallback(() => {
+    if (!permissions.comment) {
+      return
+    }
+
+    let { main } = view.state.selection
+
+    if (main.empty) {
+      const tokenRange = selectHighlightedOrNearestToken(view.state)
+      if (!tokenRange) {
+        return
+      }
+      main = EditorSelection.range(tokenRange.from, tokenRange.to)
     }
 
     openReviewPanel()
@@ -73,7 +106,10 @@ const ReviewTooltipMenu: FC = () => {
         ]
       : [buildAddNewCommentRangeEffect(main)]
 
-    view.dispatch({ effects })
+    view.dispatch({
+      selection: { anchor: main.anchor, head: main.head },
+      effects,
+    })
     setShow(false)
   }, [view, permissions.comment, openReviewPanel, setView])
 
@@ -109,6 +145,13 @@ const ReviewTooltipMenuContent = memo<{ onAddComment: () => void }>(
       CSSProperties | undefined
     >()
     const [visible, setVisible] = useState(false)
+
+    const handleAddCommentClick = useCallback(() => {
+      sendMB('add-comment', {
+        location: 'tooltip',
+      })
+      onAddComment()
+    }, [onAddComment])
 
     const changesInSelection = useMemo(() => {
       return (ranges?.changes ?? []).filter(({ op }) => {
@@ -219,7 +262,8 @@ const ReviewTooltipMenuContent = memo<{ onAddComment: () => void }>(
       >
         <button
           className="review-tooltip-menu-button review-tooltip-add-comment-button"
-          onClick={onAddComment}
+          onClick={handleAddCommentClick}
+          aria-label={t('add_comment')}
         >
           <MaterialIcon type="chat" />
           {t('add_comment')}

@@ -21,17 +21,26 @@ export function SSOAlert() {
   const handleErrorClosed = () => setErrorClosed(true)
 
   if (samlError) {
+    const content =
+      samlError.name === 'SAMLCommonsReconfirmationUnableToFindUserError' ? (
+        <Trans
+          i18nKey="saml_commons_reconfirmation_unable_to_find_user"
+          // eslint-disable-next-line jsx-a11y/anchor-has-content, react/jsx-key
+          components={[<a href="/contact" target="_blank" />]}
+        />
+      ) : (
+        <>
+          {samlError.translatedMessage
+            ? samlError.translatedMessage
+            : samlError.message}
+          {samlError.tryAgain && <p>{t('try_again')}</p>}
+        </>
+      )
+
     return !errorClosed ? (
       <OLNotification
         type="error"
-        content={
-          <>
-            {samlError.translatedMessage
-              ? samlError.translatedMessage
-              : samlError.message}
-            {samlError.tryAgain && <p>{t('try_again')}</p>}
-          </>
-        }
+        content={content}
         isDismissible
         onDismiss={handleErrorClosed}
       />
@@ -63,7 +72,7 @@ export function SSOAlert() {
                   <Trans
                     i18nKey="this_grants_access_to_features_2"
                     components={[<strong />]} // eslint-disable-line react/jsx-key
-                    values={{ featureType: t('professional') }}
+                    values={{ featureType: t('commons') }}
                     shouldUnescape
                     tOptions={{ interpolation: { escapeValue: true } }}
                   />

@@ -3,9 +3,6 @@ import cheerio from 'cheerio'
 import path from 'node:path'
 
 import EmailMessageHelper from '../../../../app/src/Features/Email/EmailMessageHelper.mjs'
-import ctaEmailBody from '../../../../app/src/Features/Email/Bodies/cta-email.mjs'
-import NoCTAEmailBody from '../../../../app/src/Features/Email/Bodies/NoCTAEmailBody.mjs'
-import BaseWithHeaderEmailLayout from '../../../../app/src/Features/Email/Layouts/BaseWithHeaderEmailLayout.mjs'
 
 const MODULE_PATH = path.join(
   import.meta.dirname,
@@ -17,29 +14,12 @@ describe('EmailBuilder', function () {
     ctx.settings = {
       appName: 'testApp',
       siteUrl: 'https://www.overleaf.com',
+      adminEmail: 'admin@overleaf.test',
     }
 
     vi.doMock('../../../../app/src/Features/Email/EmailMessageHelper', () => ({
       default: EmailMessageHelper,
     }))
-
-    vi.doMock('../../../../app/src/Features/Email/Bodies/cta-email', () => ({
-      default: ctaEmailBody,
-    }))
-
-    vi.doMock(
-      '../../../../app/src/Features/Email/Bodies/NoCTAEmailBody',
-      () => ({
-        default: NoCTAEmailBody,
-      })
-    )
-
-    vi.doMock(
-      '../../../../app/src/Features/Email/Layouts/BaseWithHeaderEmailLayout',
-      () => ({
-        default: BaseWithHeaderEmailLayout,
-      })
-    )
 
     vi.doMock('@overleaf/settings', () => ({
       default: ctx.settings,
@@ -173,6 +153,50 @@ describe('EmailBuilder', function () {
     })
   })
 
+  describe('gitTokenExpiringSoon', function () {
+    beforeEach(function (ctx) {
+      ctx.opts = {
+        to: 'user@example.com',
+      }
+      ctx.email = ctx.EmailBuilder.buildEmail('gitTokenExpiringSoon', ctx.opts)
+    })
+
+    it('should render html, text, and subject without undefined', function (ctx) {
+      expect(ctx.email.html).to.not.be.undefined
+      expect(ctx.email.text).to.not.be.undefined
+      expect(ctx.email.subject).to.not.be.undefined
+      ctx.email.html.indexOf('undefined').should.equal(-1)
+      ctx.email.text.indexOf('undefined').should.equal(-1)
+      ctx.email.subject.indexOf('undefined').should.equal(-1)
+    })
+
+    it('should link the CTA to user settings', function (ctx) {
+      ctx.email.text.should.contain(`${ctx.settings.siteUrl}/user/settings`)
+    })
+  })
+
+  describe('gitTokenExpired', function () {
+    beforeEach(function (ctx) {
+      ctx.opts = {
+        to: 'user@example.com',
+      }
+      ctx.email = ctx.EmailBuilder.buildEmail('gitTokenExpired', ctx.opts)
+    })
+
+    it('should render html, text, and subject without undefined', function (ctx) {
+      expect(ctx.email.html).to.not.be.undefined
+      expect(ctx.email.text).to.not.be.undefined
+      expect(ctx.email.subject).to.not.be.undefined
+      ctx.email.html.indexOf('undefined').should.equal(-1)
+      ctx.email.text.indexOf('undefined').should.equal(-1)
+      ctx.email.subject.indexOf('undefined').should.equal(-1)
+    })
+
+    it('should link the CTA to user settings', function (ctx) {
+      ctx.email.text.should.contain(`${ctx.settings.siteUrl}/user/settings`)
+    })
+  })
+
   describe('ctaTemplate', function () {
     describe('missing required content', function () {
       const content = {
@@ -209,6 +233,46 @@ describe('EmailBuilder', function () {
         }).to.throw(Error)
       })
     })
+
+    describe('footerMessage', function () {
+      it('should default footerMessage to undefined when not provided', function (ctx) {
+        const template = ctx.EmailBuilder.ctaTemplate({
+          subject: () => 'Subject',
+          message: () => ['Message'],
+          ctaText: () => 'Click',
+          ctaURL: () => 'https://example.com',
+        })
+        expect(template.footerMessage({})).to.be.undefined
+      })
+
+      it('should use the provided footerMessage callback', function (ctx) {
+        const template = ctx.EmailBuilder.ctaTemplate({
+          subject: () => 'Subject',
+          message: () => ['Message'],
+          ctaText: () => 'Click',
+          ctaURL: () => 'https://example.com',
+          footerMessage: () => 'Custom footer text',
+        })
+        expect(template.footerMessage({})).to.equal('Custom footer text')
+      })
+
+      it('should include footerMessage in plain text output when provided', function (ctx) {
+        ctx.EmailBuilder.templates.testFooterTemplate =
+          ctx.EmailBuilder.ctaTemplate({
+            subject: () => 'Test Subject',
+            message: () => ['Body message'],
+            ctaText: () => 'Go',
+            ctaURL: () => 'https://example.com',
+            footerMessage: (opts, isPlainText) =>
+              isPlainText ? 'Plain footer' : '<b>HTML footer</b>',
+          })
+        const email = ctx.EmailBuilder.buildEmail('testFooterTemplate', {
+          to: 'test@example.com',
+        })
+        expect(email.text).to.contain('Plain footer')
+        delete ctx.EmailBuilder.templates.testFooterTemplate
+      })
+    })
   })
 
   describe('templates', function () {
@@ -235,13 +299,11 @@ describe('EmailBuilder', function () {
         describe('HTML email', function () {
           it('should include a CTA button and a fallback CTA link', function (ctx) {
             const dom = cheerio.load(ctx.email.html)
-            const buttonLink = dom('a:contains("Leave Feedback")')
+            const buttonLink = dom('a:contains("Leave feedback")')
             expect(buttonLink.length).to.equal(1)
             expect(buttonLink.attr('href')).to.equal(ctx.expectedUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback.length).to.equal(1)
-            const fallbackLink = fallback.html()
-            expect(fallbackLink).to.contain(ctx.expectedUrl)
+            expect(ctx.email.html).to.contain('copy and paste this link')
+            expect(ctx.email.html).to.contain(ctx.expectedUrl)
           })
         })
 
@@ -277,53 +339,14 @@ describe('EmailBuilder', function () {
             const buttonLink = dom('a:contains("Leave feedback")')
             expect(buttonLink.length).to.equal(1)
             expect(buttonLink.attr('href')).to.equal(ctx.expectedUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback.length).to.equal(1)
-            const fallbackLink = fallback.html()
-            expect(fallbackLink).to.contain(ctx.expectedUrl)
+            expect(ctx.email.html).to.contain('copy and paste this link')
+            expect(ctx.email.html).to.contain(ctx.expectedUrl)
           })
         })
 
         describe('plain text email', function () {
           it('should contain the CTA link', function (ctx) {
             expect(ctx.email.text).to.contain(ctx.expectedUrl)
-          })
-        })
-      })
-
-      describe('confirmEmail', function () {
-        beforeEach(function (ctx) {
-          ctx.emailAddress = 'example@overleaf.com'
-          ctx.userId = 'abc123'
-          ctx.opts = {
-            to: ctx.emailAddress,
-            confirmEmailUrl: `${ctx.settings.siteUrl}/user/emails/confirm?token=aToken123`,
-            sendingUser_id: ctx.userId,
-          }
-          ctx.email = ctx.EmailBuilder.buildEmail('confirmEmail', ctx.opts)
-        })
-
-        it('should build the email', function (ctx) {
-          expect(ctx.email.html).to.exist
-          expect(ctx.email.text).to.exist
-        })
-
-        describe('HTML email', function () {
-          it('should include a CTA button and a fallback CTA link', function (ctx) {
-            const dom = cheerio.load(ctx.email.html)
-            const buttonLink = dom('a:contains("Confirm email")')
-            expect(buttonLink.length).to.equal(1)
-            expect(buttonLink.attr('href')).to.equal(ctx.opts.confirmEmailUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback.length).to.equal(1)
-            const fallbackLink = fallback.html()
-            expect(fallbackLink).to.contain(ctx.opts.confirmEmailUrl)
-          })
-        })
-
-        describe('plain text email', function () {
-          it('should contain the CTA link', function (ctx) {
-            expect(ctx.email.text).to.contain(ctx.opts.confirmEmailUrl)
           })
         })
       })
@@ -356,13 +379,11 @@ describe('EmailBuilder', function () {
         describe('HTML email', function () {
           it('should include a CTA button and a fallback CTA link', function (ctx) {
             const dom = cheerio.load(ctx.email.html)
-            const buttonLink = dom('td a')
-            expect(buttonLink).to.exist
+            const buttonLink = dom('a:contains("View project")')
+            expect(buttonLink.length).to.equal(1)
             expect(buttonLink.attr('href')).to.equal(ctx.expectedUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback).to.exist
-            const fallbackLink = fallback.html().replace(/&amp;/g, '&')
-            expect(fallbackLink).to.contain(ctx.expectedUrl)
+            expect(ctx.email.html).to.contain('copy and paste this link')
+            expect(ctx.email.html).to.contain(ctx.expectedUrl)
           })
         })
 
@@ -398,56 +419,17 @@ describe('EmailBuilder', function () {
         describe('HTML email', function () {
           it('should include a CTA button and a fallback CTA link', function (ctx) {
             const dom = cheerio.load(ctx.email.html)
-            const buttonLink = dom('td a')
-            expect(buttonLink).to.exist
+            const buttonLink = dom('a:contains("Reset password")')
+            expect(buttonLink.length).to.equal(1)
             expect(buttonLink.attr('href')).to.equal(ctx.opts.setNewPasswordUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback).to.exist
-            const fallbackLink = fallback.html().replace(/&amp;/g, '&')
-            expect(fallbackLink).to.contain(ctx.opts.setNewPasswordUrl)
+            expect(ctx.email.html).to.contain('copy and paste this link')
+            expect(ctx.email.html).to.contain(ctx.opts.setNewPasswordUrl)
           })
         })
 
         describe('plain text email', function () {
           it('should contain the CTA link', function (ctx) {
             expect(ctx.email.text).to.contain(ctx.opts.setNewPasswordUrl)
-          })
-        })
-      })
-
-      describe('reconfirmEmail', function () {
-        beforeEach(function (ctx) {
-          ctx.emailAddress = 'example@overleaf.com'
-          ctx.userId = 'abc123'
-          ctx.opts = {
-            to: ctx.emailAddress,
-            confirmEmailUrl: `${ctx.settings.siteUrl}/user/emails/confirm?token=aToken123`,
-            sendingUser_id: ctx.userId,
-          }
-          ctx.email = ctx.EmailBuilder.buildEmail('reconfirmEmail', ctx.opts)
-        })
-
-        it('should build the email', function (ctx) {
-          expect(ctx.email.html).to.exist
-          expect(ctx.email.text).to.exist
-        })
-
-        describe('HTML email', function () {
-          it('should include a CTA button and a fallback CTA link', function (ctx) {
-            const dom = cheerio.load(ctx.email.html)
-            const buttonLink = dom('a:contains("Reconfirm Email")')
-            expect(buttonLink.length).to.equal(1)
-            expect(buttonLink.attr('href')).to.equal(ctx.opts.confirmEmailUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback.length).to.equal(1)
-            const fallbackLink = fallback.html()
-            expect(fallbackLink).to.contain(ctx.opts.confirmEmailUrl)
-          })
-        })
-
-        describe('plain text email', function () {
-          it('should contain the CTA link', function (ctx) {
-            expect(ctx.email.text).to.contain(ctx.opts.confirmEmailUrl)
           })
         })
       })
@@ -481,10 +463,8 @@ describe('EmailBuilder', function () {
             const buttonLink = dom('a:contains("Join now")')
             expect(buttonLink.length).to.equal(1)
             expect(buttonLink.attr('href')).to.equal(ctx.opts.acceptInviteUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback.length).to.equal(1)
-            const fallbackLink = fallback.html()
-            expect(fallbackLink).to.contain(ctx.opts.acceptInviteUrl)
+            expect(ctx.email.html).to.contain('copy and paste this link')
+            expect(ctx.email.html).to.contain(ctx.opts.acceptInviteUrl)
           })
         })
 
@@ -519,10 +499,8 @@ describe('EmailBuilder', function () {
             const buttonLink = dom('a:contains("View Subscription Dashboard")')
             expect(buttonLink.length).to.equal(1)
             expect(buttonLink.attr('href')).to.equal(ctx.expectedUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback.length).to.equal(1)
-            const fallbackLink = fallback.html()
-            expect(fallbackLink).to.contain(ctx.expectedUrl)
+            expect(ctx.email.html).to.contain('copy and paste this link')
+            expect(ctx.email.html).to.contain(ctx.expectedUrl)
           })
         })
 
@@ -553,10 +531,8 @@ describe('EmailBuilder', function () {
             const buttonLink = dom(`a:contains("Open ${ctx.settings.appName}")`)
             expect(buttonLink.length).to.equal(1)
             expect(buttonLink.attr('href')).to.equal(ctx.settings.siteUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback.length).to.equal(1)
-            const fallbackLink = fallback.html()
-            expect(fallbackLink).to.contain(ctx.settings.siteUrl)
+            expect(ctx.email.html).to.contain('copy and paste this link')
+            expect(ctx.email.html).to.contain(ctx.settings.siteUrl)
           })
         })
 
@@ -590,10 +566,8 @@ describe('EmailBuilder', function () {
             const buttonLink = dom('a:contains("Set password")')
             expect(buttonLink.length).to.equal(1)
             expect(buttonLink.attr('href')).to.equal(ctx.opts.setNewPasswordUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback.length).to.equal(1)
-            const fallbackLink = fallback.html().replace(/&amp;/, '&')
-            expect(fallbackLink).to.contain(ctx.opts.setNewPasswordUrl)
+            expect(ctx.email.html).to.contain('copy and paste this link')
+            expect(ctx.email.html).to.contain(ctx.opts.setNewPasswordUrl)
           })
         })
 
@@ -636,66 +610,14 @@ describe('EmailBuilder', function () {
             const buttonLink = dom('a:contains("View project")')
             expect(buttonLink.length).to.equal(1)
             expect(buttonLink.attr('href')).to.equal(ctx.opts.inviteUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback.length).to.equal(1)
-            const fallbackLink = fallback.html().replace(/&amp;/g, '&')
-            expect(fallbackLink).to.contain(ctx.opts.inviteUrl)
+            expect(ctx.email.html).to.contain('copy and paste this link')
+            expect(ctx.email.html).to.contain(ctx.opts.inviteUrl)
           })
         })
 
         describe('plain text email', function () {
           it('should contain the CTA link', function (ctx) {
             expect(ctx.email.text).to.contain(ctx.opts.inviteUrl)
-          })
-        })
-      })
-
-      describe('welcome', function () {
-        beforeEach(function (ctx) {
-          ctx.emailAddress = 'example@overleaf.com'
-          ctx.opts = {
-            to: ctx.emailAddress,
-            confirmEmailUrl: `${ctx.settings.siteUrl}/user/emails/confirm?token=token123`,
-          }
-          ctx.email = ctx.EmailBuilder.buildEmail('welcome', ctx.opts)
-          ctx.dom = cheerio.load(ctx.email.html)
-        })
-
-        it('should build the email', function (ctx) {
-          expect(ctx.email.html).to.exist
-          expect(ctx.email.text).to.exist
-        })
-
-        describe('HTML email', function () {
-          it('should include a CTA button and a fallback CTA link', function (ctx) {
-            const buttonLink = ctx.dom('a:contains("Confirm email")')
-            expect(buttonLink.length).to.equal(1)
-            expect(buttonLink.attr('href')).to.equal(ctx.opts.confirmEmailUrl)
-            const fallback = ctx.dom('.force-overleaf-style').last()
-            expect(fallback.length).to.equal(1)
-            expect(fallback.html()).to.contain(ctx.opts.confirmEmailUrl)
-          })
-          it('should include help links', function (ctx) {
-            const helpGuidesLink = ctx.dom('a:contains("Help Guides")')
-            const templatesLink = ctx.dom('a:contains("Templates")')
-            const logInLink = ctx.dom('a:contains("log in")')
-            expect(helpGuidesLink.length).to.equal(1)
-            expect(templatesLink.length).to.equal(1)
-            expect(logInLink.length).to.equal(1)
-          })
-        })
-
-        describe('plain text email', function () {
-          it('should contain the CTA URL', function (ctx) {
-            expect(ctx.email.text).to.contain(ctx.opts.confirmEmailUrl)
-          })
-          it('should include help URL', function (ctx) {
-            expect(ctx.email.text).to.contain('/learn')
-            expect(ctx.email.text).to.contain('/login')
-            expect(ctx.email.text).to.contain('/templates')
-          })
-          it('should contain HTML links', function (ctx) {
-            expect(ctx.email.text).to.not.contain('<a')
           })
         })
       })
@@ -721,11 +643,12 @@ describe('EmailBuilder', function () {
           expect(email.html).to.contain(
             'You can still log in to Overleaf using one of our other'
           )
-          const links = dom('a')
-          expect(links[0].attribs.href).to.equal(
+          const loginLink = dom('a:contains("login options")')
+          expect(loginLink.attr('href')).to.equal(
             `${ctx.settings.siteUrl}/login`
           )
-          expect(links[1].attribs.href).to.equal(setNewPasswordUrl)
+          const passwordLink = dom('a:contains("Set your new password")')
+          expect(passwordLink.attr('href')).to.equal(setNewPasswordUrl)
           expect(email.html).to.contain(
             "If you don't have a password, you can set one now."
           )
@@ -773,8 +696,8 @@ describe('EmailBuilder', function () {
           expect(email.html).to.contain(
             'You now need an email address and password to sign in to your Overleaf account.'
           )
-          const links = dom('a')
-          expect(links[0].attribs.href).to.equal(
+          const ctaLink = dom('a:contains("Set your new password")')
+          expect(ctaLink.attr('href')).to.equal(
             `${ctx.settings.siteUrl}/user/password/reset`
           )
 
@@ -1005,34 +928,33 @@ describe('EmailBuilder', function () {
             const dom = cheerio.load(ctx.email.html)
             const plainText = dom.text()
             expect(ctx.email.subject).to.equal(
-              `${ctx.opts.groupName} is approaching its member limit`
+              'Action needed: Your Overleaf group is nearly out of licenses'
             )
             expect(ctx.email.html).to.exist
             expect(ctx.email.html).to.contain(
-              `Your group "${ctx.opts.groupName}" is approaching its member limit.`
+              `Your Overleaf group <b>${ctx.opts.groupName}</b> is close to its license limit.`
             )
             expect(plainText).to.contain(
-              `Current usage: ${ctx.opts.currentMembers} of ` +
-                `${ctx.opts.membersLimit} licenses used ` +
-                `(${ctx.opts.remainingSeats} remaining)`
+              `${ctx.opts.currentMembers} of ${ctx.opts.membersLimit} ` +
+                `licenses are in use (${ctx.opts.remainingSeats} remaining).`
             )
             expect(ctx.email.html).to.contain(
-              'With domain capture enabled, users with verified email ' +
-                'addresses from your domain can automatically join the group ' +
-                'via SSO. Once the member limit is reached, new users will ' +
-                'be blocked from joining.'
+              'Because domain capture is enabled, users from your domain ' +
+                'can join automatically via SSO.'
             )
             expect(ctx.email.html).to.contain(
-              'To ensure uninterrupted access for your users, consider ' +
-                'adding more licenses or removing inactive members.'
+              'Once all licenses are used, new users won’t be able to join.'
             )
-            const buttonLink = dom('td a')
+            expect(ctx.email.html).to.contain('What you can do now:')
+            expect(ctx.email.html).to.contain('Add more licenses, or')
+            expect(ctx.email.html).to.contain(
+              'Remove inactive users to free up licenses'
+            )
+            const buttonLink = dom('a:contains("Add licenses")')
             expect(buttonLink).to.exist
             expect(buttonLink.attr('href')).to.equal(ctx.expectedUrl)
-            const fallback = dom('.force-overleaf-style').last()
-            expect(fallback).to.exist
-            const fallbackLink = fallback.html().replace(/&amp;/g, '&')
-            expect(fallbackLink).to.contain(ctx.expectedUrl)
+            expect(ctx.email.html).to.contain('copy and paste this link')
+            expect(ctx.email.html).to.contain(ctx.expectedUrl)
           })
         })
 
@@ -1040,6 +962,50 @@ describe('EmailBuilder', function () {
           it('should contain the CTA link', function (ctx) {
             expect(ctx.email.text).to.contain(ctx.expectedUrl)
           })
+        })
+      })
+
+      describe('groupDomainCapturedByGroupChanged', function () {
+        it('should build active-domain-capture email', function (ctx) {
+          const email = ctx.EmailBuilder.buildEmail(
+            'groupDomainCapturedByGroupChanged',
+            {
+              to: 'admin@example.com',
+              groupId: 'group-123',
+              domainCapturedByGroup: true,
+              domain: 'example.com',
+            }
+          )
+
+          expect(email.subject).to.equal(
+            'Domain capture now active for example.com'
+          )
+          expect(email.html).to.contain(
+            'Domain capture is active for example.com'
+          )
+          expect(email.html).to.contain('/manage/groups/group-123/settings')
+          expect(email.text).to.contain('/manage/groups/group-123/settings')
+        })
+
+        it('should build inactive-domain-capture email including support contact', function (ctx) {
+          const email = ctx.EmailBuilder.buildEmail(
+            'groupDomainCapturedByGroupChanged',
+            {
+              to: 'admin@example.com',
+              groupId: 'group-123',
+              domainCapturedByGroup: false,
+              domain: 'example.com',
+            }
+          )
+
+          expect(email.subject).to.equal(
+            'Domain capture now inactive for example.com'
+          )
+          expect(email.html).to.contain(
+            'Domain capture is inactive for example.com'
+          )
+          expect(email.html).to.contain('admin@overleaf.test')
+          expect(email.text).to.contain('admin@overleaf.test')
         })
       })
     })

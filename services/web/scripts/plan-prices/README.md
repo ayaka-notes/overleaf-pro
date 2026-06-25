@@ -1,6 +1,6 @@
 A nodejs tool for reading plans prices from csv files and creating JSON objects.
 
-Run `npm install` in order to install the dependencies.
+Run `yarn install` in order to install the dependencies.
 
 The scripts will put the output results into the `output` folder.
 

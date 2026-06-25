@@ -1,4 +1,4 @@
-import { FC, memo } from 'react'
+import { ComponentType, FC, memo } from 'react'
 import { EditorState } from '@codemirror/state'
 import { useEditorContext } from '../../../../shared/context/editor-context'
 import { ToolbarButton } from './toolbar-button'
@@ -9,6 +9,7 @@ import getMeta from '../../../../utils/meta'
 import { InsertFigureDropdown } from './insert-figure-dropdown'
 import { useTranslation } from 'react-i18next'
 import { MathDropdown } from './math-dropdown'
+import { InsertListDropdown } from './insert-list-dropdown'
 import { TableDropdown } from './table-dropdown'
 import { LegacyTableDropdown } from './table-inserter-dropdown-legacy'
 import { withinFormattingCommand } from '@/features/source-editor/utils/tree-operations/formatting'
@@ -16,6 +17,17 @@ import { isMac } from '@/shared/utils/os'
 import { useProjectContext } from '@/shared/context/project-context'
 import { useEditorPropertiesContext } from '@/features/ide-react/context/editor-properties-context'
 import { usePermissionsContext } from '@/features/ide-react/context/permissions-context'
+import { isCursorOnEmptyLine } from '@/features/source-editor/utils/is-cursor-on-empty-line'
+import importOverleafModules from '../../../../../macros/import-overleaf-module.macro'
+
+const sourceEditorToolbarButtonGroups = importOverleafModules(
+  'sourceEditorToolbarButtonGroups'
+) as {
+  import: { default: ComponentType; overflowGroupId: string }
+  path: string
+}[]
+
+const addCommentFromToolbar = () => commands.addComment('toolbar')
 
 export const ToolbarItems: FC<{
   state: EditorState
@@ -39,6 +51,8 @@ export const ToolbarItems: FC<{
   const isActive = withinFormattingCommand(state)
 
   const symbolPaletteAvailable = getMeta('ol-symbolPaletteAvailable')
+  const showAiFeaturesDisabled = getMeta('ol-showAiFeaturesDisabled')
+
   const showGroup = (group: string) => !overflowed || overflowed.has(group)
 
   return (
@@ -63,6 +77,10 @@ export const ToolbarItems: FC<{
             shortcut={isMac ? '⇧⌘Z' : 'Ctrl+Y'}
           />
         </div>
+      )}
+      {sourceEditorToolbarButtonGroups.map(
+        ({ import: { default: Component, overflowGroupId }, path }) =>
+          showGroup(overflowGroupId) && <Component key={path} />
       )}
       {languageName === 'latex' && (
         <>
@@ -134,8 +152,8 @@ export const ToolbarItems: FC<{
                 <ToolbarButton
                   id="toolbar-add-comment"
                   label={t('add_comment')}
-                  disabled={state.selection.main.empty}
-                  command={commands.addComment}
+                  disabled={isCursorOnEmptyLine(state)}
+                  command={addCommentFromToolbar}
                   icon="add_comment"
                 />
               )}
@@ -152,7 +170,11 @@ export const ToolbarItems: FC<{
                 icon="book_5"
               />
               <InsertFigureDropdown />
-              {writefullInstance ? <TableDropdown /> : <LegacyTableDropdown />}
+              {writefullInstance || showAiFeaturesDisabled ? (
+                <TableDropdown />
+              ) : (
+                <LegacyTableDropdown />
+              )}
             </div>
           )}
           {showGroup('group-list') && (
@@ -161,34 +183,26 @@ export const ToolbarItems: FC<{
               data-overflow="group-list"
               aria-label={t('toolbar_list_indentation')}
             >
-              <ToolbarButton
-                id="toolbar-bullet-list"
-                label={t('toolbar_bulleted_list')}
-                command={commands.toggleBulletList}
-                icon="format_list_bulleted"
-              />
-              <ToolbarButton
-                id="toolbar-numbered-list"
-                label={t('toolbar_numbered_list')}
-                command={commands.toggleNumberedList}
-                icon="format_list_numbered"
-              />
-              <ToolbarButton
-                id="toolbar-format-indent-decrease"
-                label={t('toolbar_decrease_indent')}
-                command={commands.indentDecrease}
-                icon="format_indent_decrease"
-                shortcut={visual ? (isMac ? '⌘[' : 'Ctrl+[') : undefined}
-                disabled={listDepth < 2}
-              />
-              <ToolbarButton
-                id="toolbar-format-indent-increase"
-                label={t('toolbar_increase_indent')}
-                command={commands.indentIncrease}
-                icon="format_indent_increase"
-                shortcut={visual ? (isMac ? '⌘]' : 'Ctrl+]') : undefined}
-                disabled={listDepth < 1}
-              />
+              <InsertListDropdown />
+              {listDepth >= 1 && (
+                <>
+                  <ToolbarButton
+                    id="toolbar-format-indent-decrease"
+                    label={t('toolbar_decrease_indent')}
+                    command={commands.indentDecrease}
+                    icon="format_indent_decrease"
+                    shortcut={visual ? (isMac ? '⌘[' : 'Ctrl+[') : undefined}
+                    disabled={listDepth < 2}
+                  />
+                  <ToolbarButton
+                    id="toolbar-format-indent-increase"
+                    label={t('toolbar_increase_indent')}
+                    command={commands.indentIncrease}
+                    icon="format_indent_increase"
+                    shortcut={visual ? (isMac ? '⌘]' : 'Ctrl+]') : undefined}
+                  />
+                </>
+              )}
             </div>
           )}
         </>

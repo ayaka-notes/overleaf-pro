@@ -13,5 +13,4 @@ fi
 
 echo "Running unit tests in directory: $*"
 
-npm run test:unit -- "${vitest_args[@]}"
-
+exec yarn run vitest run "${vitest_args[@]}"

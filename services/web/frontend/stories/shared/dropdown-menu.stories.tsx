@@ -4,7 +4,7 @@ import {
   DropdownDivider,
   DropdownHeader,
 } from '@/shared/components/dropdown/dropdown-menu'
-import type { Meta } from '@storybook/react'
+import type { Meta } from '@storybook/react-webpack5'
 import OLDropdownMenuItem from '@/shared/components/ol/ol-dropdown-menu-item'
 import { IdeRedesign } from '../decorators/ide-redesign'
 

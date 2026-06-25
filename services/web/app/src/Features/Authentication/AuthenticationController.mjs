@@ -25,6 +25,7 @@ import Modules from '../../infrastructure/Modules.mjs'
 import { expressify, promisify } from '@overleaf/promise-utils'
 import { handleAuthenticateErrors } from './AuthenticationErrors.mjs'
 import EmailHelper from '../Helpers/EmailHelper.mjs'
+import SplitTestHandler from '../SplitTests/SplitTestHandler.mjs'
 
 const { hasAdminAccess } = AdminAuthorizationHelper
 
@@ -62,18 +63,29 @@ function checkCredentials(userDetailsMap, user, password) {
   return isValid
 }
 
-function reduceStaffAccess(staffAccess) {
-  const reducedStaffAccess = {}
-  for (const field in staffAccess) {
-    if (staffAccess[field]) {
-      reducedStaffAccess[field] = true
-    }
+// Map a thrown @node-oauth/oauth2-server error to a stable, machine-readable
+// code that callers (e.g. git-bridge) can switch on. err.name values come
+// from the library's error classes (snake_case OAuth standard names per
+// RFC 6749/6750). The token_expired distinction is driven by a marker we
+// set ourselves in Oauth2ServerModel.getAccessToken, so it survives library
+// upgrades that might change error_description text.
+function _classifyOauthError(err) {
+  switch (err?.name) {
+    case 'invalid_token':
+      return err.overleafErrorCode === 'token_expired'
+        ? 'token_expired'
+        : 'token_invalid'
+    case 'invalid_request':
+      return err.overleafErrorCode === 'token_malformed'
+        ? 'token_malformed'
+        : 'invalid_request'
+    case 'insufficient_scope':
+      return 'insufficient_scope'
+    case 'unauthorized_request':
+      return 'unauthorized_request'
+    default:
+      return 'unknown'
   }
-  return reducedStaffAccess
-}
-
-function userHasStaffAccess(user) {
-  return user.staffAccess && Object.values(user.staffAccess).includes(true)
 }
 
 // TODO: Finish making these methods async
@@ -97,12 +109,11 @@ const AuthenticationController = {
       analyticsId: user.analyticsId || user._id,
       alphaProgram: user.alphaProgram || undefined, // only store if set
       betaProgram: user.betaProgram || undefined, // only store if set
+      labsProgram: user.labsProgram || undefined, // only store if set
     }
     if (user.isAdmin) {
       lightUser.isAdmin = true
-    }
-    if (userHasStaffAccess(user)) {
-      lightUser.staffAccess = reduceStaffAccess(user.staffAccess)
+      lightUser.adminRoles = user.adminRoles
     }
 
     callback(null, lightUser)
@@ -414,11 +425,14 @@ const AuthenticationController = {
           err.message === 'Invalid request: malformed authorization header'
         ) {
           err.code = 401
+          err.overleafErrorCode = 'token_malformed'
         }
         // send all other errors
-        res
-          .status(err.code)
-          .json({ error: err.name, error_description: err.message })
+        res.status(err.code).json({
+          error: err.name,
+          error_description: err.message,
+          error_code: _classifyOauthError(err),
+        })
       }
     }
     return expressify(middleware)
@@ -630,6 +644,10 @@ function _afterLoginSessionSetup(req, user, callback) {
     }
     delete req.session.__tmp
     delete req.session.csrfSecret
+
+    // Populate the analyticsId cache in the session AFTER switching it into logged-in mode.
+    req.session.analyticsId = user.analyticsId
+
     req.session.save(function (err) {
       if (err) {
         OError.tag(err, 'error saving regenerated session after login', {
@@ -659,6 +677,10 @@ function _loginAsyncHandlers(req, user, anonymousAnalyticsId, isNewUser) {
   UserHandler.promises.populateTeamInvites(user).catch(err => {
     logger.warn({ err }, 'error setting up login data')
   })
+  SplitTestHandler.promises.userMaintenanceOnLogin(user).catch(err => {
+    const userId = user._id
+    logger.warn({ err, userId }, 'error cleaning up split-tests on login')
+  })
   LoginRateLimiter.recordSuccessfulLogin(user.email, () => {})
   AuthenticationController._recordSuccessfulLogin(user._id, () => {})
   AuthenticationController.ipMatchCheck(req, user)
@@ -667,7 +689,12 @@ function _loginAsyncHandlers(req, user, anonymousAnalyticsId, isNewUser) {
       ? 'saml'
       : req.user_info?.auth_provider || 'email-password',
   })
-  Analytics.identifyUser(user._id, anonymousAnalyticsId, isNewUser)
+  Analytics.identifyUser(
+    user._id,
+    anonymousAnalyticsId,
+    isNewUser,
+    Boolean(user.labsProgram)
+  )
 
   logger.debug(
     { email: user.email, userId: user._id.toString() },

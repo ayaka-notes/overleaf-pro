@@ -7,7 +7,7 @@ import UserGetter from '../User/UserGetter.mjs'
 import ClsiManager from './ClsiManager.mjs'
 import Metrics from '@overleaf/metrics'
 import { RateLimiter } from '../../infrastructure/RateLimiter.mjs'
-import UserAnalyticsIdCache from '../Analytics/UserAnalyticsIdCache.mjs'
+import UserAnalyticsDataCache from '../Analytics/UserAnalyticsDataCache.mjs'
 import { callbackify, callbackifyMultiResult } from '@overleaf/promise-utils'
 let CompileManager
 const rclient = RedisWrapper.client('clsi_recently_compiled')
@@ -48,7 +48,20 @@ async function compile(projectId, userId, options = {}) {
     return { status: 'autocompile-backoff', outputFiles: [] }
   }
 
-  await ProjectRootDocManager.promises.ensureRootDocumentIsSet(projectId)
+  if (!options.rootResourcePath) {
+    const result =
+      await ProjectRootDocManager.promises.ensureRootDocumentIsValid(projectId)
+    if (result) {
+      options.rootDoc_id = result.rootDocId
+      options.rootResourcePath = result.rootResourcePath.replace(/^\//, '')
+    } else {
+      return {
+        status: 'validation-problems',
+        validationProblems: { mainFile: 'no main file specified' },
+        outputFiles: [],
+      }
+    }
+  }
 
   const limits =
     await CompileManager.promises.getProjectCompileLimits(projectId)
@@ -84,6 +97,8 @@ async function compile(projectId, userId, options = {}) {
     outputUrlPrefix,
     buildId,
     clsiCacheShard,
+    baseHistoryVersion,
+    instanceType,
   } = await ClsiManager.promises.sendRequest(projectId, compileAsUser, options)
 
   return {
@@ -97,6 +112,8 @@ async function compile(projectId, userId, options = {}) {
     outputUrlPrefix,
     buildId,
     clsiCacheShard,
+    baseHistoryVersion,
+    instanceType,
   }
 }
 
@@ -114,7 +131,15 @@ async function _getProjectCompileLimits(project) {
   if (!project) {
     throw new Error('project not found')
   }
-  const owner = await UserGetter.promises.getUser(project.owner_ref, {
+  const limits = await _getUserCompileLimits(project.owner_ref)
+  if (project.fromV1TemplateId === Settings.overrideCompileTimeForTemplate) {
+    limits.timeout = Math.max(limits.timeout, 20)
+  }
+  return limits
+}
+
+async function _getUserCompileLimits(userId) {
+  const owner = await UserGetter.promises.getUser(userId, {
     _id: 1,
     alphaProgram: 1,
     analyticsId: 1,
@@ -128,7 +153,10 @@ async function _getProjectCompileLimits(project) {
     ownerFeatures.compileGroup = 'alpha'
   }
 
-  const analyticsId = await UserAnalyticsIdCache.get(owner._id)
+  const analyticsId = await UserAnalyticsDataCache.getAnalyticsId(
+    owner._id,
+    '_getUserCompileLimits'
+  )
 
   const compileGroup =
     ownerFeatures.compileGroup || Settings.defaultFeatures.compileGroup
@@ -139,9 +167,7 @@ async function _getProjectCompileLimits(project) {
     compileBackendClass: compileGroup === 'standard' ? 'c3d' : 'c4d',
     ownerAnalyticsId: analyticsId,
   }
-  if (project.fromV1TemplateId === Settings.overrideCompileTimeForTemplate) {
-    limits.timeout = Math.max(limits.timeout, 20)
-  }
+
   return limits
 }
 
@@ -206,6 +232,7 @@ export default CompileManager = {
     stopCompile,
     wordCount,
     syncTeX,
+    _getUserCompileLimits,
   },
   compile: callbackifyMultiResult(instrumentedCompile, [
     'status',
@@ -218,6 +245,7 @@ export default CompileManager = {
     'outputUrlPrefix',
     'buildId',
     'clsiCacheShard',
+    'instanceType',
   ]),
 
   stopCompile: callbackify(stopCompile),

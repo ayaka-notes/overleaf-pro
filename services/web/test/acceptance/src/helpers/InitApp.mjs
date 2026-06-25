@@ -53,10 +53,11 @@ before('start main app', function (done) {
     route => route.path && route.path === '/dev/csrf',
     router => {
       router.get('/dev/split_test/get_assignment', (req, res) => {
-        const { splitTestName } = req.query
+        const { splitTestName, includeReferer } = req.query
         SplitTestHandler.promises
           .getAssignment(req, res, splitTestName, {
             sync: true,
+            includeReferer: includeReferer === 'true',
           })
           .then(assignment => res.json(assignment))
           .catch(error => {

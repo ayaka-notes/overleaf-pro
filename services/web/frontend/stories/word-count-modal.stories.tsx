@@ -1,9 +1,9 @@
-import { Meta, StoryObj } from '@storybook/react'
 import WordCountModal from '@/features/word-count-modal/components/word-count-modal'
 import { ScopeDecorator } from './decorators/scope'
 import useFetchMock from './hooks/use-fetch-mock'
+import preview from '@ol-storybook/preview'
 
-export default {
+const meta = preview.meta({
   title: 'Editor / Modals / Word Count',
   component: WordCountModal,
   args: {
@@ -15,9 +15,7 @@ export default {
     },
   },
   decorators: [Story => ScopeDecorator(Story)],
-} satisfies Meta
-
-type Story = StoryObj<typeof WordCountModal>
+})
 
 const counts = {
   headers: 4,
@@ -31,7 +29,7 @@ const messages = [
   'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
 ].join('\n')
 
-export const WordCount: Story = {
+export const WordCount = meta.story({
   decorators: [
     Story => {
       useFetchMock(fetchMock => {
@@ -45,9 +43,9 @@ export const WordCount: Story = {
       return <Story />
     },
   ],
-}
+})
 
-export const WordCountWithMessages: Story = {
+export const WordCountWithMessages = meta.story({
   decorators: [
     Story => {
       useFetchMock(fetchMock => {
@@ -61,9 +59,9 @@ export const WordCountWithMessages: Story = {
       return <Story />
     },
   ],
-}
+})
 
-export const ErrorResponse: Story = {
+export const ErrorResponse = meta.story({
   decorators: [
     Story => {
       useFetchMock(fetchMock => {
@@ -77,4 +75,4 @@ export const ErrorResponse: Story = {
       return <Story />
     },
   ],
-}
+})

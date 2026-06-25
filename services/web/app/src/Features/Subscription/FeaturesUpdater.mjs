@@ -15,8 +15,12 @@ import UserGetter from '../User/UserGetter.mjs'
 import AnalyticsManager from '../Analytics/AnalyticsManager.mjs'
 import Queues from '../../infrastructure/Queues.mjs'
 import Modules from '../../infrastructure/Modules.mjs'
+import SubscriptionViewModelBuilder from './SubscriptionViewModelBuilder.mjs'
+import CustomerIoPlanHelpers from './CustomerIoPlanHelpers.mjs'
+import { GroupPolicy } from '../../models/GroupPolicy.mjs'
 import { AI_ADD_ON_CODE } from './AiHelper.mjs'
 import { fetchNothing } from '@overleaf/fetch-utils'
+import SplitTestHandler from '../SplitTests/SplitTestHandler.mjs'
 
 /**
  * Enqueue a job for refreshing features for the given user
@@ -40,6 +44,7 @@ async function refreshFeatures(userId, reason) {
   const user = await UserGetter.promises.getUser(userId, {
     _id: 1,
     features: 1,
+    email: 1,
   })
   const oldFeatures = _.clone(user.features)
   const features = await computeFeatures(userId)
@@ -54,6 +59,14 @@ async function refreshFeatures(userId, reason) {
 
   const { features: newFeatures, featuresChanged } =
     await UserFeaturesUpdater.promises.updateFeatures(userId, features)
+
+  _updateCustomerIoSubscriptionProperties(user, features).catch(err => {
+    logger.warn(
+      { err, userId },
+      'Failed to update subscription properties in customer.io'
+    )
+  })
+
   if (oldFeatures.dropbox === true && features.dropbox === false) {
     logger.debug({ userId }, '[FeaturesUpdater] must unlink dropbox')
     try {
@@ -76,6 +89,19 @@ async function refreshFeatures(userId, reason) {
   //  skip if they are the reason we are refreshing features (they'd already be up to date)
   if (featuresChanged && reason !== 'writefullEntitlementSynced') {
     try {
+      // todo: quota clean-up: simplify once split test isnt needed
+      let hasPremiumAiFeatures
+      const inQuotaSplitTest =
+        await SplitTestHandler.promises.featureFlagEnabledForUser(
+          userId,
+          'plans-2026-phase-1'
+        )
+      if (inQuotaSplitTest) {
+        hasPremiumAiFeatures =
+          newFeatures.aiUsageQuota === Settings.aiFeatures.unlimitedQuota
+      } else {
+        hasPremiumAiFeatures = Boolean(newFeatures.aiErrorAssistant)
+      }
       // update WF with the current feature set for the user
       await fetchNothing(
         `${Settings.writefull.overleafApiUrl}/api/user/status/update-overleaf-status`,
@@ -85,7 +111,9 @@ async function refreshFeatures(userId, reason) {
           },
           json: {
             userOverleafId: userId,
-            hasAiAssist: newFeatures.aiErrorAssistant,
+            // todo: quota clean-up: collab with writefull to rename this, and check if still needed
+            hasAiAssist: hasPremiumAiFeatures,
+            aiUsageQuota: newFeatures.aiUsageQuota,
           },
           method: 'POST',
         }
@@ -99,6 +127,96 @@ async function refreshFeatures(userId, reason) {
     }
   }
   return { features: newFeatures, featuresChanged }
+}
+
+async function _updateCustomerIoSubscriptionProperties(user, features) {
+  const userId = user._id
+  const {
+    bestSubscription,
+    individualSubscription,
+    memberGroupSubscriptions,
+    managedGroupSubscriptions,
+    currentInstitutionsWithLicence,
+  } = await SubscriptionViewModelBuilder.promises.getUsersSubscriptionDetails({
+    _id: userId,
+  })
+
+  const userIsMemberOfGroupSubscription =
+    memberGroupSubscriptions.length > 0 || managedGroupSubscriptions.length > 0
+  const hasCommons = (currentInstitutionsWithLicence?.length ?? 0) > 0
+
+  let individualPaymentRecord = null
+  if (individualSubscription && !individualSubscription.groupPlan) {
+    try {
+      ;[individualPaymentRecord] = await Modules.promises.hooks.fire(
+        'getPaymentFromRecordPromise',
+        individualSubscription
+      )
+    } catch (error) {
+      logger.warn(
+        { err: error, userId },
+        'Failed to load payment record for customer.io subscription properties'
+      )
+    }
+  }
+
+  let writefullData = null
+  try {
+    writefullData = await UserGetter.promises.getWritefullData(userId)
+  } catch (error) {
+    logger.warn(
+      { err: error, userId },
+      'Failed to load writefull data for customer.io subscription properties'
+    )
+  }
+
+  const aiBlockedByPolicyId = await _loadAiBlockedByPolicyId([
+    ...memberGroupSubscriptions,
+    ...managedGroupSubscriptions,
+  ])
+
+  const planProperties = CustomerIoPlanHelpers.getPlanProperties({
+    bestSubscription,
+    individualSubscription,
+    individualPaymentRecord,
+    memberGroupSubscriptions,
+    managedGroupSubscriptions,
+    userIsMemberOfGroupSubscription,
+    hasCommons,
+    writefullData,
+    aiBlockedByPolicyId,
+    userId,
+  })
+
+  await Modules.promises.hooks.fire('setUserProperties', userId, {
+    ...planProperties,
+    features,
+    overleaf_id: userId,
+    ...(user.email && { email: user.email }),
+  })
+}
+
+async function _loadAiBlockedByPolicyId(groupSubscriptions) {
+  const policyIds = [
+    ...new Set(
+      groupSubscriptions.map(sub => sub.groupPolicy?.toString()).filter(Boolean)
+    ),
+  ]
+
+  if (policyIds.length === 0) {
+    return new Map()
+  }
+
+  const policies = await GroupPolicy.find(
+    { _id: { $in: policyIds } },
+    { _id: 1, userCannotUseAIFeatures: 1 }
+  ).exec()
+  return new Map(
+    policies.map(policy => [
+      policy._id.toString(),
+      Boolean(policy.userCannotUseAIFeatures),
+    ])
+  )
 }
 
 /**
@@ -161,6 +279,9 @@ async function _getIndividualFeatures(userId) {
     featureSets.push(_subscriptionToFeatures(subscription))
   }
 
+  // todo: quota clean-up - remove
+  // if they are in the quota split test, we no longer look at the add-on, since every plan will now have the same quota
+  // standalone plan will receive correct state since their plan will provide the correct quota
   featureSets.push(_aiAddOnFeatures(subscription))
   return _.reduce(featureSets, FeaturesHelper.mergeFeatures, {})
 }
@@ -206,9 +327,14 @@ function _subscriptionToFeatures(subscription) {
   }
 }
 
+// todo: quota clean-up: remove post split test
 function _aiAddOnFeatures(subscription) {
   if (subscription?.addOns?.some(addOn => addOn.addOnCode === AI_ADD_ON_CODE)) {
-    return { aiErrorAssistant: true }
+    return {
+      // allow both naming systems to work
+      aiErrorAssistant: true,
+      aiUsageQuota: Settings.aiFeatures.unlimitedQuota,
+    }
   } else {
     return {}
   }

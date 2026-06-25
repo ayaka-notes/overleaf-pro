@@ -1,5 +1,6 @@
 import mongoose from '../infrastructure/Mongoose.mjs'
 import _ from 'lodash'
+import settings from '@overleaf/settings'
 import { FolderSchema } from './Folder.mjs'
 import Errors from '../Features/Errors/Errors.js'
 
@@ -24,6 +25,7 @@ export const ProjectSchema = new Schema(
     lastUpdatedBy: { type: ObjectId, ref: 'User' },
     lastOpened: { type: Date },
     active: { type: Boolean, default: true },
+    readOnly: { type: Boolean, default: false },
     owner_ref: { type: ObjectId, ref: 'User' },
     collaberator_refs: [{ type: ObjectId, ref: 'User' }],
     reviewer_refs: [{ type: ObjectId, ref: 'User' }],
@@ -35,7 +37,7 @@ export const ProjectSchema = new Schema(
     mainBibliographyDoc_id: { type: ObjectId },
     version: { type: Number }, // incremented for every change in the project structure (folders and filenames)
     publicAccesLevel: { type: String, default: 'private' },
-    compiler: { type: String, default: 'pdflatex' },
+    compiler: { type: String, default: settings.defaultLatexCompiler },
     spellCheckLanguage: { type: String, default: 'en' },
     deletedByExternalDataSource: { type: Boolean, default: false },
     description: { type: String, default: '' },
@@ -87,7 +89,9 @@ export const ProjectSchema = new Schema(
         zipFileArchivedInProject: { type: Boolean },
         rangesSupportEnabled: { type: Boolean },
         otMigrationStage: { type: Number },
+        lastResyncedAt: { type: Date },
       },
+      isDebugCopyOf: { type: ObjectId },
     },
     collabratecUsers: [
       {

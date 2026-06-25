@@ -113,6 +113,7 @@ describe('SubscriptionViewModelBuilder', function () {
       promises: {
         getUsersSubscription: sinon.stub().resolves(),
         getMemberSubscriptions: sinon.stub().resolves(),
+        getManagedGroupSubscriptions: sinon.stub().resolves([]),
       },
       getUsersSubscription: sinon.stub().yields(),
       getMemberSubscriptions: sinon.stub().yields(null, []),
@@ -720,7 +721,41 @@ describe('SubscriptionViewModelBuilder', function () {
           isEligibleForGroupPlan: true,
           isEligibleForPause: false,
           isEligibleForDowngradeUpsell: true,
+          isMigratedFromRecurly: false,
         })
+      })
+
+      it('filters out single-use coupons for stripe subscriptions', async function (ctx) {
+        ctx.paymentRecord.service = 'stripe-us'
+        const foreverCoupon = {
+          code: 'forever',
+          name: 'Forever',
+          isSingleUse: false,
+        }
+        const singleUseCoupon = {
+          code: 'once',
+          name: 'Once',
+          isSingleUse: true,
+        }
+        ctx.Modules.hooks.fire
+          .withArgs('getPaymentFromRecord', ctx.individualSubscription)
+          .yields(null, [
+            {
+              subscription: ctx.paymentRecord,
+              account: new PaymentProviderAccount({
+                email: 'example@example.com',
+                hasPastDueInvoice: false,
+              }),
+              coupons: [foreverCoupon, singleUseCoupon],
+            },
+          ])
+        const result =
+          await ctx.SubscriptionViewModelBuilder.promises.buildUsersSubscriptionViewModel(
+            ctx.user
+          )
+        assert.deepEqual(result.personalSubscription.payment.activeCoupons, [
+          foreverCoupon,
+        ])
       })
 
       describe('isEligibleForGroupPlan', function () {
@@ -967,7 +1002,7 @@ describe('SubscriptionViewModelBuilder', function () {
           {
             subscription: ctx.paymentRecord,
             nextPlanCode: ctx.groupPlanCode,
-            nextPlanName: 'Group Collaborator (Annual) 4 licenses',
+            nextPlanName: 'Standard group',
             nextPlanPrice: 1400,
             nextAddOns: [
               new PaymentProviderSubscriptionAddOn({
@@ -998,13 +1033,10 @@ describe('SubscriptionViewModelBuilder', function () {
           await ctx.SubscriptionViewModelBuilder.promises.buildUsersSubscriptionViewModel(
             ctx.user
           )
-        assert.equal(
-          result.personalSubscription.payment.displayPrice,
-          '€1,756.92'
-        )
+        assert.equal(result.personalSubscription.payment.displayPrice, '€16.50')
         assert.equal(
           result.personalSubscription.payment.planOnlyDisplayPrice,
-          '€1,754.72'
+          '€14.30'
         )
         assert.deepEqual(
           result.personalSubscription.payment

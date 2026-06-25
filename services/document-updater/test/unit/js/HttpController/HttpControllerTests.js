@@ -14,6 +14,7 @@ describe('HttpController', function () {
       send: sinon.stub(),
       sendStatus: sinon.stub(),
       json: sinon.stub(),
+      status: sinon.stub().returnsThis(),
     }
 
     this.DocumentManager = {
@@ -753,6 +754,10 @@ describe('HttpController', function () {
 
     describe('successfully with a single change', function () {
       beforeEach(async function () {
+        this.changeContributors = ['user-id-1', 'user-id-2']
+        this.DocumentManager.promises.acceptChangesWithLock.resolves(
+          this.changeContributors
+        )
         await this.HttpController.acceptChanges(this.req, this.res, this.next)
       })
 
@@ -764,8 +769,11 @@ describe('HttpController', function () {
         )
       })
 
-      it('should return a successful No Content response', function () {
-        this.res.sendStatus.calledWith(204).should.equal(true)
+      it('should return a successful 200 with a list of the change contributors', function () {
+        this.res.status.should.have.been.calledWith(200)
+        this.res.json.should.have.been.calledWith({
+          changeContributors: this.changeContributors,
+        })
       })
 
       it('should log the request', function () {

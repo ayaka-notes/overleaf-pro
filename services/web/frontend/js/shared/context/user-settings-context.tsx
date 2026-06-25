@@ -6,15 +6,20 @@ import {
   SetStateAction,
   FC,
   useState,
+  useEffect,
 } from 'react'
 import { UserSettings } from '../../../../types/user-settings'
 import getMeta from '@/utils/meta'
+import customLocalStorage from '@/infrastructure/local-storage'
+import { getLegacyWriteAndCiteMigration } from '../utils/write-and-cite-settings-migration'
+import { saveUserSettings } from '@/features/editor-left-menu/utils/api'
 
-const defaultSettings: UserSettings = {
+export const defaultSettings: UserSettings = {
   pdfViewer: 'pdfjs',
   autoComplete: true,
   autoPairDelimiters: true,
   syntaxValidation: false,
+  previewTabs: false,
   editorTheme: 'textmate',
   editorDarkTheme: 'overleaf_dark',
   editorLightTheme: 'textmate',
@@ -24,11 +29,26 @@ const defaultSettings: UserSettings = {
   fontFamily: 'monaco',
   lineHeight: 'normal',
   mathPreview: true,
+  editorTabs: true,
   referencesSearchMode: 'advanced',
-  enableNewEditor: true,
-  enableNewEditorLegacy: true,
   breadcrumbs: true,
+  nonBlinkingCursor: false,
   darkModePdf: false,
+  zotero: {
+    enabled: true,
+    groups: [],
+    disablePersonalLibrary: false,
+  },
+  mendeley: {
+    enabled: true,
+    groups: [],
+    disablePersonalLibrary: false,
+  },
+  papers: {
+    enabled: true,
+    groups: [],
+    disablePersonalLibrary: false,
+  },
 }
 
 type UserSettingsContextValue = {
@@ -48,6 +68,31 @@ export const UserSettingsProvider: FC<React.PropsWithChildren> = ({
   const [userSettings, setUserSettings] = useState<UserSettings>(
     () => getMeta('ol-userSettings') || defaultSettings
   )
+
+  useEffect(() => {
+    const { patch, keysToRemove } = getLegacyWriteAndCiteMigration(userSettings)
+    if (Object.keys(patch).length === 0) {
+      keysToRemove.forEach(customLocalStorage.removeItem)
+      return
+    }
+
+    Promise.all(
+      Object.entries(patch).map(([key, value]) =>
+        saveUserSettings(
+          key as keyof Pick<UserSettings, 'mendeley' | 'zotero' | 'papers'>,
+          value
+        )
+      )
+    ).then(() => {
+      setUserSettings(currentSettings => ({
+        ...currentSettings,
+        ...patch,
+      }))
+      keysToRemove.forEach(customLocalStorage.removeItem)
+    })
+    // Only run once when the provider mounts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const value = useMemo<UserSettingsContextValue>(
     () => ({

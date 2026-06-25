@@ -23,7 +23,7 @@ export type NotificationProps = {
   isDismissible?: boolean
   isActionBelowContent?: boolean
   onDismiss?: () => void
-  title?: string
+  title?: React.ReactNode
   type: NotificationType
   id?: string
 }
@@ -93,8 +93,6 @@ function Notification({
     if (onDismiss) onDismiss()
   }
 
-  // return null
-
   if (!show) {
     return null
   }
@@ -116,11 +114,14 @@ function Notification({
 
       <div className="notification-content-and-cta">
         <div className="notification-content">
-          {title && (
-            <p>
-              <b>{title}</b>
-            </p>
-          )}
+          {title &&
+            (typeof title === 'string' ? (
+              <p>
+                <b>{title}</b>
+              </p>
+            ) : (
+              title
+            ))}
           {content}
         </div>
         {action && <div className="notification-cta">{action}</div>}

@@ -5,6 +5,7 @@ import {
   useCallback,
   ReactNode,
   useState,
+  useId,
 } from 'react'
 import classNames from 'classnames'
 import { useSelect } from 'downshift'
@@ -14,10 +15,46 @@ import FormControl from '@/shared/components/form/form-control'
 import MaterialIcon from '@/shared/components/material-icon'
 import { CaretUp, CaretDown, Check } from '@phosphor-icons/react'
 import { DropdownItem } from '@/shared/components/dropdown/dropdown-menu'
+import OLOverlay from '@/shared/components/ol/ol-overlay'
 import OLSpinner from './ol/ol-spinner'
 import DSFormLabel from '@/shared/components/ds/ds-form-label'
 import DSFormGroup from '@/shared/components/ds/ds-form-group'
 import DSFormControl from '@/shared/components/ds/ds-form-control'
+import { DropdownItemProps } from '@/shared/components/types/dropdown-menu-props'
+
+function SelectMenuPopover({
+  show,
+  target,
+  onHide,
+  children,
+}: {
+  show: boolean
+  target: HTMLElement | null
+  onHide: () => void
+  children: ReactNode
+}) {
+  const id = useId()
+  return (
+    <OLOverlay
+      show={show}
+      target={target}
+      placement="bottom-start"
+      rootClose
+      onHide={onHide}
+    >
+      {({ ref, style }) => (
+        <div
+          id={`select-popover-${id}`}
+          ref={ref}
+          style={{ ...style, width: target?.offsetWidth }}
+          className="select-portal-popover"
+        >
+          {children}
+        </div>
+      )}
+    </OLOverlay>
+  )
+}
 
 export type SelectProps<T> = {
   // The items rendered as dropdown options.
@@ -39,6 +76,10 @@ export type SelectProps<T> = {
   itemToSubtitle?: (item: T | null | undefined) => string
   // Stringifies an item. The resulting string is rendered as a React `key` for each item.
   itemToKey: (item: T) => string
+  // Maps an item to a leading icon.
+  itemToLeadingIcon?: (
+    item: T | null | undefined
+  ) => DropdownItemProps['leadingIcon']
   // Callback invoked after the selected item is updated.
   onSelectedItemChanged?: (item: T | null | undefined) => void
   // Optionally directly control the selected item.
@@ -57,6 +98,12 @@ export type SelectProps<T> = {
   dataTestId?: string
   // CIAM-specific layout
   isCiam?: boolean
+  size?: React.ComponentProps<typeof FormControl>['size']
+  // Renders the menu in a portal so it escapes overflow-clipping ancestors.
+  portal?: boolean
+  // Optional id for the toggle button element. When provided, enables association
+  // with an external <label htmlFor="...">
+  id?: string
 }
 
 export const Select = <T,>({
@@ -68,6 +115,7 @@ export const Select = <T,>({
   defaultItem,
   itemToSubtitle,
   itemToKey,
+  itemToLeadingIcon,
   onSelectedItemChanged,
   selected,
   disabled = false,
@@ -77,7 +125,11 @@ export const Select = <T,>({
   selectedIcon = false,
   dataTestId,
   isCiam,
+  size,
+  portal = false,
+  id,
 }: SelectProps<T>) => {
+  const toggleButtonId = id ? { id } : {}
   const [selectedItem, setSelectedItem] = useState<T | undefined | null>(
     defaultItem
   )
@@ -156,13 +208,14 @@ export const Select = <T,>({
     return isCiam ? <Check /> : 'check'
   }
 
-  const dropdown = (
+  const menu = (
     <ul
-      {...getMenuProps({ disabled })}
+      {...getMenuProps({ disabled }, { suppressRefError: portal })}
       className={classNames('dropdown-menu', {
         'w-100': !isCiam,
         'ciam-dropdown-menu': isCiam,
         show: isOpen,
+        'select-portal-menu': portal,
       })}
     >
       {isOpen &&
@@ -185,6 +238,9 @@ export const Select = <T,>({
                 trailingIcon={
                   selectedIcon && selectedItem === item ? tickIcon() : undefined
                 }
+                leadingIcon={
+                  itemToLeadingIcon ? itemToLeadingIcon(item) : undefined
+                }
                 description={itemToSubtitle ? itemToSubtitle(item) : undefined}
                 {...itemProps}
                 disabled={disabled}
@@ -195,6 +251,18 @@ export const Select = <T,>({
           )
         })}
     </ul>
+  )
+
+  const dropdown = portal ? (
+    <SelectMenuPopover
+      show={isOpen}
+      target={rootRef.current}
+      onHide={closeMenu}
+    >
+      {menu}
+    </SelectMenuPopover>
+  ) : (
+    menu
   )
 
   if (isCiam) {
@@ -213,6 +281,7 @@ export const Select = <T,>({
               disabled,
               onKeyDown,
               className: 'select-trigger',
+              ...toggleButtonId,
             })}
             value={value}
             readOnly
@@ -241,6 +310,7 @@ export const Select = <T,>({
           disabled,
           onKeyDown,
           className: 'select-trigger',
+          ...toggleButtonId,
         })}
         value={value}
         readOnly
@@ -250,6 +320,7 @@ export const Select = <T,>({
             className="align-text-bottom"
           />
         }
+        size={size}
       />
       {dropdown}
     </div>

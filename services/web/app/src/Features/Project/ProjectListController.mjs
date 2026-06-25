@@ -28,13 +28,14 @@ import SplitTestHandler from '../SplitTests/SplitTestHandler.mjs'
 import SplitTestSessionHandler from '../SplitTests/SplitTestSessionHandler.mjs'
 import TutorialHandler from '../Tutorial/TutorialHandler.mjs'
 import SubscriptionHelper from '../Subscription/SubscriptionHelper.mjs'
+import CustomerIoPlanHelpers from '../Subscription/CustomerIoPlanHelpers.mjs'
 import PermissionsManager from '../Authorization/PermissionsManager.mjs'
 import AnalyticsManager from '../Analytics/AnalyticsManager.mjs'
 import { OnboardingDataCollection } from '../../models/OnboardingDataCollection.mjs'
 import UserSettingsHelper from './UserSettingsHelper.mjs'
 
 /**
- * @import { GetProjectsRequest, GetProjectsResponse, AllUsersProjects, MongoProject, FormattedProject, MongoTag } from "./types"
+ * @import { GetProjectsRequest, GetProjectsResponse, AllUsersProjects, MongoProject, FormattedProject, MongoTag, SubscriptionRecord } from "./types"
  * @import { Project, ProjectApi, ProjectAccessLevel, Filters, Page, Sort, UserRef } from "../../../../types/project/dashboard/api"
  * @import { Affiliation } from "../../../../types/affiliation"
  * @import { Source } from "../Authorization/types"
@@ -42,8 +43,8 @@ import UserSettingsHelper from './UserSettingsHelper.mjs'
 
 /**
  * @param {Affiliation} affiliation
- * @param session
- * @param linkedInstitutionIds
+ * @param {any} session
+ * @param {string[]} linkedInstitutionIds
  * @returns {boolean}
  * @private
  */
@@ -99,6 +100,9 @@ const _buildPortalTemplatesList = affiliations => {
   return portalTemplates
 }
 
+/**
+ * @param {any} req
+ */
 function cleanupSession(req) {
   // cleanup redirects at the end of the redirect chain
   delete req.session.postCheckoutRedirect
@@ -124,9 +128,13 @@ async function projectListPage(req, res, next) {
   // - object - the subscription data object
   let usersBestSubscription
   let usersIndividualSubscription
+  /** @type {any[]} */
   let usersGroupSubscriptions = []
+  /** @type {any[]} */
+  let usersManagedGroupSubscriptions = []
   let survey
   let userIsMemberOfGroupSubscription = false
+  /** @type {any[]} */
   let groupSubscriptionsPendingEnrollment = []
 
   const isSaas = Features.hasFeature('saas')
@@ -142,15 +150,20 @@ async function projectListPage(req, res, next) {
       )
 
     if (domainCaptureRedirect === 'enabled') {
-      const subscription = (
+      const groupsWithEmails = (
         await Modules.promises.hooks.fire(
-          'findDomainCaptureGroupUserCouldBePartOf',
+          'findDomainCaptureGroupsUserCouldBePartOf',
           userId
         )
       )?.[0]
 
-      if (subscription) {
-        if (subscription.managedUsersEnabled) {
+      if (groupsWithEmails && groupsWithEmails.length > 0) {
+        if (
+          groupsWithEmails.some(
+            (/** @type {any} */ { subscription }) =>
+              subscription.managedUsersEnabled
+          )
+        ) {
           return res.redirect('/domain-capture')
         } else {
           // TODO show notification or anything else
@@ -163,10 +176,13 @@ async function projectListPage(req, res, next) {
     logger.err({ err, userId }, 'projects listing in background failed')
     return undefined
   })
+
   const user = await User.findById(
     userId,
-    `email emails features alphaProgram betaProgram lastPrimaryEmailCheck lastActive signUpDate ace refProviders${
-      isSaas ? ' enrollment writefull completedTutorials aiErrorAssistant' : ''
+    `email isAdmin emails features alphaProgram betaProgram lastPrimaryEmailCheck lastActive signUpDate ace refProviders${
+      isSaas
+        ? ' enrollment writefull completedTutorials aiFeatures aiErrorAssistant labsProgram'
+        : ''
     }`
   )
 
@@ -178,7 +194,23 @@ async function projectListPage(req, res, next) {
 
   user.refProviders = _.mapValues(user.refProviders, Boolean)
 
+  let onboardingDataCollection
+  let customerIoEnabled = false
+  let subjectArea
+  let usedLatex
+  let primaryOccupation
+  let role
+
   if (isSaas) {
+    if (user.isAdmin) {
+      await _checkForOldDebugProjects(userId).catch(err => {
+        logger.warn(
+          { err, userId },
+          'failed to check old debug projects/managing notifications'
+        )
+      })
+    }
+
     await SplitTestSessionHandler.promises.sessionMaintenance(req, user)
 
     try {
@@ -186,6 +218,7 @@ async function projectListPage(req, res, next) {
         bestSubscription: usersBestSubscription,
         individualSubscription: usersIndividualSubscription,
         memberGroupSubscriptions: usersGroupSubscriptions,
+        managedGroupSubscriptions: usersManagedGroupSubscriptions,
       } = await SubscriptionViewModelBuilder.promises.getUsersSubscriptionDetails(
         { _id: userId }
       ))
@@ -195,20 +228,16 @@ async function projectListPage(req, res, next) {
         "Failed to get user's best subscription"
       )
     }
-    try {
-      userIsMemberOfGroupSubscription = usersGroupSubscriptions?.length > 0
 
-      // TODO use helper function
-      if (!user.enrollment?.managedBy) {
-        groupSubscriptionsPendingEnrollment = usersGroupSubscriptions.filter(
-          subscription =>
-            subscription.groupPlan && subscription.managedUsersEnabled
-        )
-      }
-    } catch (error) {
-      logger.error(
-        { err: error },
-        'Failed to check whether user is a member of group subscription'
+    userIsMemberOfGroupSubscription =
+      usersGroupSubscriptions.length > 0 ||
+      usersManagedGroupSubscriptions.length > 0
+
+    // TODO use helper function
+    if (!user.enrollment?.managedBy) {
+      groupSubscriptionsPendingEnrollment = usersGroupSubscriptions.filter(
+        subscription =>
+          subscription.groupPlan && subscription.managedUsersEnabled
       )
     }
 
@@ -229,6 +258,26 @@ async function projectListPage(req, res, next) {
     ) {
       return res.redirect('/user/emails/primary-email-check')
     }
+
+    onboardingDataCollection = await OnboardingDataCollection.findById(
+      userId,
+      'subjectArea usedLatex primaryOccupation role'
+    )
+
+    if (onboardingDataCollection) {
+      subjectArea = onboardingDataCollection.subjectArea
+      usedLatex = onboardingDataCollection.usedLatex
+      primaryOccupation = onboardingDataCollection.primaryOccupation
+      role = onboardingDataCollection.role
+    }
+
+    customerIoEnabled = true
+
+    AnalyticsManager.setUserPropertyForUserInBackground(
+      userId,
+      'customer-io-integration',
+      true
+    )
   }
 
   const tags = await TagsHandler.promises.getAllTags(userId)
@@ -276,6 +325,10 @@ async function projectListPage(req, res, next) {
       return result
     })
 
+  const commonsInstitution = userAffiliations.find(
+    affiliation => affiliation.institution?.commonsAccount
+  )?.institution?.name
+
   const portalTemplates = _buildPortalTemplatesList(userAffiliations)
 
   const { allInReconfirmNotificationPeriods } = userEmailsData
@@ -300,6 +353,7 @@ async function projectListPage(req, res, next) {
     reconfirmedViaSAML = _.get(req.session, ['saml', 'reconfirmed'])
     const samlSession = req.session.saml
     // Notification: SSO Available
+    /** @type {string[]} */
     const linkedInstitutionIds = []
     userEmails.forEach(email => {
       if (email.samlProviderId) {
@@ -447,19 +501,24 @@ async function projectListPage(req, res, next) {
   let showInrGeoBanner = false
   let showLATAMBanner = false
   let recommendedCurrency
+  let countryCode
+  let currencyCode
+  if (isSaas) {
+    const currencyData = await GeoIpLookup.promises.getCurrencyCode(req.ip)
+    countryCode = currencyData.countryCode
+    currencyCode = currencyData.currencyCode
+  }
 
   if (
     usersBestSubscription?.type === 'free' ||
     usersBestSubscription?.type === 'standalone-ai-add-on'
   ) {
-    const { countryCode, currencyCode } =
-      await GeoIpLookup.promises.getCurrencyCode(req.ip)
-
     if (countryCode === 'IN') {
       showInrGeoBanner = true
     }
 
-    showLATAMBanner = ['MX', 'CO', 'CL', 'PE'].includes(countryCode)
+    showLATAMBanner =
+      !!countryCode && ['MX', 'CO', 'CL', 'PE'].includes(countryCode)
     // LATAM Banner needs to know which currency to display
     if (showLATAMBanner) {
       recommendedCurrency = currencyCode
@@ -477,69 +536,22 @@ async function projectListPage(req, res, next) {
     logger.error({ err: error }, 'Failed to get individual subscription')
   }
 
-  const affiliations = userAffiliations || []
-  const inEnterpriseCommons = affiliations.some(
-    affiliation => affiliation.institution?.enterpriseCommons
-  )
+  const aiBlocked =
+    Features.hasFeature('saas') && !(await _canUseAIAssist(user))
+  const hasAiAssist =
+    Features.hasFeature('saas') && (await _userHasAIAssist(user))
 
-  let onboardingDataCollection
-  let subjectArea
-  let usedLatex
-  let primaryOccupation
-  let role
+  const splitTests = [
+    // Split tests that will be made available to the frontend
+    'import-docx',
+    'overleaf-library',
+    'import-markdown',
+  ].filter(Boolean)
 
-  // customer.io: Premium nudge experiment
-  // Only do customer-io-trial-conversion assignment for users not in India/China and not in group/commons
-  let customerIoEnabled = false
-  const aiBlocked = !(await _canUseAIAssist(user))
-  const hasAiAssist = await _userHasAIAssist(user)
-  if (!userIsMemberOfGroupSubscription && !inEnterpriseCommons && isSaas) {
-    try {
-      const ip = req.ip
-      const { countryCode } = await GeoIpLookup.promises.getCurrencyCode(ip)
-      const excludedCountries = ['IN', 'CN']
-
-      if (!excludedCountries.includes(countryCode)) {
-        const cioAssignment =
-          await SplitTestHandler.promises.getAssignmentForUser(
-            userId,
-            'customer-io-trial-conversion'
-          )
-        if (cioAssignment.variant === 'enabled') {
-          customerIoEnabled = true
-          onboardingDataCollection = await OnboardingDataCollection.findById(
-            userId,
-            'subjectArea usedLatex primaryOccupation role'
-          )
-
-          if (onboardingDataCollection) {
-            subjectArea = onboardingDataCollection.subjectArea
-            usedLatex = onboardingDataCollection.usedLatex
-            primaryOccupation = onboardingDataCollection.primaryOccupation
-            role = onboardingDataCollection.role
-          }
-
-          AnalyticsManager.setUserPropertyForUserInBackground(
-            userId,
-            'customer-io-integration',
-            true
-          )
-        }
-      }
-    } catch (err) {
-      logger.error(
-        { err },
-        'Error checking geo location for customer-io-trial-conversion'
-      )
-      // Fallback to not enabled if geoip fails
-      customerIoEnabled = false
-    }
-  }
-
-  await SplitTestHandler.promises.getAssignment(
-    req,
-    res,
-    'themed-project-dashboard'
+  await Promise.all(
+    splitTests.map(splitTestName =>
+      SplitTestHandler.promises.getAssignment(req, res, splitTestName)
+    )
   )
 
   const userSettings = await UserSettingsHelper.buildUserSettings(
@@ -547,6 +559,53 @@ async function projectListPage(req, res, next) {
     res,
     user
   )
+
+  let groupRole
+  if (userIsMemberOfGroupSubscription) {
+    const userIdStr = userId.toString()
+    const isGroupAdmin = usersManagedGroupSubscriptions?.some(
+      sub => sub.admin_id?._id?.toString() === userIdStr
+    )
+    const isGroupManager =
+      usersManagedGroupSubscriptions?.length > 0 ||
+      usersGroupSubscriptions?.some(sub => sub.userIsGroupManager)
+    if (isGroupAdmin) {
+      groupRole = 'admin'
+    } else if (isGroupManager) {
+      groupRole = 'manager'
+    } else {
+      groupRole = 'member'
+    }
+  }
+
+  Modules.promises.hooks
+    .fire('setUserProperties', userId, {
+      overleaf_id: userId,
+      last_active: user.lastActive
+        ? Math.floor(user.lastActive.getTime() / 1000)
+        : null,
+      sign_up_date: user.signUpDate
+        ? Math.floor(user.signUpDate.getTime() / 1000)
+        : null,
+      ...(usersBestSubscription?.type && {
+        best_subscription_type: usersBestSubscription.type,
+      }),
+      ai_blocked: aiBlocked,
+      has_ai_assist: hasAiAssist,
+      ...(subjectArea && { subject_area: subjectArea }),
+      ...(role && { role }),
+      ...(primaryOccupation && { primary_occupation: primaryOccupation }),
+      ...(usedLatex && { used_latex: usedLatex }),
+      ...(countryCode && { country: countryCode }),
+      ...(commonsInstitution && { commons_institution: commonsInstitution }),
+      ...CustomerIoPlanHelpers.getAffiliationProperties(userEmails),
+      ...(groupRole && { group_role: groupRole }),
+      is_managed_user: Boolean(user.enrollment?.managedBy),
+      ...(user.email && { email: user.email }),
+    })
+    .catch(err => {
+      logger.error({ err }, 'Failed to set user properties for customer.io')
+    })
 
   res.render('project/list-react', {
     title: 'your_projects',
@@ -582,18 +641,6 @@ async function projectListPage(req, res, next) {
     hasIndividualPaidSubscription,
     userRestrictions: Array.from(req.userRestrictions || []),
     customerIoEnabled,
-    aiBlocked,
-    hasAiAssist,
-    lastActive: user.lastActive
-      ? Math.floor(user.lastActive.getTime() / 1000)
-      : null,
-    signUpDate: user.signUpDate
-      ? Math.floor(user.signUpDate.getTime() / 1000)
-      : null,
-    subjectArea,
-    primaryOccupation,
-    role,
-    usedLatex,
     inactiveTutorials,
   })
 }
@@ -610,6 +657,22 @@ async function getProjectsJson(req, res) {
   const userId = SessionManager.getLoggedInUserId(req.session)
   const projectsPage = await _getProjects(userId, filters, sort, page)
   res.json(projectsPage)
+}
+
+/**
+ * @param {string} userId
+ * @private
+ */
+async function _checkForOldDebugProjects(userId) {
+  const exists = await ProjectGetter.promises.existUsersDebugProjectsOlderThan(
+    userId,
+    7
+  )
+  if (exists) {
+    await NotificationsBuilder.promises.oldDebugProjects(userId).create()
+  } else {
+    await NotificationsBuilder.promises.oldDebugProjects(userId).read()
+  }
 }
 
 /**
@@ -885,11 +948,28 @@ function _hasActiveFilter(filters) {
   )
 }
 
+/**
+ * @param {any} user
+ */
+// todo: quota clean-up: rename function and vars
 async function _userHasAIAssist(user) {
-  // Check if the user has AI Assist enabled via Overleaf
-  if (user.features?.aiErrorAssistant) {
+  let hasPremiumAiFeatures
+  const inQuotaSplitTest =
+    await SplitTestHandler.promises.featureFlagEnabledForUser(
+      user._id,
+      'plans-2026-phase-1'
+    )
+  if (inQuotaSplitTest) {
+    hasPremiumAiFeatures =
+      user.features?.aiUsageQuota === Settings.aiFeatures.unlimitedQuota
+  } else {
+    hasPremiumAiFeatures = user.features?.aiErrorAssistant === true
+  }
+  // Check if the user has a non free trial version of our AI features
+  if (hasPremiumAiFeatures) {
     return true
   }
+
   // Check if the user has AI Assist enabled via Writefull
   const { isPremium: hasAiAssistViaWritefull } =
     await UserGetter.promises.getWritefullData(user._id)
@@ -902,9 +982,13 @@ async function _userHasAIAssist(user) {
 // Determines if user is able to enable AI assist
 // based on their permissions and settings
 // It does NOT determine if the user has AI Assist enabled
+/**
+ * @param {any} user
+ */
 async function _canUseAIAssist(user) {
   // Check if the assistant has been manually disabled by the user
-  if (user.aiErrorAssistant?.enabled === false) {
+  // post https://github.com/overleaf/internal/pull/31273 we can rely on user.aiFeatures being populated
+  if (user.aiFeatures?.enabled === false) {
     return false
   }
 

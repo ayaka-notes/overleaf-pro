@@ -193,6 +193,14 @@ const rateLimiters = {
     points: 10,
     duration: 60,
   }),
+  documentExport: new RateLimiter('document-export', {
+    points: 5,
+    duration: 60,
+  }),
+  documentExportDownload: new RateLimiter('document-export-download', {
+    points: 30,
+    duration: 60,
+  }),
 }
 
 async function initialize(webRouter, privateApiRouter, publicApiRouter) {
@@ -204,6 +212,21 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
 
   webRouter.get('*', AnalyticsRegistrationSourceMiddleware.setInbound())
   webRouter.get('*', AnalyticsUTMTrackingMiddleware.recordUTMTags())
+
+  if (process.env.NODE_ENV === 'development' && global.__coverage__) {
+    // Expose code coverage via an endpoint when running with code coverage enabled
+    webRouter.get('/coverage', (req, res) => {
+      const coverage = {}
+      for (const [key, value] of Object.entries(global.__coverage__)) {
+        coverage[key] = {
+          ...value,
+          // Transform for Jenkins sourcemap
+          path: value.path.replace('/overleaf/', '/workspace/'),
+        }
+      }
+      res.json({ coverage })
+    })
+  }
 
   // Mount onto /login in order to get the deviceHistory cookie.
   webRouter.post(
@@ -258,6 +281,7 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     '/read-only/one-time-login'
   )
 
+  webRouter.get('/logout', UserPagesController.logout)
   webRouter.post('/logout', UserController.logout)
 
   webRouter.get('/restricted', AuthorizationMiddleware.restricted)
@@ -573,6 +597,7 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     RateLimiterMiddleware.rateLimit(rateLimiters.compileProjectHttp, {
       params: ['Project_id'],
     }),
+    AsyncLocalStorage.middleware,
     AuthorizationMiddleware.ensureUserCanReadProject,
     CompileController.compile
   )
@@ -585,12 +610,13 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
 
   webRouter.get(
     '/project/:Project_id/output/cached/output.overleaf.json',
+    AsyncLocalStorage.middleware,
     AuthorizationMiddleware.ensureUserCanReadProject,
     ClsiCacheController.getLatestBuildFromCache
   )
 
   webRouter.get(
-    '/download/project/:Project_id/build/:buildId/output/cached/:filename',
+    '/download/project/:Project_id/build/:editorBuildId/output/cached/:filename(.*)',
     AuthorizationMiddleware.ensureUserCanReadProject,
     ClsiCacheController.downloadFromCache
   )
@@ -608,18 +634,23 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     { params: ['Project_id'] }
   )
 
+  // Download all the output files of a specific build
+  webRouter.get(
+    '/project/:Project_id/build/:build_id/output/output.zip',
+    rateLimiterMiddlewareOutputFiles,
+    AuthorizationMiddleware.ensureUserCanReadProject,
+    CompileController.getOutputZipFromClsi
+  )
+  webRouter.get(
+    '/project/:Project_id/user/:user_id/build/:build_id/output/output.zip',
+    rateLimiterMiddlewareOutputFiles,
+    AuthorizationMiddleware.ensureUserCanReadProject,
+    CompileController.getOutputZipFromClsi
+  )
+
   // direct url access to output files for a specific build
   webRouter.get(
-    /^\/project\/([^/]*)\/build\/([0-9a-f-]+)\/output\/(.*)$/,
-    function (req, res, next) {
-      const params = {
-        Project_id: req.params[0],
-        build_id: req.params[1],
-        file: req.params[2],
-      }
-      req.params = params
-      next()
-    },
+    '/project/:Project_id/build/:build_id/output/:file(.*)',
     rateLimiterMiddlewareOutputFiles,
     AuthorizationMiddleware.ensureUserCanReadProject,
     CompileController.getFileFromClsi
@@ -627,17 +658,7 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
 
   // direct url access to output files for a specific user and build
   webRouter.get(
-    /^\/project\/([^/]*)\/user\/([0-9a-f]+)\/build\/([0-9a-f-]+)\/output\/(.*)$/,
-    function (req, res, next) {
-      const params = {
-        Project_id: req.params[0],
-        user_id: req.params[1],
-        build_id: req.params[2],
-        file: req.params[3],
-      }
-      req.params = params
-      next()
-    },
+    '/project/:Project_id/user/:user_id/build/:build_id/output/:file(.*)',
     rateLimiterMiddlewareOutputFiles,
     AuthorizationMiddleware.ensureUserCanReadProject,
     CompileController.getFileFromClsi
@@ -650,11 +671,13 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
   )
   webRouter.get(
     '/project/:Project_id/sync/code',
+    AsyncLocalStorage.middleware,
     AuthorizationMiddleware.ensureUserCanReadProject,
     CompileController.proxySyncCode
   )
   webRouter.get(
     '/project/:Project_id/sync/pdf',
+    AsyncLocalStorage.middleware,
     AuthorizationMiddleware.ensureUserCanReadProject,
     CompileController.proxySyncPdf
   )
@@ -730,6 +753,27 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     ExportsController.exportDownload
   )
 
+  if (Settings.enablePandocConversions) {
+    webRouter.get(
+      '/project/:Project_id/download/conversion/:type',
+      AuthenticationController.requireLogin(),
+      RateLimiterMiddleware.rateLimit(rateLimiters.documentExport, {
+        params: ['Project_id'],
+      }),
+      AuthorizationMiddleware.ensureUserCanReadProject,
+      ProjectDownloadsController.exportProjectConversion
+    )
+    webRouter.get(
+      '/project/:Project_id/download/conversion/:conversionId/:type/build/:buildId/output/:file(.*)',
+      AuthenticationController.requireLogin(),
+      RateLimiterMiddleware.rateLimit(rateLimiters.documentExportDownload, {
+        params: ['Project_id'],
+      }),
+      AuthorizationMiddleware.ensureUserCanReadProject,
+      ProjectDownloadsController.downloadPreparedProjectExport
+    )
+  }
+
   webRouter.get(
     '/Project/:Project_id/download/zip',
     RateLimiterMiddleware.rateLimit(rateLimiters.zipDownload, {
@@ -748,6 +792,7 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
 
   webRouter.get(
     '/project/:project_id/metadata',
+    AsyncLocalStorage.middleware,
     AuthorizationMiddleware.ensureUserCanReadProject,
     Settings.allowAnonymousReadAndWriteSharing
       ? (req, res, next) => {
@@ -758,6 +803,7 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
   )
   webRouter.post(
     '/project/:project_id/doc/:doc_id/metadata',
+    AsyncLocalStorage.middleware,
     AuthorizationMiddleware.ensureUserCanReadProject,
     Settings.allowAnonymousReadAndWriteSharing
       ? (req, res, next) => {
@@ -907,6 +953,11 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     '/project/:Project_id/doc/:doc_id',
     AuthenticationController.requirePrivateApiAuth(),
     DocumentController.setDocument
+  )
+  privateApiRouter.post(
+    '/project/:Project_id/doc/:doc_id/changes/reject',
+    AuthenticationController.requirePrivateApiAuth(),
+    DocumentController.trackChangesRejected
   )
 
   privateApiRouter.post(
@@ -1098,11 +1149,6 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     plainTextResponse(res, res.locals.csrfToken)
   })
 
-  publicApiRouter.get(
-    '/health_check',
-    HealthCheckController.checkActiveHandles,
-    HealthCheckController.check
-  )
   privateApiRouter.get(
     '/health_check',
     HealthCheckController.checkActiveHandles,
@@ -1117,16 +1163,6 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     '/health_check/api',
     HealthCheckController.checkActiveHandles,
     HealthCheckController.checkApi
-  )
-  publicApiRouter.get(
-    '/health_check/full',
-    HealthCheckController.checkActiveHandles,
-    HealthCheckController.check
-  )
-  privateApiRouter.get(
-    '/health_check/full',
-    HealthCheckController.checkActiveHandles,
-    HealthCheckController.check
   )
 
   publicApiRouter.get('/health_check/redis', HealthCheckController.checkRedis)
@@ -1161,7 +1197,11 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
       CompileManager.compile(
         projectId,
         testUserId,
-        { metricsPath: 'health-check' },
+        {
+          metricsPath: 'health-check',
+          compileFromHistory: true,
+          rootResourcePath: 'main.tex',
+        },
         function (error, status, _outputFiles, clsiServerId) {
           if (handler) {
             clearTimeout(handler)

@@ -1,7 +1,17 @@
 // Run babel on tests to allow support for import/export statements in Node
 require('@babel/register')({
   extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs'],
-  plugins: [['module-resolver', { alias: { '^@/(.+)': './frontend/js/\\1' } }]],
+  plugins: [
+    [
+      'module-resolver',
+      {
+        alias: {
+          '^@/(.+)': './frontend/js/\\1',
+          '^@modules/(.+)': './modules/\\1',
+        },
+      },
+    ],
+  ],
 })
 
 // Load JSDOM to mock the DOM in Node
@@ -47,7 +57,6 @@ globalThis.MutationObserver = global.MutationObserver = window.MutationObserver
 globalThis.StorageEvent = global.StorageEvent = window.StorageEvent
 globalThis.SVGElement = global.SVGElement = window.SVGElement
 globalThis.localStorage = global.localStorage = window.localStorage
-globalThis.performance = global.performance = window.performance
 globalThis.cancelAnimationFrame = global.cancelAnimationFrame =
   window.cancelAnimationFrame
 globalThis.requestAnimationFrame = global.requestAnimationFrame =

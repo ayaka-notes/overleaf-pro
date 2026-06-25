@@ -4,6 +4,7 @@ import ProjectUploadController from './ProjectUploadController.mjs'
 import { RateLimiter } from '../../infrastructure/RateLimiter.mjs'
 import RateLimiterMiddleware from '../Security/RateLimiterMiddleware.mjs'
 import Settings from '@overleaf/settings'
+import AsyncLocalStorage from '../../infrastructure/AsyncLocalStorage.mjs'
 
 const rateLimiters = {
   projectUpload: new RateLimiter('project-upload', {
@@ -26,6 +27,28 @@ export default {
       ProjectUploadController.uploadProject
     )
 
+    if (Settings.enablePandocConversions) {
+      webRouter.post(
+        '/project/new/import-document',
+        AuthenticationController.requireLogin(),
+        RateLimiterMiddleware.rateLimit(rateLimiters.projectUpload),
+        ProjectUploadController.multerMiddleware,
+        ProjectUploadController.importDocument
+      )
+      // Keep old route for backwards compatibility with old frontends that haven't reloaded
+      webRouter.post(
+        '/project/new/import-docx',
+        AuthenticationController.requireLogin(),
+        RateLimiterMiddleware.rateLimit(rateLimiters.projectUpload),
+        ProjectUploadController.multerMiddleware,
+        (req, res, next) => {
+          req.query.type = 'docx'
+          next()
+        },
+        ProjectUploadController.importDocument
+      )
+    }
+
     const fileUploadEndpoint = '/Project/:Project_id/upload'
     const fileUploadRateLimit = RateLimiterMiddleware.rateLimit(
       rateLimiters.fileUpload,
@@ -37,6 +60,7 @@ export default {
       webRouter.post(
         fileUploadEndpoint,
         fileUploadRateLimit,
+        AsyncLocalStorage.middleware,
         AuthorizationMiddleware.ensureUserCanWriteProjectContent,
         ProjectUploadController.multerMiddleware,
         ProjectUploadController.uploadFile
@@ -46,6 +70,7 @@ export default {
         fileUploadEndpoint,
         fileUploadRateLimit,
         AuthenticationController.requireLogin(),
+        AsyncLocalStorage.middleware,
         AuthorizationMiddleware.ensureUserCanWriteProjectContent,
         ProjectUploadController.multerMiddleware,
         ProjectUploadController.uploadFile

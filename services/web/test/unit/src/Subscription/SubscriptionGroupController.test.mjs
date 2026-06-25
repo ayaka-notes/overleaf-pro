@@ -28,6 +28,7 @@ describe('SubscriptionGroupController', function () {
       teamName: 'Cool group',
       groupPlan: true,
       membersLimit: 5,
+      planCode: 'group_collaborator_10',
     }
 
     ctx.plan = {
@@ -66,7 +67,6 @@ describe('SubscriptionGroupController', function () {
         ensureFlexibleLicensingEnabled: sinon.stub().resolves(),
         ensureSubscriptionIsActive: sinon.stub().resolves(),
         ensureSubscriptionCollectionMethodIsNotManual: sinon.stub().resolves(),
-        ensureSubscriptionHasNoPendingChanges: sinon.stub().resolves(),
         ensureSubscriptionHasNoPastDueInvoice: sinon.stub().resolves(),
         getGroupPlanUpgradePreview: sinon
           .stub()
@@ -132,7 +132,6 @@ describe('SubscriptionGroupController', function () {
     ctx.Errors = {
       MissingBillingInfoError: class extends Error {},
       ManuallyCollectedError: class extends Error {},
-      PendingChangeError: class extends Error {},
       InactiveError: class extends Error {},
       SubtotalLimitExceededError: class extends Error {},
       HasPastDueInvoiceError: class extends Error {},
@@ -143,6 +142,7 @@ describe('SubscriptionGroupController', function () {
           this.info = info
         }
       },
+      MultiplePendingChangesError: class extends Error {},
     }
 
     vi.doMock(
@@ -212,6 +212,10 @@ describe('SubscriptionGroupController', function () {
       '../../../../app/src/models/Subscription',
       () => ctx.SubscriptionModel
     )
+
+    vi.doMock('@overleaf/settings', () => ({
+      default: { adminUrl: 'https://admin.overleaf.com' },
+    }))
 
     vi.doMock('@overleaf/logger', () => ({
       default: {
@@ -440,9 +444,6 @@ describe('SubscriptionGroupController', function () {
             ctx.SubscriptionGroupHandler.promises.ensureFlexibleLicensingEnabled
               .calledWith(ctx.plan)
               .should.equal(true)
-            ctx.SubscriptionGroupHandler.promises.ensureSubscriptionHasNoPendingChanges
-              .calledWith(ctx.recurlySubscription)
-              .should.equal(true)
             ctx.SubscriptionGroupHandler.promises.ensureSubscriptionIsActive
               .calledWith(ctx.subscription)
               .should.equal(true)
@@ -532,24 +533,8 @@ describe('SubscriptionGroupController', function () {
         const res = {
           redirect: url => {
             url.should.equal(
-              '/user/subscription/group/manually-collected-subscription'
+              '/user/subscription/group/manually-collected-subscription?error_type=no-additional-license'
             )
-            resolve()
-          },
-        }
-
-        ctx.Controller.addSeatsToGroupSubscription(ctx.req, res)
-      })
-    })
-
-    it('should redirect to subscription page when there is a pending change', async function (ctx) {
-      await new Promise(resolve => {
-        ctx.SubscriptionGroupHandler.promises.ensureSubscriptionHasNoPendingChanges =
-          sinon.stub().throws(new ctx.Errors.PendingChangeError())
-
-        const res = {
-          redirect: url => {
-            url.should.equal('/user/subscription')
             resolve()
           },
         }
@@ -756,6 +741,28 @@ describe('SubscriptionGroupController', function () {
         ctx.Controller.createAddSeatsSubscriptionChange(ctx.req, res)
       })
     })
+
+    it('should return 422 with MultiplePendingChangesError', async function (ctx) {
+      await new Promise(resolve => {
+        ctx.req.body = { adding: 2 }
+        ctx.SubscriptionGroupHandler.promises.createAddSeatsSubscriptionChange =
+          sinon.stub().throws(new ctx.Errors.MultiplePendingChangesError())
+
+        const res = {
+          status: statusCode => {
+            statusCode.should.equal(422)
+
+            return {
+              end: () => {
+                resolve()
+              },
+            }
+          },
+        }
+
+        ctx.Controller.createAddSeatsSubscriptionChange(ctx.req, res)
+      })
+    })
   })
 
   describe('submitForm', function () {
@@ -784,6 +791,12 @@ describe('SubscriptionGroupController', function () {
                   '\n' +
                   `**Estimated Number of Users:** ${adding}\n` +
                   '\n' +
+                  `**Subscription:** [${ctx.subscriptionId}](https://admin.overleaf.com/admin/subscription/${ctx.subscriptionId})\n` +
+                  '\n' +
+                  `**Current Number of Seats:** ${ctx.subscription.membersLimit}\n` +
+                  '\n' +
+                  `**Plan Code:** ${ctx.subscription.planCode}\n` +
+                  '\n' +
                   `**PO Number:** ${poNumber}\n` +
                   '\n' +
                   `**Message:** This email has been generated on behalf of user with email **${ctx.user.email}** to request an increase in the total number of users for their subscription.`,
@@ -792,6 +805,27 @@ describe('SubscriptionGroupController', function () {
               .should.equal(true)
             sinon.assert.calledOnce(ctx.Modules.promises.hooks.fire)
             code.should.equal(204)
+            resolve()
+          },
+        }
+        ctx.Controller.submitForm(ctx.req, res, resolve)
+      })
+    })
+
+    it('should include the Salesforce ID line when the subscription has a salesforce_id', async function (ctx) {
+      await new Promise(resolve => {
+        const adding = 100
+        const salesforceId = '0061x000ABCDEFG'
+        ctx.subscription.salesforce_id = salesforceId
+        ctx.req.body = { adding }
+
+        const res = {
+          sendStatus: () => {
+            const { message } =
+              ctx.Modules.promises.hooks.fire.getCall(0).args[1]
+            message.should.include(
+              `**Salesforce ID:** [${salesforceId}](https://digitalscience.lightning.force.com/lightning/r/Opportunity/${salesforceId}/view)\n`
+            )
             resolve()
           },
         }
@@ -872,7 +906,7 @@ describe('SubscriptionGroupController', function () {
         const res = {
           redirect: url => {
             url.should.equal(
-              '/user/subscription/group/manually-collected-subscription'
+              '/user/subscription/group/manually-collected-subscription?error_type=plan-upgrade'
             )
             resolve()
           },
@@ -953,6 +987,31 @@ describe('SubscriptionGroupController', function () {
                   message: 'Payment action required',
                   clientSecret: error.info.clientSecret,
                   publicKey: error.info.publicKey,
+                })
+                resolve()
+              },
+            }
+          },
+        }
+
+        ctx.Controller.upgradeSubscription(ctx.req, res)
+      })
+    })
+
+    it('should send 422 response with MultiplePendingChangesError', async function (ctx) {
+      await new Promise(resolve => {
+        ctx.SubscriptionGroupHandler.promises.upgradeGroupPlan = sinon
+          .stub()
+          .rejects(new ctx.Errors.MultiplePendingChangesError())
+        const res = {
+          status: code => {
+            code.should.equal(422)
+            return {
+              json: data => {
+                data.should.deep.equal({
+                  code: 'multiple_pending_changes',
+                  message:
+                    'Cannot upgrade subscription while there are multiple pending subscription changes. Please contact support.',
                 })
                 resolve()
               },

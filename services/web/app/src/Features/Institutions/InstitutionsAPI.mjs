@@ -3,7 +3,7 @@ import OError from '@overleaf/o-error'
 import logger from '@overleaf/logger'
 import settings from '@overleaf/settings'
 import request from 'requestretry'
-import { promisifyAll, promiseMapWithLimit } from '@overleaf/promise-utils'
+import { promisify, promiseMapWithLimit } from '@overleaf/promise-utils'
 import NotificationsBuilder from '../Notifications/NotificationsBuilder.mjs'
 import {
   V1ConnectionError,
@@ -163,18 +163,21 @@ function getUserAffiliations(userId, callback) {
       if (body?.length > 0) {
         const concurrencyLimit = 10
         await promiseMapWithLimit(concurrencyLimit, body, async affiliation => {
-          const group = (
-            await Modules.promises.hooks.fire(
-              'getGroupWithDomainCaptureByV1Id',
-              affiliation.institution.id
-            )
-          )?.[0]
+          if (affiliation.institution.confirmed) {
+            // only check groups if domain is confirmed
+            const group = (
+              await Modules.promises.hooks.fire(
+                'getGroupWithDomainCaptureByV1Id',
+                affiliation.institution.id
+              )
+            )?.[0]
 
-          if (group) {
-            affiliation.group = {
-              _id: group._id,
-              managedUsersEnabled: Boolean(group.managedUsersEnabled),
-              domainCaptureEnabled: Boolean(group.domainCaptureEnabled),
+            if (group) {
+              affiliation.group = {
+                _id: group._id,
+                managedUsersEnabled: Boolean(group.managedUsersEnabled),
+                domainCaptureEnabled: Boolean(group.domainCaptureEnabled),
+              }
             }
           }
 
@@ -313,6 +316,15 @@ function sendUsersWithReconfirmationsLapsedProcessed(users, callback) {
   )
 }
 
+async function verifyDomainMatchesDomainMatcher(domain, institutionId) {
+  return await _affiliationRequestFetchJson({
+    method: 'POST',
+    path: `/api/v2/institutions/domain_matches_matcher`,
+    body: { domain, id: institutionId },
+    defaultErrorMessage: "Couldn't verify if domain matches matcher",
+  })
+}
+
 const InstitutionsAPI = {
   getInstitutionAffiliations,
 
@@ -406,17 +418,29 @@ function makeAffiliationRequest(options, callback) {
   })
 }
 
-InstitutionsAPI.promises = promisifyAll(InstitutionsAPI, {
-  without: [
-    'addAffiliation',
-    'removeAffiliation',
-    'getUsersNeedingReconfirmationsLapsedProcessed',
-  ],
-})
-
-InstitutionsAPI.promises.addAffiliation = addAffiliation
-InstitutionsAPI.promises.removeAffiliation = removeAffiliation
-InstitutionsAPI.promises.getUsersNeedingReconfirmationsLapsedProcessed =
-  getUsersNeedingReconfirmationsLapsedProcessed
+InstitutionsAPI.promises = {
+  getInstitutionAffiliations: promisify(
+    InstitutionsAPI.getInstitutionAffiliations
+  ),
+  getConfirmedInstitutionAffiliations: promisify(
+    InstitutionsAPI.getConfirmedInstitutionAffiliations
+  ),
+  getInstitutionAffiliationsCounts: promisify(
+    InstitutionsAPI.getInstitutionAffiliationsCounts
+  ),
+  getLicencesForAnalytics: promisify(InstitutionsAPI.getLicencesForAnalytics),
+  getUserAffiliations: promisify(InstitutionsAPI.getUserAffiliations),
+  getUsersNeedingReconfirmationsLapsedProcessed,
+  addAffiliation,
+  removeAffiliation,
+  endorseAffiliation: promisify(InstitutionsAPI.endorseAffiliation),
+  deleteAffiliations: promisify(InstitutionsAPI.deleteAffiliations),
+  addEntitlement: promisify(InstitutionsAPI.addEntitlement),
+  removeEntitlement: promisify(InstitutionsAPI.removeEntitlement),
+  sendUsersWithReconfirmationsLapsedProcessed: promisify(
+    InstitutionsAPI.sendUsersWithReconfirmationsLapsedProcessed
+  ),
+  verifyDomainMatchesDomainMatcher,
+}
 
 export default InstitutionsAPI

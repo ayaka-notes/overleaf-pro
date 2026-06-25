@@ -4,11 +4,18 @@
 
 services:
   test_unit:
-    image: node:22.18.0
+    build:
+      context: ../..
+      dockerfile: services/docstore/Dockerfile
+      target: base
     volumes:
       - .:/overleaf/services/docstore
       - ../../node_modules:/overleaf/node_modules
       - ../../libraries:/overleaf/libraries
+      - ../../package.json:/overleaf/package.json
+      - ../../.yarnrc.yml:/overleaf/.yarnrc.yml
+      - ../../yarn.lock:/overleaf/yarn.lock
+      - ../../.yarn:/overleaf/.yarn
       - ../../bin/shared/wait_for_it:/overleaf/bin/shared/wait_for_it
       - ../../tools/migrations:/overleaf/tools/migrations
       - ../../tsconfig.backend.json:/overleaf/tsconfig.backend.json
@@ -20,23 +27,30 @@ services:
       NODE_ENV: test
       NODE_OPTIONS: "--unhandled-rejections=strict"
     entrypoint: /overleaf/bin/shared/wait_for_it mongo:27017 --timeout=60 --
-    command: npm run --silent test:unit
+    command: yarn run --silent test:unit
     user: node
     depends_on:
       mongo:
         condition: service_started
 
   test_acceptance:
-    image: node:22.18.0
+    build:
+      context: ../..
+      dockerfile: services/docstore/Dockerfile
+      target: base
     volumes:
       - .:/overleaf/services/docstore
       - ../../node_modules:/overleaf/node_modules
       - ../../libraries:/overleaf/libraries
+      - ../../package.json:/overleaf/package.json
+      - ../../.yarnrc.yml:/overleaf/.yarnrc.yml
+      - ../../yarn.lock:/overleaf/yarn.lock
+      - ../../.yarn:/overleaf/.yarn
       - ../../bin/shared/wait_for_it:/overleaf/bin/shared/wait_for_it
       - ../../tools/migrations:/overleaf/tools/migrations
     working_dir: /overleaf/services/docstore
     environment:
-      ELASTIC_SEARCH_DSN: es:9200
+      RETRIES:
       MONGO_CONNECTION_STRING: mongodb://mongo/test-overleaf
       POSTGRES_HOST: postgres
       GCS_API_ENDPOINT: http://gcs:9090
@@ -53,7 +67,7 @@ services:
       gcs:
         condition: service_healthy
     entrypoint: /overleaf/bin/shared/wait_for_it mongo:27017 --timeout=60 --
-    command: npm run --silent test:acceptance
+    command: yarn run --silent test:acceptance
 
   mongo:
     image: mongo:8.0.11

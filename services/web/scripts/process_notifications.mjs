@@ -1,17 +1,21 @@
+/* eslint-disable @overleaf/require-script-runner */
+import logger from '@overleaf/logger'
 import { processNotifications } from '../modules/notifications/app/src/ProcessNotifications.mjs'
-import { scriptRunner } from './lib/ScriptRunner.mjs'
 
 async function main() {
-  console.log('Processing notifications...')
-  await processNotifications()
-  console.log('Notifications processed successfully.')
+  logger.info({}, 'Processing notifications...')
+  const { notificationsFound, notificationsReady, emailsSent } =
+    await processNotifications()
+  logger.info(
+    { notificationsFound, notificationsReady, emailsSent },
+    'Notifications processed successfully.'
+  )
 }
 
 try {
-  await scriptRunner(main)
-  console.log('Done.')
+  await main()
   process.exit(0)
 } catch (error) {
-  console.error({ error })
+  logger.error({ error }, 'error processing notifications')
   process.exit(1)
 }

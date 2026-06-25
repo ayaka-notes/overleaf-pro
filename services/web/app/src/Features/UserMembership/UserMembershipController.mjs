@@ -12,6 +12,8 @@ import PlansLocator from '../Subscription/PlansLocator.mjs'
 import RecurlyClient from '../Subscription/RecurlyClient.mjs'
 import Modules from '../../infrastructure/Modules.mjs'
 import UserMembershipAuthorization from './UserMembershipAuthorization.mjs'
+import SplitTestHandler from '../SplitTests/SplitTestHandler.mjs'
+import _ from 'lodash'
 
 async function manageGroupMembers(req, res, next) {
   const { entity: subscription, entityConfig } = req
@@ -58,10 +60,7 @@ async function manageGroupMembers(req, res, next) {
   }
 
   const canUseAddSeatsFeature = Boolean(
-    plan?.canUseFlexibleLicensing &&
-    isAdmin &&
-    recurlySubscription &&
-    !recurlySubscription.pendingChange
+    plan?.canUseFlexibleLicensing && isAdmin && recurlySubscription
   )
 
   res.render('user_membership/group-members-react', {
@@ -139,6 +138,73 @@ async function _renderManagersPage(req, res, next, template) {
   })
 }
 
+async function manageGroupUsers(req, res) {
+  const combinedUserManagement = await SplitTestHandler.promises.getAssignment(
+    req,
+    res,
+    'combined-user-management'
+  )
+  const { entity: subscription, entityConfig } = req
+
+  const entityPrimaryKey =
+    subscription[entityConfig.fields.primaryKey].toString()
+
+  if (combinedUserManagement.variant !== 'enabled') {
+    return res.redirect(`/manage/groups/${entityPrimaryKey}/members`)
+  }
+
+  let entityName
+  if (entityConfig.fields.name) {
+    entityName = subscription[entityConfig.fields.name]
+  }
+  const userId = SessionManager.getLoggedInUserId(req.session)?.toString()
+  const plan = PlansLocator.findLocalPlanInSettings(subscription.planCode)
+  const isAdmin = subscription.admin_id.toString() === userId
+  const recurlySubscription = subscription.recurlySubscription_id
+    ? await RecurlyClient.promises.getSubscription(
+        subscription.recurlySubscription_id
+      )
+    : undefined
+  const canUseAddSeatsFeature =
+    plan?.canUseFlexibleLicensing &&
+    isAdmin &&
+    recurlySubscription &&
+    !recurlySubscription.pendingChange
+  const ssoConfig = await SSOConfig.findById(subscription.ssoConfig).exec()
+
+  const users = await UserMembershipHandler.promises.getUsers(
+    subscription,
+    entityConfig
+  )
+
+  const { usersNoInvites, invites } = Object.groupBy(users, user =>
+    user.invite ? 'invites' : 'usersNoInvites'
+  )
+
+  const deduplicatedUsers = _.uniqBy(usersNoInvites, 'email')
+  for (const invite of invites) {
+    const alreadyAdded = deduplicatedUsers.find(
+      user => user.email === invite.email
+    )
+    if (alreadyAdded) {
+      alreadyAdded.invite = true
+    } else {
+      deduplicatedUsers.unshift(invite)
+    }
+  }
+
+  res.render('user_membership/group-users-react', {
+    name: entityName,
+    groupId: entityPrimaryKey,
+    users: deduplicatedUsers,
+    groupSize: subscription.membersLimit,
+    managedUsersActive: subscription.managedUsersEnabled,
+    entityAccess: UserMembershipAuthorization.hasEntityAccess()(req),
+    canUseAddSeatsFeature,
+    groupSSOActive: ssoConfig?.enabled,
+  })
+}
+
 async function exportCsv(req, res) {
   let ssoEnabled
   const { entity, entityConfig } = req
@@ -205,10 +271,15 @@ async function add(req, res) {
   }
   let user
   try {
+    const auditInfo = {
+      ipAddress: req.ip,
+      initiatorId: SessionManager.getLoggedInUserId(req.session),
+    }
     user = await UserMembershipHandler.promises.addUser(
       entity,
       entityConfig,
-      email
+      email,
+      auditInfo
     )
   } catch (err) {
     if (err instanceof UserMembershipErrors.UserAlreadyAddedError) {
@@ -248,10 +319,15 @@ async function remove(req, res) {
     })
   }
   try {
+    const auditInfo = {
+      ipAddress: req.ip,
+      initiatorId: loggedInUserId,
+    }
     await UserMembershipHandler.promises.removeUser(
       entity,
       entityConfig,
-      userId
+      userId,
+      auditInfo
     )
   } catch (err) {
     if (err instanceof UserMembershipErrors.UserIsManagerError) {
@@ -277,6 +353,7 @@ async function create(req, res) {
 export default {
   manageGroupMembers: expressify(manageGroupMembers),
   manageGroupManagers: expressify(manageGroupManagers),
+  manageGroupUsers: expressify(manageGroupUsers),
   manageInstitutionManagers: expressify(manageInstitutionManagers),
   managePublisherManagers: expressify(managePublisherManagers),
   add: expressify(add),

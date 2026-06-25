@@ -2,6 +2,7 @@ package uk.ac.ic.wlgitbridge.util;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -156,6 +157,17 @@ public class Util {
 
   public static String fromStream(InputStream stream) throws IOException {
     return fromStream(stream, 0);
+  }
+
+  public static String getClientIp(HttpServletRequest request) {
+    String clientIp = request.getHeader("X-Forwarded-For");
+    if (clientIp != null) {
+      clientIp = clientIp.split(",", 2)[0].trim();
+    }
+    if (clientIp == null || clientIp.isEmpty()) {
+      clientIp = request.getRemoteAddr();
+    }
+    return clientIp;
   }
 
   public static String getCodeFromResponse(JsonObject json) {

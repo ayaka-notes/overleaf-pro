@@ -40,7 +40,7 @@ export default Router = {
     attrs.client_id = client.id
     attrs.err = error
     attrs.method = method
-    if (isZodErrorLike(error)) {
+    if (attrs.validation && isZodErrorLike(error)) {
       logger.info(attrs, 'validation error')
       let message = 'invalid'
       try {
@@ -456,6 +456,7 @@ export default Router = {
           joinDocSchema.parse({ doc_id: docId, fromVersion, options })
         } catch (error) {
           return Router._handleError(callback, error, client, 'joinDoc', {
+            validation: 1,
             disconnect: 1,
           })
         }
@@ -484,7 +485,8 @@ export default Router = {
         try {
           zz.objectId().parse(docId)
         } catch (error) {
-          return Router._handleError(callback, error, client, 'joinDoc', {
+          return Router._handleError(callback, error, client, 'leaveDoc', {
+            validation: 1,
             disconnect: 1,
           })
         }
@@ -570,6 +572,7 @@ export default Router = {
           applyOtUpdateSchema.parse({ doc_id: docId, update })
         } catch (error) {
           return Router._handleError(callback, error, client, 'applyOtUpdate', {
+            validation: 1,
             disconnect: 1,
           })
         }

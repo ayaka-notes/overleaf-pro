@@ -10,37 +10,37 @@ export const dispatchDocChanged = () => {
 export const outputFiles = [
   {
     path: 'output.pdf',
-    build: '123',
+    build: '1234-5678',
     url: '/build/output.pdf',
     type: 'pdf',
   },
   {
     path: 'output.bbl',
-    build: '123',
+    build: '1234-5678',
     url: '/build/output.bbl',
     type: 'bbl',
   },
   {
     path: 'output.bib',
-    build: '123',
+    build: '1234-5678',
     url: '/build/output.bib',
     type: 'bib',
   },
   {
     path: 'example.txt',
-    build: '123',
+    build: '1234-5678',
     url: '/build/example.txt',
     type: 'txt',
   },
   {
     path: 'output.log',
-    build: '123',
+    build: '1234-5678',
     url: '/build/output.log',
     type: 'log',
   },
   {
     path: 'output.blg',
-    build: '123',
+    build: '1234-5678',
     url: '/build/output.blg',
     type: 'blg',
   },

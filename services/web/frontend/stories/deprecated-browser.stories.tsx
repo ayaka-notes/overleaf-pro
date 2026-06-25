@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/react'
+import { Meta, StoryObj } from '@storybook/react-webpack5'
 import { DeprecatedBrowser } from '@/shared/components/deprecated-browser'
 
 const meta: Meta = {

@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import DSFormCheckbox from '@/shared/components/ds/ds-form-checkbox'
 import { figmaDesignUrl } from '../../../../.storybook/utils/figma-design-url'
 

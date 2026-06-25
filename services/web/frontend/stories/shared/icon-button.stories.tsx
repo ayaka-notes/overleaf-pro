@@ -1,5 +1,5 @@
 import IconButton from '@/shared/components/button/icon-button'
-import type { Meta } from '@storybook/react'
+import type { Meta } from '@storybook/react-webpack5'
 import { useTranslation } from 'react-i18next'
 import { figmaDesignUrl } from '../../../.storybook/utils/figma-design-url'
 

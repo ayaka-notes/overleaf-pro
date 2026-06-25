@@ -3,12 +3,26 @@
   --ds-nav-active-color: var(--green-60);
   --theme-toggle-selected-background: var(--green-20);
   --ds-nav-content-bg-secondary: var(--bg-light-secondary);
+  --table-icon-bg-hover: 27 34 44;
+  --themed-dashboard-popover-bg: var(--bg-dark-primary);
+  --themed-dashboard-popover-color: var(--content-primary-dark);
+  --themed-dashboard-popover-link-color: var(--link-ui-dark);
+  --themed-dashboard-popover-link-hover-color: var(--link-ui-hover-dark);
+  --themed-dashboard-popover-link-visited-color: var(--link-ui-visited-dark);
+  --ds-nav-color-scheme: light;
 
   @include theme('default') {
     --ds-nav-active-bg: var(--green-70);
     --ds-nav-active-color: var(--green-10);
     --theme-toggle-selected-background: var(--green-70);
     --ds-nav-content-bg-secondary: var(--bg-dark-secondary);
+    --table-icon-bg-hover: 255 255 255;
+    --themed-dashboard-popover-bg: var(--bg-light-primary);
+    --themed-dashboard-popover-color: var(--content-primary);
+    --themed-dashboard-popover-link-color: var(--link-ui);
+    --themed-dashboard-popover-link-hover-color: var(--link-ui-hover);
+    --themed-dashboard-popover-link-visited-color: var(--link-ui-visited);
+    --ds-nav-color-scheme: dark;
   }
 }
 
@@ -21,6 +35,7 @@ body {
 .project-ds-nav-page {
   @include full-height-stacked-page;
 
+  color-scheme: var(--ds-nav-color-scheme);
   color: var(--content-secondary-themed);
 
   // NOTE-AC: This code can be eliminated when we remove sidebar-navigation-ui-update
@@ -88,6 +103,42 @@ body {
     }
   }
 
+  &.library-enabled {
+    .navbar-default .navbar-header .navbar-logo {
+      @include media-breakpoint-up(md) {
+        top: calc(var(--spacing-05) * 2);
+        left: var(--spacing-05);
+      }
+    }
+
+    .project-list-wrapper .project-list-sidebar-wrapper-react {
+      padding-top: calc(var(--spacing-08) - 1px);
+
+      .ds-nav-page-switcher-divider {
+        margin: var(--spacing-05) 0;
+      }
+
+      .project-list-sidebar-scroll {
+        padding-top: 0;
+        padding-right: var(--spacing-05);
+      }
+
+      ul.project-list-filters {
+        > li > button {
+          padding-left: calc(var(--spacing-05) + 24px + var(--spacing-05));
+        }
+
+        .dropdown-header {
+          padding-left: calc(var(--spacing-06) + 24px + var(--spacing-05));
+        }
+
+        > li.tag button.tag-name {
+          padding-left: calc(var(--spacing-06) + 24px + var(--spacing-05));
+        }
+      }
+    }
+  }
+
   .navbar-nav > li > .dropdown-toggle::after {
     display: none;
   }
@@ -141,6 +192,50 @@ body {
           var(--spacing-05);
       }
 
+      .ds-nav-page-switcher-logo {
+        padding: 0 var(--spacing-08) var(--spacing-07);
+
+        img {
+          width: 130px;
+          height: auto;
+        }
+      }
+
+      .ds-nav-page-switcher-items {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-02);
+        padding: 0 var(--spacing-05);
+        margin: 0;
+
+        &--no-logo {
+          padding-top: var(--spacing-05);
+        }
+      }
+
+      .ds-nav-page-switcher-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-05);
+        padding: var(--spacing-05);
+        border-radius: var(--border-radius-medium);
+        color: var(--ds-nav-color);
+        font-size: var(--font-size-03);
+        text-decoration: none;
+
+        &:hover {
+          background-color: var(--ds-nav-hover-bg);
+          color: var(--ds-nav-color);
+          text-decoration: none;
+        }
+
+        &.active {
+          background-color: var(--ds-nav-active-bg);
+          color: var(--ds-nav-active-color);
+          font-weight: bold;
+        }
+      }
+
       .ds-nav-sidebar-lower {
         padding: var(--spacing-05) var(--spacing-08) 0 var(--spacing-05);
         border-top: solid 1px transparent;
@@ -169,12 +264,6 @@ body {
           top: var(--spacing-07);
           right: var(--spacing-07);
           color: inherit;
-        }
-
-        .notification-body {
-          .btn {
-            @include ol-button-themed('secondary');
-          }
         }
 
         p {
@@ -273,7 +362,7 @@ body {
 
         &:hover,
         &:focus {
-          background-color: #d9d9d9 !important;
+          background-color: rgb(var(--table-icon-bg-hover) / 8%) !important;
         }
       }
 
@@ -314,6 +403,11 @@ body {
         // Prevent the cookie banner being overlaid on top of the navigation
         z-index: auto;
       }
+    }
+
+    .btn-link {
+      --link-color: var(--link-web-themed);
+      --link-hover-color: var(--link-web-hover-themed);
     }
   }
 
@@ -417,5 +511,28 @@ body {
 
   input:checked + label {
     background-color: var(--theme-toggle-selected-background);
+  }
+}
+
+.themed-dashboard-intro-popover {
+  --bs-popover-bg: var(--themed-dashboard-popover-bg);
+  --bs-popover-header-bg: var(--themed-dashboard-popover-bg);
+  --bs-popover-body-color: var(--themed-dashboard-popover-color);
+  --bs-popover-header-color: var(--themed-dashboard-popover-color);
+
+  .btn-link {
+    color: var(--bs-popover-body-color);
+  }
+
+  a {
+    color: var(--themed-dashboard-popover-link-color);
+
+    &:visited {
+      color: var(--themed-dashboard-popover-link-hover-color);
+    }
+
+    &:hover {
+      color: var(--themed-dashboard-popover-link-visited-color);
+    }
   }
 }

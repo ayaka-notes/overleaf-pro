@@ -8,6 +8,7 @@ block vars
 	- const suppressNavbar = true
 	- const suppressFooter = true
 	- const suppressPugCookieBanner = true
+	- isWebsiteRedesign = true
 
 block append meta
 	meta(
@@ -94,3 +95,6 @@ block append meta
 
 block content
 	#project-list-root
+
+block append head-scripts
+	include ./_mixpanel_autocapture.pug

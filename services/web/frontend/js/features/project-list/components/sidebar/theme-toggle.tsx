@@ -43,7 +43,10 @@ export default function ThemeToggle() {
                 checked={overallTheme === theme.val}
                 onChange={() => setOverallTheme(theme.val)}
               />
-              <label htmlFor={`theme-switch-${theme.name}`}>
+              <label
+                htmlFor={`theme-switch-${theme.name}`}
+                aria-label={theme.name}
+              >
                 <MaterialIcon type={getIcon(theme)} />
               </label>
             </div>

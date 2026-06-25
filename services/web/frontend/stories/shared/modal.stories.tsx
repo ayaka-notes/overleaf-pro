@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import { figmaDesignUrl } from './../../../.storybook/utils/figma-design-url'
 import {
   OLModal,

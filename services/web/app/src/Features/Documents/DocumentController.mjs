@@ -105,7 +105,21 @@ async function setDocument(req, res) {
   res.json(result)
 }
 
+async function trackChangesRejected(req, res) {
+  const { Project_id: projectId, doc_id: docId } = req.params
+  const { rejectedChangeAuthorIds, userId } = req.body
+  await Modules.promises.hooks.fire(
+    'trackChangesRejected',
+    projectId,
+    docId,
+    userId,
+    rejectedChangeAuthorIds
+  )
+  res.sendStatus(204)
+}
+
 export default {
   getDocument: expressify(getDocument),
   setDocument: expressify(setDocument),
+  trackChangesRejected: expressify(trackChangesRejected),
 }

@@ -1,5 +1,5 @@
 import LabeledDivider from '@/shared/components/labeled-divider'
-import { Meta } from '@storybook/react'
+import { Meta } from '@storybook/react-webpack5'
 
 type Args = React.ComponentProps<typeof LabeledDivider>
 

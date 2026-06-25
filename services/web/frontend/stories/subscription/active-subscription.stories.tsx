@@ -18,7 +18,7 @@ import {
 import { SubscriptionDashboardProvider } from '../../js/features/subscription/context/subscription-dashboard-context'
 import { SplitTestProvider } from '@/shared/context/split-test-context'
 import { PaidSubscription } from '@ol-types/subscription/dashboard/subscription'
-import type { StoryFn } from '@storybook/react'
+import type { StoryFn } from '@storybook/react-webpack5'
 import { setupSubscriptionDashContext } from '../../../test/frontend/features/subscription/helpers/setup-subscription-dash-context'
 
 export default {

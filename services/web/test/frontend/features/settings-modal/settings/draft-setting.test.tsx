@@ -1,12 +1,12 @@
 import { screen, within, render } from '@testing-library/react'
 import { expect } from 'chai'
-import { SettingsModalProvider } from '@/features/ide-redesign/contexts/settings-modal-context'
+import { SettingsModalProvider } from '@/features/settings/context/settings-modal-context'
 import {
   EditorProviders,
   projectDefaults,
 } from '../../../helpers/editor-providers'
 import userEvent from '@testing-library/user-event'
-import DraftSetting from '@/features/ide-redesign/components/settings/compiler-settings/draft-setting'
+import DraftSetting from '@/features/settings/components/compiler-settings/draft-setting'
 
 const OPTIONS = [
   {

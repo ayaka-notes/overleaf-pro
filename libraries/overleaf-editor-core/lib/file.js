@@ -124,6 +124,19 @@ class File {
   }
 
   /**
+   * @returns {Record<string, number>}
+   */
+  toStats() {
+    const stats = this.data.toStats()
+    if (!_.isEmpty(this.metadata)) {
+      stats.nMetadata = 1
+      // Note: Buffer does not exist in frontend. Use string length instead.
+      stats.metadataSize = JSON.stringify(this.metadata).length
+    }
+    return stats
+  }
+
+  /**
    * Hexadecimal SHA-1 hash of the file's content, if known.
    *
    * @return {string | null | undefined}

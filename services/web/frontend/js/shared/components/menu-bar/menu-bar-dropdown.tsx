@@ -91,6 +91,8 @@ const NestedDropdownToggle: FC<React.PropsWithChildren> = forwardRef<
         'nested-dropdown-toggle',
         'dropdown-item'
       )}
+      role="menuitem"
+      aria-haspopup
     >
       {children}
       <MaterialIcon type="chevron_right" />
@@ -122,6 +124,8 @@ export const NestedMenuBarDropdown: FC<
       show={active}
       autoClose
       onToggle={onToggle}
+      as="li"
+      role="none"
     >
       <DropdownToggle
         id={`${menuId}-${id}`}

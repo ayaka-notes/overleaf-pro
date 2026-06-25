@@ -1,4 +1,4 @@
-import { Meta } from '@storybook/react'
+import { Meta } from '@storybook/react-webpack5'
 import { figmaDesignUrl } from '../../../../.storybook/utils/figma-design-url'
 import DSButton from '@/shared/components/ds/ds-button'
 

@@ -1,5 +1,5 @@
 import PdfLogEntry from '@/features/pdf-preview/components/pdf-log-entry'
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import { ruleIds } from '@/ide/human-readable-logs/HumanReadableLogsHints'
 import { ScopeDecorator } from './decorators/scope'
 import { useMeta } from './hooks/use-meta'
@@ -76,7 +76,7 @@ const MockEditorViewProvider: FC<React.PropsWithChildren> = ({ children }) => {
 const Provider: FC<React.PropsWithChildren<{ children: ReactNode }>> = ({
   children,
 }) => {
-  useMeta({ 'ol-showAiErrorAssistant': true })
+  useMeta({ 'ol-showAiFeatures': true })
   return (
     <MockEditorViewProvider>
       <div className="logs-pane p-2">{children}</div>

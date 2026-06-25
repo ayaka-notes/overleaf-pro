@@ -1,5 +1,5 @@
 import { FC } from 'react'
-import type { Meta } from '@storybook/react'
+import type { Meta } from '@storybook/react-webpack5'
 import PdfCompileButton from '@/features/pdf-preview/components/pdf-compile-button'
 import { ScopeDecorator } from '../decorators/scope'
 import { CompileContext } from '@/shared/context/local-compile-context'

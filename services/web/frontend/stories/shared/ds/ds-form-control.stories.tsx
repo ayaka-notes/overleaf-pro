@@ -1,4 +1,4 @@
-import { Meta } from '@storybook/react'
+import { Meta } from '@storybook/react-webpack5'
 import { figmaDesignUrl } from '../../../../.storybook/utils/figma-design-url'
 import DSFormControl from '@/shared/components/ds/ds-form-control'
 import DSFormText from '@/shared/components/ds/ds-form-text'

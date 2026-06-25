@@ -1,8 +1,8 @@
-import { screen, render } from '@testing-library/react'
+import { screen, render, waitFor } from '@testing-library/react'
 import { expect } from 'chai'
 import fetchMock from 'fetch-mock'
 import { EditorProviders } from '../../helpers/editor-providers'
-import SettingsModal from '@/features/ide-redesign/components/settings/settings-modal'
+import SettingsModal from '@/features/settings/components/settings-modal'
 import { Folder } from '@ol-types/folder'
 import { ImageName, OverallThemeMeta } from '@ol-types/project-settings'
 
@@ -24,11 +24,10 @@ const TAB_SETTINGS = {
     'Keybindings',
     'PDF Viewer',
     'Reference search',
-    'Spellcheck language',
-    'Dictionary',
     'Breadcrumbs',
     'Equation preview',
   ],
+  'Spelling and language': ['Spellcheck language', 'Dictionary'],
   Compiler: [
     'Main document',
     'Compiler',
@@ -51,12 +50,10 @@ describe('<SettingsModal />', function () {
     {
       name: 'Overall Theme 1',
       val: '',
-      path: 'https://overleaf.com/overalltheme-1.css',
     },
     {
       name: 'Overall Theme 2',
       val: 'light-',
-      path: 'https://overleaf.com/overalltheme-2.css',
     },
   ]
 
@@ -129,6 +126,189 @@ describe('<SettingsModal />', function () {
     Object.entries(TAB_SETTINGS).forEach(([tabName, settings]) => {
       selectTab(tabName)
       settings.forEach(setting => assertSettingIsVisible(setting))
+    })
+  })
+
+  describe('when a user has Writefull enabled', function () {
+    beforeEach(function () {
+      window.metaAttributesCache.set('ol-writefullEnabled', true)
+      window.metaAttributesCache.set('ol-showAiFeatures', true)
+    })
+
+    afterEach(function () {
+      window.metaAttributesCache.delete('ol-writefullEnabled')
+      window.metaAttributesCache.delete('ol-showAiFeatures')
+    })
+
+    it('shows the AI assistance section in the Editor tab', async function () {
+      render(
+        <EditorProviders
+          rootFolder={[rootFolder as any]}
+          layoutContext={{ leftMenuShown: true }}
+        >
+          <SettingsModal />
+        </EditorProviders>
+      )
+
+      selectTab('Editor')
+      await waitFor(() => expect(screen.getByText('AI assistance')).to.exist)
+    })
+
+    it('shows the Language Suggestions section in the Spelling and language tab', async function () {
+      render(
+        <EditorProviders
+          rootFolder={[rootFolder as any]}
+          layoutContext={{ leftMenuShown: true }}
+        >
+          <SettingsModal />
+        </EditorProviders>
+      )
+
+      selectTab('Spelling and language')
+      await waitFor(
+        () => expect(screen.getByText('Language suggestions')).to.exist
+      )
+    })
+  })
+
+  describe('when a user does not have Writefull enabled', function () {
+    afterEach(function () {
+      window.metaAttributesCache.delete('ol-writefullEnabled')
+      window.metaAttributesCache.delete('ol-showAiFeatures')
+      window.metaAttributesCache.delete('ol-cannot-use-ai')
+    })
+
+    it('does not show the AI assistance section when ol-writefullEnabled is false', async function () {
+      window.metaAttributesCache.set('ol-writefullEnabled', false)
+      window.metaAttributesCache.set('ol-showAiFeatures', true)
+      render(
+        <EditorProviders
+          rootFolder={[rootFolder as any]}
+          layoutContext={{ leftMenuShown: true }}
+        >
+          <SettingsModal />
+        </EditorProviders>
+      )
+
+      selectTab('Editor')
+      await waitFor(
+        () => expect(screen.getByLabelText('Auto-complete')).to.exist
+      )
+      expect(screen.queryByText('AI assistance')).to.be.null
+    })
+
+    it('does not show the Language Suggestions section when ol-writefullEnabled is false', async function () {
+      window.metaAttributesCache.set('ol-writefullEnabled', false)
+      window.metaAttributesCache.set('ol-showAiFeatures', true)
+      render(
+        <EditorProviders
+          rootFolder={[rootFolder as any]}
+          layoutContext={{ leftMenuShown: true }}
+        >
+          <SettingsModal />
+        </EditorProviders>
+      )
+
+      selectTab('Spelling and language')
+      await waitFor(
+        () => expect(screen.getByLabelText('Spellcheck language')).to.exist
+      )
+      expect(screen.queryByText('Language suggestions')).to.be.null
+    })
+
+    it('does not show the AI assistance section when ol-showAiFeatures is false', async function () {
+      window.metaAttributesCache.set('ol-writefullEnabled', true)
+      window.metaAttributesCache.set('ol-showAiFeatures', false)
+      render(
+        <EditorProviders
+          rootFolder={[rootFolder as any]}
+          layoutContext={{ leftMenuShown: true }}
+        >
+          <SettingsModal />
+        </EditorProviders>
+      )
+
+      selectTab('Editor')
+      await waitFor(
+        () => expect(screen.getByLabelText('Auto-complete')).to.exist
+      )
+      expect(screen.queryByText('AI assistance')).to.be.null
+    })
+
+    it('does not show the AI assistance section when ol-cannot-use-ai is true', async function () {
+      window.metaAttributesCache.set('ol-writefullEnabled', true)
+      window.metaAttributesCache.set('ol-showAiFeatures', true)
+      window.metaAttributesCache.set('ol-cannot-use-ai', true)
+      render(
+        <EditorProviders
+          rootFolder={[rootFolder as any]}
+          layoutContext={{ leftMenuShown: true }}
+        >
+          <SettingsModal />
+        </EditorProviders>
+      )
+
+      selectTab('Editor')
+      await waitFor(
+        () => expect(screen.getByLabelText('Auto-complete')).to.exist
+      )
+      expect(screen.queryByText('AI assistance')).to.be.null
+    })
+  })
+
+  describe('when open=project-notifications query param is present', function () {
+    beforeEach(function () {
+      window.metaAttributesCache.set('ol-splitTestVariants', {
+        'email-notifications': 'enabled',
+      })
+      fetchMock.get(/\/notifications\/preferences\/project\//, {
+        trackedChangesOnOwnProject: false,
+        trackedChangesOnInvitedProject: false,
+        commentOnOwnProject: false,
+        commentOnInvitedProject: false,
+        repliesOnOwnProject: false,
+        repliesOnInvitedProject: false,
+        repliesOnAuthoredThread: false,
+        repliesOnParticipatingThread: false,
+      })
+      window.history.pushState({}, '', '?open=project-notifications')
+    })
+
+    afterEach(function () {
+      window.history.pushState({}, '', window.location.pathname)
+      window.metaAttributesCache.delete('ol-splitTestVariants')
+    })
+
+    it('opens the modal and selects the Project notifications tab', async function () {
+      render(
+        <EditorProviders rootFolder={[rootFolder as any]}>
+          <SettingsModal />
+        </EditorProviders>
+      )
+
+      await waitFor(
+        () =>
+          expect(
+            screen.getByRole('tab', {
+              name: /Project notifications/,
+              selected: true,
+            })
+          ).to.exist
+      )
+    })
+
+    it('removes the open param from the URL', async function () {
+      render(
+        <EditorProviders rootFolder={[rootFolder as any]}>
+          <SettingsModal />
+        </EditorProviders>
+      )
+
+      await waitFor(() => {
+        expect(window.location.search).to.not.include(
+          'open=project-notifications'
+        )
+      })
     })
   })
 })

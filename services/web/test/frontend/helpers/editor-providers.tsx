@@ -45,10 +45,17 @@ import {
   ProjectMetadata,
   ProjectUpdate,
 } from '@/shared/context/types/project-metadata'
-import { UserId } from '../../../types/user'
+import { User, UserId } from '../../../types/user'
 import { ProjectCompiler } from '../../../types/project-settings'
 import { ReferencesContext } from '@/features/ide-react/context/references-context'
 import { useEditorAnalytics } from '@/shared/hooks/use-editor-analytics'
+import { defaultSettings } from '@/shared/context/user-settings-context'
+import { UserSettings } from '@ol-types/user-settings'
+import { DetachCompileContext } from '@/shared/context/detach-compile-context'
+import { type CompileContext } from '@/shared/context/local-compile-context'
+import { EditorContext } from '@/shared/context/editor-context'
+import { Cobranding } from '@ol-types/cobranding'
+import { EDITOR_SESSION_ID } from '@/features/pdf-preview/util/metrics'
 
 // these constants can be imported in tests instead of
 // using magic strings
@@ -58,22 +65,19 @@ export const USER_ID = '123abd' as UserId
 export const USER_EMAIL = 'testuser@example.com'
 
 const defaultUserSettings = {
-  pdfViewer: 'pdfjs',
-  fontSize: 12,
-  fontFamily: 'monaco',
-  lineHeight: 'normal',
-  editorTheme: 'textmate',
-  overallTheme: '',
-  mode: 'default',
-  autoComplete: true,
-  autoPairDelimiters: true,
-  trackChanges: true,
-  syntaxValidation: false,
-  mathPreview: true,
-}
+  ...defaultSettings,
+  referencesSearchMode: 'simple',
+} satisfies UserSettings
 
 export type EditorProvidersProps = {
-  user?: { id: string; email: string; signUpDate?: string }
+  user?: Pick<
+    User,
+    | 'id'
+    | 'email'
+    | 'signUpDate'
+    | 'activeGroupSubscriptions'
+    | 'isProfessionalGroupPlan'
+  >
   projectId?: string
   projectName?: string
   projectOwner?: ProjectMetadata['owner']
@@ -91,6 +95,7 @@ export type EditorProvidersProps = {
   layoutContext?: Partial<LayoutContextValue>
   userSettings?: Record<string, any>
   providers?: Record<string, React.FC<React.PropsWithChildren<any>>>
+  mockCompileOnLoad?: boolean
 }
 
 export const projectDefaults: ProjectMetadata = {
@@ -174,6 +179,7 @@ export function EditorProviders({
   layoutContext = layoutContextDefault,
   userSettings = {},
   providers = {},
+  mockCompileOnLoad = false,
 }: EditorProvidersProps) {
   window.metaAttributesCache.set(
     'ol-gitBridgePublicBaseUrl',
@@ -193,6 +199,7 @@ export function EditorProviders({
     'dropbox',
     'link-sharing',
   ])
+  window.metaAttributesCache.set('ol-defaultLatexCompiler', 'pdflatex')
 
   const scope = merge(
     {
@@ -234,28 +241,87 @@ export function EditorProviders({
   window.metaAttributesCache.set('ol-user', { ...user, features })
   window.metaAttributesCache.set('ol-project_id', projectId)
 
+  const customProviders: Record<string, FC<PropsWithChildren>> = {
+    ConnectionProvider: makeConnectionProvider(socket),
+    IdeReactProvider: makeIdeReactProvider(scope, socket),
+    EditorOpenDocProvider: makeEditorOpenDocProvider({
+      currentDocumentId: scope.editor.currentDocumentId,
+      openDocName: scope.editor.openDocName,
+      currentDocument: scope.editor.sharejs_doc,
+    }),
+    EditorPropertiesProvider: makeEditorPropertiesProvider({
+      wantTrackChanges: scope.editor.wantTrackChanges,
+    }),
+    LayoutProvider: makeLayoutProvider(layoutContext),
+    ProjectProvider: makeProjectProvider(project),
+    ReferencesProvider: makeReferencesProvider(),
+    ...providers,
+  }
+
+  // Only use the mock EditorProvider when explicitly required
+  if (providers.EditorProvider) {
+    customProviders.EditorProvider = providers.EditorProvider
+  }
+
+  // Only override DetachCompileProvider when we need the mock
+  if (mockCompileOnLoad) {
+    customProviders.DetachCompileProvider =
+      makeDetachCompileProvider(mockCompileOnLoad)
+  }
+  // Otherwise, let ReactContextRoot use the real DetachCompileProvider from production
+
   return (
-    <ReactContextRoot
-      providers={{
-        ConnectionProvider: makeConnectionProvider(socket),
-        IdeReactProvider: makeIdeReactProvider(scope, socket),
-        EditorOpenDocProvider: makeEditorOpenDocProvider({
-          currentDocumentId: scope.editor.currentDocumentId,
-          openDocName: scope.editor.openDocName,
-          currentDocument: scope.editor.sharejs_doc,
-        }),
-        EditorPropertiesProvider: makeEditorPropertiesProvider({
-          wantTrackChanges: scope.editor.wantTrackChanges,
-        }),
-        LayoutProvider: makeLayoutProvider(layoutContext),
-        ProjectProvider: makeProjectProvider(project),
-        ReferencesProvider: makeReferencesProvider(),
-        ...providers,
-      }}
-    >
-      {children}
-    </ReactContextRoot>
+    <ReactContextRoot providers={customProviders}>{children}</ReactContextRoot>
   )
+}
+
+export function makeEditorProvider({
+  isProjectOwner = true,
+  cobranding = undefined,
+  renameProject = () => {},
+  isRestrictedTokenMember,
+  hasSuggestionsLeft = false,
+  hasTokensLeft = false,
+  premiumSuggestionResetDate = new Date(),
+  tokenResetDate = new Date(),
+}: {
+  isProjectOwner?: boolean
+  cobranding?: Cobranding
+  renameProject?: () => void
+  isRestrictedTokenMember?: boolean
+  hasSuggestionsLeft?: boolean
+  hasTokensLeft?: boolean
+  premiumSuggestionResetDate?: Date
+  tokenResetDate?: Date
+} = {}) {
+  const EditorProvider: FC<PropsWithChildren> = ({ children }) => {
+    const value = {
+      isProjectOwner,
+      renameProject,
+      isPendingEditor: false,
+      hasSuggestionsLeft,
+      premiumSuggestionResetDate,
+      hasTokensLeft,
+      tokensLeft: 0,
+      setTokensLeft: () => {},
+      tokenResetDate,
+      setTokenResetDate: () => {},
+      suggestionsLeft: 0,
+      setSuggestionsLeft: () => {},
+      setPremiumSuggestionResetDate: () => {},
+      writefullInstance: null,
+      setWritefullInstance: () => {},
+      cobranding,
+      isRestrictedTokenMember,
+      upgradeTrackChangesModal: { show: false },
+      setUpgradeTrackChangesModal: () => {},
+    }
+
+    return (
+      <EditorContext.Provider value={value}>{children}</EditorContext.Provider>
+    )
+  }
+  return EditorProvider
 }
 
 const makeReferencesProvider = () => {
@@ -513,6 +579,8 @@ const makeLayoutProvider = (
         restoreView,
         handleChangeLayout,
         handleDetach,
+        focusMode: layout.focusMode ?? false,
+        setFocusMode: layout.setFocusMode ?? (() => {}),
       }),
       [
         reattach,
@@ -586,6 +654,7 @@ export function makeEditorPropertiesProvider(
     const value = {
       showVisual,
       setShowVisual,
+      showVisualForFile: () => showVisual,
       showSymbolPalette,
       setShowSymbolPalette,
       toggleSymbolPalette,
@@ -639,4 +708,129 @@ export function makeProjectProvider(initialProject: ProjectMetadata) {
   }
 
   return ProjectProvider
+}
+
+const BASE_COMPILE_CONTEXT_MOCK = {
+  animateCompileDropdownArrow: false,
+  clearCache: () => {},
+  clearingCache: false,
+  clsiServerId: undefined,
+  codeCheckFailed: false,
+  deliveryLatencies: {},
+  editedSinceCompileStarted: false,
+  fileList: undefined,
+  hasChanges: false,
+  hasShortCompileTimeout: false,
+  highlights: undefined,
+  isProjectOwner: true,
+  lastCompileOptions: {},
+  logEntryAnnotations: undefined,
+  logEntries: undefined,
+  outputFilesArchive: undefined,
+  pdfViewer: 'pdfjs',
+  position: undefined,
+  rawLog: undefined,
+  recompileFromScratch: () => {},
+  setAnimateCompileDropdownArrow: () => {},
+  setHasLintingError: () => {},
+  setHighlights: () => {},
+  setPosition: () => {},
+  setShowCompileTimeWarning: () => {},
+  setShowLogs: () => {},
+  toggleLogs: () => {},
+  setStopOnValidationError: () => {},
+  showLogs: false,
+  showCompileTimeWarning: false,
+  stopCompile: () => {},
+  stopOnValidationError: true,
+  stoppedOnFirstError: false,
+  uncompiled: false,
+  validationIssues: undefined,
+  firstRenderDone: () => {},
+  setChangedAt: () => {},
+  cleanupCompileResult: undefined,
+  syncToEntry: () => {},
+  recordAction: () => {},
+  darkModePdf: false,
+  setDarkModePdf: () => {},
+  activeOverallTheme: 'light',
+} as const
+
+const makeDetachCompileProvider = (mockCompileOnLoad: boolean = false) => {
+  const DetachCompileProvider: FC<PropsWithChildren> = ({ children }) => {
+    const [pdfUrl, setPdfUrl] = useState<string | undefined>()
+    const [pdfDownloadUrl, setPdfDownloadUrl] = useState<string | undefined>()
+    const [pdfFile, setPdfFile] = useState<any>()
+    const [compiling, setCompiling] = useState(false)
+    const [error, setError] = useState<string | undefined>()
+    const [autoCompile, setAutoCompile] = useState(true)
+    const [draft, setDraft] = useState(false)
+    const [stopOnFirstError, setStopOnFirstError] = useState(false)
+
+    const startCompile = useCallback(async () => {
+      setCompiling(true)
+      try {
+        const response = await fetch('/project/123abc/compile', {
+          method: 'POST',
+        })
+        const data = await response.json()
+        const pdfFileData = data.outputFiles?.find(
+          (file: any) => file.type === 'pdf'
+        )
+        if (data.status === 'success' && pdfFileData) {
+          const newPdfUrl = `${data.pdfDownloadDomain || ''}${pdfFileData.url}`
+          const params = [
+            data.compileGroup && `compileGroup=${data.compileGroup}`,
+            data.clsiServerId && `clsiserverid=${data.clsiServerId}`,
+            `editorId=${EDITOR_SESSION_ID}`,
+            'popupDownload=true',
+          ]
+            .filter(Boolean)
+            .join('&')
+          const newPdfDownloadUrl = `/download/project/123abc/build/${pdfFileData.build}/output/${pdfFileData.path}?${params}`
+
+          setPdfUrl(newPdfUrl)
+          setPdfDownloadUrl(newPdfDownloadUrl)
+          setPdfFile({ pdfUrl: newPdfUrl, pdfDownloadUrl: newPdfDownloadUrl })
+        }
+      } catch (err) {
+        setError('Compile failed')
+      } finally {
+        setCompiling(false)
+      }
+    }, [])
+
+    useEffect(() => {
+      if (mockCompileOnLoad) {
+        startCompile()
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [startCompile])
+
+    const value = {
+      ...BASE_COMPILE_CONTEXT_MOCK,
+      autoCompile,
+      compiling,
+      draft,
+      error,
+      pdfDownloadUrl,
+      pdfFile,
+      pdfUrl,
+      setAutoCompile,
+      setCompiling,
+      setDraft,
+      setError,
+      setStopOnFirstError,
+      startCompile,
+      stopOnFirstError,
+    } as CompileContext
+
+    return (
+      <DetachCompileContext.Provider value={value}>
+        {children}
+      </DetachCompileContext.Provider>
+    )
+  }
+
+  return DetachCompileProvider
 }

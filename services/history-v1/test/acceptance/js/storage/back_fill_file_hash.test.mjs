@@ -471,6 +471,10 @@ describe('back_fill_file_hash script', function () {
 
   async function prepareEnvironment() {
     await cleanup.everything()
+    // Manually remove the guard that is created after running the binary files migration.
+    await db
+      .collection('migrations')
+      .deleteOne({ name: '20250519101128_binary_files_migration' })
     await mockFilestore.start()
     await populateMongo()
     await populateHistoryV1()

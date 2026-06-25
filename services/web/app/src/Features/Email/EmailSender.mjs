@@ -97,7 +97,7 @@ async function sendEmail(options, emailType) {
     metrics.inc('email')
     const sendMailOptions = {
       to: options.to,
-      from: EMAIL_SETTINGS.fromAddress || '',
+      from: options.from || EMAIL_SETTINGS.fromAddress || '',
       subject: options.subject,
       html: options.html,
       text: options.text,

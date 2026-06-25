@@ -756,7 +756,18 @@ describe('DocumentManager', function () {
       ]
       this.version = 34
       this.lines = ['original', 'lines']
-      this.ranges = { entries: 'mock', comments: 'mock' }
+      this.ranges = {
+        entries: 'mock',
+        comments: 'mock',
+        changes: [
+          { id: 'mock-change-id', metadata: { user_id: 'mock-user-id-0' } },
+          { id: 'mock-change-id-1', metadata: { user_id: 'mock-user-id-1' } },
+          { id: 'mock-change-id-2', metadata: { user_id: 'mock-user-id-2' } },
+          { id: 'mock-change-id-3', metadata: { user_id: 'mock-user-id-3' } },
+          { id: 'mock-change-id-4', metadata: { user_id: 'mock-user-id-4' } },
+          { id: 'other-change-id', metadata: { user_id: 'other-user-id' } },
+        ],
+      }
       this.updated_ranges = { entries: 'updated', comments: 'updated' }
       this.DocumentManager.promises.getDoc = sinon.stub().resolves({
         lines: this.lines,
@@ -768,7 +779,7 @@ describe('DocumentManager', function () {
 
     describe('successfully with a single change', function () {
       beforeEach(async function () {
-        await this.DocumentManager.promises.acceptChanges(
+        this.result = await this.DocumentManager.promises.acceptChanges(
           this.project_id,
           this.doc_id,
           [this.change_id]
@@ -803,11 +814,15 @@ describe('DocumentManager', function () {
           )
           .should.equal(true)
       })
+
+      it('should return the change contributors', function () {
+        expect(this.result).to.deep.equal(['mock-user-id-0'])
+      })
     })
 
     describe('successfully with multiple changes', function () {
       beforeEach(async function () {
-        await this.DocumentManager.promises.acceptChanges(
+        this.result = await this.DocumentManager.promises.acceptChanges(
           this.project_id,
           this.doc_id,
           this.change_ids
@@ -823,6 +838,15 @@ describe('DocumentManager', function () {
             this.ranges
           )
           .should.equal(true)
+      })
+
+      it('should return the change contributors', function () {
+        expect(this.result).to.deep.equal([
+          'mock-user-id-1',
+          'mock-user-id-2',
+          'mock-user-id-3',
+          'mock-user-id-4',
+        ])
       })
     })
 

@@ -51,12 +51,6 @@ describe('EmailSender', function () {
       () => ctx.RateLimiter
     )
 
-    vi.doMock('@overleaf/metrics', () => ({
-      default: {
-        inc() {},
-      },
-    }))
-
     ctx.EmailSender = (await import(MODULE_PATH)).default
 
     ctx.opts = {
@@ -102,6 +96,14 @@ describe('EmailSender', function () {
       await ctx.EmailSender.promises.sendEmail(ctx.opts)
       expect(ctx.sesClient.sendMail).to.have.been.calledWithMatch({
         replyTo: ctx.opts.replyTo,
+      })
+    })
+
+    it('should use opts.from as override for settings fromAddress when provided', async function (ctx) {
+      ctx.opts.from = 'no-reply@example.com'
+      await ctx.EmailSender.promises.sendEmail(ctx.opts)
+      expect(ctx.sesClient.sendMail).to.have.been.calledWithMatch({
+        from: 'no-reply@example.com',
       })
     })
 

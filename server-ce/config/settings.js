@@ -140,7 +140,6 @@ const settings = {
     api: redisConfig,
     pubsub: redisConfig,
     project_history: redisConfig,
-    references: redisConfig,
 
     project_history_migration: {
       host: redisConfig.host,
@@ -295,7 +294,6 @@ const settings = {
       ),
     },
   },
-  references: {},
   notifications: undefined,
 
   defaultFeatures: {
@@ -307,6 +305,16 @@ const settings = {
     trackChanges: true,
     references: true,
   },
+}
+
+// This secret is used for encrypting sharing link tokens in the database
+if (process.env.OVERLEAF_INVITE_TOKEN_SECRET) {
+  module.exports.projectInviteEncryptorOptions = {
+    cipherLabel: '2026.3-v3',
+    cipherPasswords: {
+      '2026.3-v3': process.env.OVERLEAF_INVITE_TOKEN_SECRET,
+    },
+  }
 }
 
 // # OPTIONAL CONFIGURABLE SETTINGS
@@ -428,14 +436,6 @@ if (
   }
 }
 
-// /References
-// -----------
-if (process.env.OVERLEAF_ELASTICSEARCH_URL != null) {
-  settings.references.elasticsearch = {
-    host: process.env.OVERLEAF_ELASTICSEARCH_URL,
-  }
-}
-
 // filestore
 switch (process.env.OVERLEAF_FILESTORE_BACKEND) {
   case 's3':
@@ -479,6 +479,8 @@ switch (process.env.OVERLEAF_FILESTORE_BACKEND) {
       },
     }
 }
+
+settings.converter = process.env.CONVERTER || 'pdftocairo'
 
 if (
   !settings.trustedProxyIps.includes('loopback') &&

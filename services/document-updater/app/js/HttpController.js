@@ -355,17 +355,19 @@ async function acceptChanges(req, res) {
     `accepting ${changeIds.length} changes via http`
   )
   const timer = new Metrics.Timer('http.acceptChanges')
-  await DocumentManager.promises.acceptChangesWithLock(
-    projectId,
-    docId,
-    changeIds
-  )
+  const changeContributors =
+    await DocumentManager.promises.acceptChangesWithLock(
+      projectId,
+      docId,
+      changeIds
+    )
   timer.done()
   logger.debug(
     { projectId, docId },
     `accepted ${changeIds.length} changes via http`
   )
-  res.sendStatus(204) // No Content
+
+  res.status(200).json({ changeContributors })
 }
 
 async function rejectChanges(req, res) {

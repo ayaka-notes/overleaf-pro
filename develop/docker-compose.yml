@@ -22,13 +22,11 @@ services:
     build:
       context: ..
       dockerfile: services/clsi/Dockerfile
+      target: with-texlive
     env_file:
       - dev.env
     environment:
-      - TEXLIVE_IMAGE=texlive-full # docker build texlive -t texlive-full
-      - SANDBOXED_COMPILES=true
-      - SANDBOXED_COMPILES_HOST_DIR_COMPILES=${PWD}/compiles
-      - SANDBOXED_COMPILES_HOST_DIR_OUTPUT=${PWD}/output
+      - SANDBOXED_COMPILES=false
     user: root
     volumes:
       - ${PWD}/compiles:/overleaf/services/clsi/compiles
@@ -36,12 +34,16 @@ services:
       - ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
       - clsi-cache:/overleaf/services/clsi/cache
 
-  contacts:
-    build:
-      context: ..
-      dockerfile: services/contacts/Dockerfile
-    env_file:
-      - dev.env
+  clsi-nginx:
+    image: nginx:1.28
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /run
+    volumes:
+      - ${PWD}/output:/output:ro
+      - ../services/clsi/nginx.conf:/etc/nginx/conf.d/nginx.conf:ro
 
   docstore:
     build:
@@ -63,8 +65,8 @@ services:
       dockerfile: services/filestore/Dockerfile
     env_file:
       - dev.env
-#    environment:
-#      - ENABLE_CONVERSIONS=true
+    #    environment:
+    #      - ENABLE_CONVERSIONS=true
     volumes:
       - filestore-public-files:/overleaf/services/filestore/public_files
       - filestore-template-files:/overleaf/services/filestore/template_files
@@ -83,7 +85,7 @@ services:
       context: ..
       dockerfile: services/history-v1/Dockerfile
     env_file:
-        - dev.env
+      - dev.env
     environment:
       OVERLEAF_EDITOR_ANALYTICS_BUCKET: "/buckets/analytics"
       OVERLEAF_EDITOR_BLOBS_BUCKET: "/buckets/blobs"
@@ -92,7 +94,7 @@ services:
       OVERLEAF_EDITOR_ZIPS_BUCKET: "/buckets/zips"
       PERSISTOR_BACKEND: fs
     volumes:
-        - history-v1-buckets:/buckets
+      - history-v1-buckets:/buckets
 
   linked-url-proxy:
     build:
@@ -102,7 +104,7 @@ services:
       - dev.env
 
   mongo:
-    image: mongo:6.0
+    image: mongo:8
     command: --replSet overleaf
     ports:
       - "127.0.0.1:27017:27017" # for debugging
@@ -129,7 +131,7 @@ services:
       context: ..
       dockerfile: services/project-history/Dockerfile
     env_file:
-        - dev.env
+      - dev.env
 
   real-time:
     build:
@@ -139,7 +141,7 @@ services:
       - dev.env
 
   redis:
-    image: redis:5
+    image: redis:7
     ports:
       - "127.0.0.1:6379:6379" # for debugging
     volumes:
@@ -168,7 +170,6 @@ services:
       - redis
       - chat
       - clsi
-      - contacts
       - docstore
       - document-updater
       - filestore
@@ -183,7 +184,8 @@ services:
       context: ..
       dockerfile: services/web/Dockerfile
       target: webpack
-    command: ["npx", "webpack", "serve", "--config", "webpack.config.dev-env.js"]
+    command:
+      ["npx", "webpack", "serve", "--config", "webpack.config.dev-env.js"]
     ports:
       - "127.0.0.1:80:3808"
     volumes:

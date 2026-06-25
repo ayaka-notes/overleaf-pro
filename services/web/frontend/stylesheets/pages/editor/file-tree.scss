@@ -148,7 +148,7 @@
     gap: var(--spacing-02);
   }
 
-  .item-name-button,
+  .item-name,
   .folder-expand-collapse-button {
     display: flex;
     align-items: center;
@@ -183,7 +183,7 @@
     }
   }
 
-  .item-name-button {
+  .item-name {
     margin-left: var(--spacing-02);
     overflow: hidden;
 
@@ -352,7 +352,7 @@
           border: 0;
           padding: 0;
 
-          &.item-name-button {
+          &.item-name {
             color: inherit;
             width: 100%;
             overflow: hidden;
@@ -423,11 +423,6 @@
           }
         }
 
-        &.file-tree-folder-icon {
-          margin-right: var(--spacing-02);
-          vertical-align: sub;
-        }
-
         &.file-tree-expand-icon {
           margin-left: var(--spacing-04);
           vertical-align: sub;
@@ -488,6 +483,31 @@
             }
           }
         }
+      }
+
+      .file-tree-bib-badge {
+        position: absolute;
+        right: var(--spacing-09);
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+
+        .material-symbols {
+          font-size: var(--font-size-03);
+
+          &.labs-badge {
+            color: var(--white);
+          }
+
+          &.info-badge {
+            color: var(--blue-50);
+          }
+        }
+      }
+
+      .file-tree-has-bib-badge .item-name {
+        padding-right: var(--spacing-09);
       }
 
       .menu-button {

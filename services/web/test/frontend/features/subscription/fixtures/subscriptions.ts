@@ -27,7 +27,7 @@ export const annualActiveSubscription: PaidSubscription = {
   planCode: 'collaborator-annual',
   plan: {
     planCode: 'collaborator-annual',
-    name: 'Standard (Collaborator) Annual',
+    name: 'Standard annual',
     price_in_cents: 21900,
     annual: true,
     featureDescription: [],
@@ -55,6 +55,7 @@ export const annualActiveSubscription: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: false,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
 }
 
@@ -70,7 +71,7 @@ export const annualActiveSubscriptionWithCoupons: PaidSubscription = {
   planCode: 'collaborator-annual',
   plan: {
     planCode: 'collaborator-annual',
-    name: 'Standard (Collaborator) Annual',
+    name: 'Standard annual',
     price_in_cents: 21900,
     annual: true,
     featureDescription: [],
@@ -101,6 +102,7 @@ export const annualActiveSubscriptionWithCoupons: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: false,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
 }
 
@@ -116,7 +118,7 @@ export const pendingPausedSubscription: PaidSubscription = {
   planCode: 'collaborator-annual',
   plan: {
     planCode: 'collaborator-annual',
-    name: 'Standard (Collaborator) Annual',
+    name: 'Standard annual',
     price_in_cents: 21900,
     annual: true,
     featureDescription: [],
@@ -145,6 +147,7 @@ export const pendingPausedSubscription: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: false,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
 }
 
@@ -160,7 +163,7 @@ export const pausedSubscription: PaidSubscription = {
   planCode: 'collaborator-annual',
   plan: {
     planCode: 'collaborator-annual',
-    name: 'Standard (Collaborator) Annual',
+    name: 'Standard annual',
     price_in_cents: 21900,
     annual: true,
     featureDescription: [],
@@ -189,6 +192,7 @@ export const pausedSubscription: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: false,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
 }
 
@@ -204,7 +208,7 @@ export const annualActiveSubscriptionWithAddons: PaidSubscription = {
   planCode: 'collaborator-annual',
   plan: {
     planCode: 'collaborator-annual',
-    name: 'Standard (Collaborator) Annual',
+    name: 'Standard annual',
     price_in_cents: 21900,
     annual: true,
     featureDescription: [],
@@ -234,6 +238,7 @@ export const annualActiveSubscriptionWithAddons: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: false,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
   addOns: [{ addOnCode: 'assistant', quantity: 1, unitAmountInCents: 10000 }],
 }
@@ -250,7 +255,7 @@ export const annualActiveSubscriptionEuro: PaidSubscription = {
   planCode: 'collaborator-annual',
   plan: {
     planCode: 'collaborator-annual',
-    name: 'Standard (Collaborator) Annual',
+    name: 'Standard annual',
     price_in_cents: 21900,
     annual: true,
     featureDescription: [],
@@ -278,6 +283,7 @@ export const annualActiveSubscriptionEuro: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: true,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
 }
 
@@ -293,7 +299,7 @@ export const annualActiveSubscriptionPro: PaidSubscription = {
   planCode: 'professional',
   plan: {
     planCode: 'professional',
-    name: 'Professional',
+    name: 'Pro monthly',
     price_in_cents: 4500,
     featureDescription: [],
     canUseFlexibleLicensing: false,
@@ -320,6 +326,7 @@ export const annualActiveSubscriptionPro: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: true,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
 }
 
@@ -335,7 +342,7 @@ export const pastDueExpiredSubscription: PaidSubscription = {
   planCode: 'collaborator-annual',
   plan: {
     planCode: 'collaborator-annual',
-    name: 'Standard (Collaborator) Annual',
+    name: 'Standard annual',
     price_in_cents: 21900,
     annual: true,
     featureDescription: [],
@@ -363,6 +370,7 @@ export const pastDueExpiredSubscription: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: true,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
 }
 
@@ -378,7 +386,7 @@ export const canceledSubscription: PaidSubscription = {
   planCode: 'collaborator-annual',
   plan: {
     planCode: 'collaborator-annual',
-    name: 'Standard (Collaborator) Annual',
+    name: 'Standard annual',
     price_in_cents: 21900,
     annual: true,
     featureDescription: [],
@@ -406,6 +414,65 @@ export const canceledSubscription: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: true,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
+  },
+}
+
+export const pendingAddOnChange: PaidSubscription = {
+  manager_ids: ['abc123'],
+  member_ids: [],
+  invited_emails: [],
+  groupPlan: false,
+  membersLimit: 0,
+  _id: 'add-on-change-123',
+  admin_id: 'abc123',
+  teamInvites: [],
+  planCode: 'collaborator-annual',
+  plan: {
+    planCode: 'collaborator-annual',
+    name: 'Standard annual',
+    price_in_cents: 21900,
+    annual: true,
+    featureDescription: [],
+    canUseFlexibleLicensing: false,
+  },
+  payment: {
+    taxRate: 0,
+    billingDetailsLink: '/user/subscription/payment/billing-details',
+    accountManagementLink: '/user/subscription/payment/account-management',
+    additionalLicenses: 0,
+    totalLicenses: 0,
+    nextPaymentDueAt,
+    nextPaymentDueDate,
+    currency: 'USD',
+    state: 'active',
+    trialEndsAtFormatted: null,
+    trialEndsAt: null,
+    activeCoupons: [],
+    accountEmail: 'fake@example.com',
+    hasPastDueInvoice: false,
+    displayPrice: '$199.00',
+    planOnlyDisplayPrice: '$199.00',
+    addOns: [
+      {
+        code: 'AI',
+        quantity: 1,
+        unitPrice: 1000,
+        name: 'AI Add-on',
+      },
+    ],
+    addOnDisplayPricesWithoutAdditionalLicense: {},
+    isEligibleForGroupPlan: true,
+    isEligibleForPause: false,
+    isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
+  },
+  pendingPlan: {
+    planCode: 'collaborator-annual',
+    name: 'Standard annual',
+    price_in_cents: 21900,
+    annual: true,
+    featureDescription: [],
   },
 }
 
@@ -421,7 +488,7 @@ export const pendingSubscriptionChange: PaidSubscription = {
   planCode: 'collaborator-annual',
   plan: {
     planCode: 'collaborator-annual',
-    name: 'Standard (Collaborator) Annual',
+    name: 'Standard annual',
     price_in_cents: 21900,
     annual: true,
     featureDescription: [],
@@ -449,10 +516,11 @@ export const pendingSubscriptionChange: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: false,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
   pendingPlan: {
     planCode: 'professional-annual',
-    name: 'Professional Annual',
+    name: 'Pro annual',
     price_in_cents: 42900,
     annual: true,
     featureDescription: [],
@@ -472,7 +540,7 @@ export const groupActiveSubscription: GroupSubscription = {
   planCode: 'group_collaborator_10_enterprise',
   plan: {
     planCode: 'group_collaborator_10_enterprise',
-    name: 'Overleaf Standard (Collaborator) - Group Account (10 licenses) - Enterprise',
+    name: 'Standard group (10 licenses)',
     hideFromUsers: true,
     price_in_cents: 129000,
     annual: true,
@@ -503,6 +571,7 @@ export const groupActiveSubscription: GroupSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: false,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
 }
 
@@ -519,7 +588,7 @@ export const groupProfessionalActiveSubscription: GroupSubscription = {
   planCode: 'group_professional_2_enterprise',
   plan: {
     planCode: 'group_professional_2_enterprise',
-    name: 'Group Professional Plan (2 licenses)',
+    name: 'Pro group (2 licenses)',
     hideFromUsers: true,
     price_in_cents: 129000,
     annual: true,
@@ -550,6 +619,7 @@ export const groupProfessionalActiveSubscription: GroupSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: false,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
 }
 
@@ -567,7 +637,7 @@ export const groupActiveSubscriptionWithPendingLicenseChange: GroupSubscription 
     planCode: 'group_collaborator_10_enterprise',
     plan: {
       planCode: 'group_collaborator_10_enterprise',
-      name: 'Overleaf Standard (Collaborator) - Group Account (10 licenses) - Enterprise',
+      name: 'Standard group (10 licenses)',
       hideFromUsers: true,
       price_in_cents: 129000,
       annual: true,
@@ -600,10 +670,11 @@ export const groupActiveSubscriptionWithPendingLicenseChange: GroupSubscription 
       isEligibleForGroupPlan: true,
       isEligibleForPause: false,
       isEligibleForDowngradeUpsell: false,
+      isMigratedFromRecurly: false,
     },
     pendingPlan: {
       planCode: 'group_collaborator_10_enterprise',
-      name: 'Overleaf Standard (Collaborator) - Group Account (10 licenses) - Enterprise',
+      name: 'Standard group (10 licenses)',
       hideFromUsers: true,
       price_in_cents: 129000,
       annual: true,
@@ -652,6 +723,7 @@ export const trialSubscription: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: false,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
 }
 
@@ -667,7 +739,7 @@ export const customSubscription: CustomSubscription = {
   planCode: 'collaborator-annual',
   plan: {
     planCode: 'collaborator-annual',
-    name: 'Standard (Collaborator) Annual',
+    name: 'Standard annual',
     price_in_cents: 21900,
     annual: true,
     featureDescription: [],
@@ -687,7 +759,7 @@ export const trialCollaboratorSubscription: PaidSubscription = {
   planCode: 'collaborator_free_trial_7_days',
   plan: {
     planCode: 'collaborator_free_trial_7_days',
-    name: 'Standard (Collaborator)',
+    name: 'Standard',
     price_in_cents: 2300,
     featureDescription: [],
     hideFromUsers: true,
@@ -715,6 +787,7 @@ export const trialCollaboratorSubscription: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: true,
     isEligibleForDowngradeUpsell: false,
+    isMigratedFromRecurly: false,
   },
 }
 
@@ -730,7 +803,7 @@ export const monthlyActiveCollaborator: PaidSubscription = {
   planCode: 'collaborator',
   plan: {
     planCode: 'collaborator',
-    name: 'Standard (Collaborator)',
+    name: 'Standard',
     price_in_cents: 212300900,
     featureDescription: [],
     canUseFlexibleLicensing: false,
@@ -757,5 +830,6 @@ export const monthlyActiveCollaborator: PaidSubscription = {
     isEligibleForGroupPlan: true,
     isEligibleForPause: true,
     isEligibleForDowngradeUpsell: true,
+    isMigratedFromRecurly: false,
   },
 }

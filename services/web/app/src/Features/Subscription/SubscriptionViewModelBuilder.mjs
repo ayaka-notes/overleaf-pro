@@ -25,6 +25,7 @@ const { MEMBERS_LIMIT_ADD_ON_CODE } = PaymentProviderEntities
 /**
  * @import { Subscription } from "../../../../types/project/dashboard/subscription"
  * @import { Subscription as DBSubscription } from "../../models/Subscription"
+ * @import { Institution } from "../../../../types/institution"
  */
 
 function buildHostedLink(type) {
@@ -270,6 +271,12 @@ async function buildUsersSubscriptionViewModel(user, locale = 'en') {
       isEligibleForPause = stripePauseAssignment.variant === 'enabled'
     }
 
+    let activeCoupons = paymentRecord.coupons
+    if (paymentRecord.subscription.service.includes('stripe')) {
+      // TODO: consider using discount.coupon.valid after removing Recurly
+      activeCoupons = activeCoupons.filter(ac => !ac.isSingleUse)
+    }
+
     personalSubscription.payment = {
       taxRate,
       billingDetailsLink:
@@ -292,13 +299,15 @@ async function buildUsersSubscriptionViewModel(user, locale = 'en') {
         paymentRecord.subscription.trialPeriodEnd
       ),
       trialEndsAt: paymentRecord.subscription.trialPeriodEnd,
-      activeCoupons: paymentRecord.coupons,
+      activeCoupons,
       accountEmail: paymentRecord.account.email,
       hasPastDueInvoice: paymentRecord.account.hasPastDueInvoice,
       pausedAt: paymentRecord.subscription.pausePeriodStart,
       remainingPauseCycles: paymentRecord.subscription.remainingPauseCycles,
       isEligibleForPause,
       isEligibleForGroupPlan: !isInTrial,
+      isMigratedFromRecurly:
+        paymentRecord.subscription.isMigratedFromRecurly ?? false,
     }
 
     const isMonthlyCollaboratorPlan =
@@ -320,30 +329,19 @@ async function buildUsersSubscriptionViewModel(user, locale = 'en') {
         throw new Error(`No plan found for planCode '${pendingPlanCode}'`)
       }
       let pendingAdditionalLicenses = 0
-      let pendingAddOnTax = 0
-      let pendingAddOnPrice = 0
+
       if (paymentRecord.subscription.pendingChange.nextAddOns) {
         const pendingAddOns =
           paymentRecord.subscription.pendingChange.nextAddOns
         pendingAddOns.forEach(addOn => {
-          pendingAddOnPrice += addOn.quantity * addOn.unitPrice
           if (addOn.code === pendingPlan.membersLimitAddOn) {
             pendingAdditionalLicenses += addOn.quantity
           }
         })
-        // Need to calculate tax ourselves as we don't get tax amounts for pending subs
-        pendingAddOnTax =
-          personalSubscription.payment.taxRate * pendingAddOnPrice
         pendingPlan.addOns = pendingAddOns
       }
-      const pendingSubscriptionTax =
-        personalSubscription.payment.taxRate *
-        paymentRecord.subscription.pendingChange.nextPlanPrice
-      const totalPrice =
-        paymentRecord.subscription.pendingChange.nextPlanPrice +
-        pendingAddOnPrice +
-        pendingAddOnTax +
-        pendingSubscriptionTax
+
+      const totalPrice = paymentRecord.subscription.planPrice + addOnPrice + tax
 
       personalSubscription.payment.displayPrice = formatCurrency(
         totalPrice,
@@ -393,16 +391,18 @@ async function buildUsersSubscriptionViewModel(user, locale = 'en') {
 
 /**
  * @param {{_id: string}} user
- * @returns {Promise<{bestSubscription:Subscription,individualSubscription:DBSubscription|null,memberGroupSubscriptions:DBSubscription[]}>}
+ * @returns {Promise<{bestSubscription:Subscription,individualSubscription:DBSubscription|null,memberGroupSubscriptions:DBSubscription[],managedGroupSubscriptions:DBSubscription[],currentInstitutionsWithLicence:Institution[]}>}
  */
 async function getUsersSubscriptionDetails(user) {
   let [
     individualSubscription,
     memberGroupSubscriptions,
+    managedGroupSubscriptions,
     currentInstitutionsWithLicence,
   ] = await Promise.all([
     SubscriptionLocator.promises.getUsersSubscription(user),
     SubscriptionLocator.promises.getMemberSubscriptions(user),
+    SubscriptionLocator.promises.getManagedGroupSubscriptions(user),
     InstitutionsGetter.promises.getCurrentInstitutionsWithLicence(user._id),
   ])
   if (
@@ -483,7 +483,13 @@ async function getUsersSubscriptionDetails(user) {
       }
     }
   }
-  return { bestSubscription, individualSubscription, memberGroupSubscriptions }
+  return {
+    bestSubscription,
+    individualSubscription,
+    memberGroupSubscriptions,
+    managedGroupSubscriptions,
+    currentInstitutionsWithLicence: currentInstitutionsWithLicence ?? [],
+  }
 }
 
 function buildPlansList(currentPlan, isInTrial) {
@@ -511,38 +517,18 @@ function buildPlansList(currentPlan, isInTrial) {
     )
   }
 
-  result.studentAccounts = _.filter(
-    plans,
-    plan => plan.planCode.indexOf('student') !== -1
-  )
-
-  result.groupMonthlyPlans = _.filter(
-    plans,
-    plan => plan.groupPlan && !plan.annual
-  )
-
-  result.groupAnnualPlans = _.filter(
-    plans,
-    plan => plan.groupPlan && plan.annual
-  )
-
-  result.individualMonthlyPlans = _.filter(
-    plans,
-    plan =>
-      !plan.groupPlan &&
-      !plan.annual &&
-      plan.planCode !== 'personal' && // Prevent the personal plan from appearing on the change-plans page
-      plan.planCode.indexOf('student') === -1
-  )
-
-  result.individualAnnualPlans = _.filter(
-    plans,
-    plan =>
-      !plan.groupPlan && plan.annual && plan.planCode.indexOf('student') === -1
-  )
-
   return result
 }
+
+// Plan codes shown in the subscription dashboard "Change plan" modal,
+const CHANGE_PLAN_MODAL_PLAN_CODES = [
+  'student',
+  'student-annual',
+  'collaborator',
+  'collaborator-annual',
+  'professional',
+  'professional-annual',
+]
 
 function _isPlanEqualOrBetter(planA, planB) {
   return FeaturesHelper.isFeatureSetBetter(
@@ -566,7 +552,7 @@ function buildGroupSubscriptionForView(groupSubscription) {
   // most group plans in Recurly should be in form "group_plancode_size_usage"
   const planLevelFromGroupPlanCode = groupSubscription.planCode.substr(6, 12)
   if (planLevelFromGroupPlanCode === 'professional') {
-    groupSubscription.planLevelName = 'Professional'
+    groupSubscription.planLevelName = 'Pro'
   } else if (planLevelFromGroupPlanCode === 'collaborator') {
     groupSubscription.planLevelName = 'Standard'
   }
@@ -574,7 +560,7 @@ function buildGroupSubscriptionForView(groupSubscription) {
   // this fallback tries to still show the right thing in these cases:
   if (!groupSubscription.planLevelName) {
     if (groupSubscription.planCode.startsWith('professional')) {
-      groupSubscription.planLevelName = 'Professional'
+      groupSubscription.planLevelName = 'Pro'
     } else if (groupSubscription.planCode.startsWith('collaborator')) {
       groupSubscription.planLevelName = 'Standard'
     } else {
@@ -590,28 +576,15 @@ function buildGroupSubscriptionForView(groupSubscription) {
 }
 
 function buildPlansListForSubscriptionDash(currentPlan, isInTrial) {
-  const allPlansData = buildPlansList(currentPlan, isInTrial)
-  const plans = []
-  // only list individual and visible plans for "change plans" UI
-  if (allPlansData.studentAccounts) {
-    plans.push(
-      ...allPlansData.studentAccounts.filter(plan => !plan.hideFromUsers)
-    )
-  }
-  if (allPlansData.individualMonthlyPlans) {
-    plans.push(
-      ...allPlansData.individualMonthlyPlans.filter(plan => !plan.hideFromUsers)
-    )
-  }
-  if (allPlansData.individualAnnualPlans) {
-    plans.push(
-      ...allPlansData.individualAnnualPlans.filter(plan => !plan.hideFromUsers)
-    )
-  }
-
+  const { allPlans, planCodesChangingAtTermEnd } = buildPlansList(
+    currentPlan,
+    isInTrial
+  )
   return {
-    plans,
-    planCodesChangingAtTermEnd: allPlansData.planCodesChangingAtTermEnd,
+    plans: CHANGE_PLAN_MODAL_PLAN_CODES.map(code => allPlans[code]).filter(
+      Boolean
+    ),
+    planCodesChangingAtTermEnd,
   }
 }
 

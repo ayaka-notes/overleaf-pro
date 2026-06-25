@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import DSFormRadio from '@/shared/components/ds/ds-form-radio'
 import { figmaDesignUrl } from '../../../../.storybook/utils/figma-design-url'
 

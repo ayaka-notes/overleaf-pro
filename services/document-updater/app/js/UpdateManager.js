@@ -13,6 +13,7 @@ const Errors = require('./Errors')
 const DocumentManager = require('./DocumentManager')
 const RangesManager = require('./RangesManager')
 const SnapshotManager = require('./SnapshotManager')
+const WebApiManager = require('./WebApiManager')
 const Profiler = require('./Profiler')
 const { isInsert, isDelete, getDocLength, computeDocHash } = require('./Utils')
 const HistoryOTUpdateManager = require('./HistoryOTUpdateManager')
@@ -143,15 +144,19 @@ const UpdateManager = {
         sync: incomingUpdateVersion === previousVersion,
       })
 
-      const { newRanges, rangesWereCollapsed, historyUpdates } =
-        RangesManager.applyUpdate(
-          projectId,
-          docId,
-          ranges,
-          appliedOps,
-          updatedDocLines,
-          { historyRangesSupport }
-        )
+      const {
+        newRanges,
+        rangesWereCollapsed,
+        historyUpdates,
+        removedChangeIds,
+      } = RangesManager.applyUpdate(
+        projectId,
+        docId,
+        ranges,
+        appliedOps,
+        updatedDocLines,
+        { historyRangesSupport }
+      )
       profile.log('RangesManager.applyUpdate', { sync: true })
 
       await RedisManager.promises.updateDocument(
@@ -195,6 +200,39 @@ const UpdateManager = {
           // Just record the error here and acknowledge the write-op.
           Metrics.inc('history-queue-error')
         }
+        const timestamp = update.meta?.ts || Date.now()
+        await RedisManager.promises.recordProjectNotificationTimestamp(
+          projectId,
+          timestamp
+        )
+        profile.log('recordProjectNotificationTimestamp')
+      }
+
+      // applyUpdate is not triggered by accept change operations, so any
+      // tracked change removed by the ops we just applied was rejected.
+      // Look up the authors of those rejected changes from the pre-update
+      // ranges so we can notify web below.
+      if (removedChangeIds.length > 0) {
+        const rejectedChangeAuthorIds = (ranges?.changes || [])
+          .filter(change => removedChangeIds.includes(change.id))
+          .map(change => change.metadata.user_id)
+
+        // Fire-and-forget without awaiting because
+        // we hold the doc lock here, and the result of the
+        // notification doesn't affect the update
+        WebApiManager.promises
+          .notifyTrackChangesRejected(
+            projectId,
+            docId,
+            rejectedChangeAuthorIds,
+            update.meta?.user_id
+          )
+          .catch(err => {
+            logger.warn(
+              { err, projectId, docId, rejectedChangeAuthorIds },
+              'failed to notify web of rejected track changes'
+            )
+          })
       }
 
       if (rangesWereCollapsed) {

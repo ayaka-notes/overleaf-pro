@@ -14,20 +14,22 @@ import logger from '@overleaf/logger'
  */
 
 function ensurePlansAreSetupCorrectly() {
-  Settings.plans.forEach(plan => {
-    if (typeof plan.price_in_cents !== 'number') {
-      logger.fatal({ plan }, 'missing price on plan')
-      process.exit(1)
+  Settings.plans.forEach(
+    /** @param {any} plan */ plan => {
+      if (typeof plan.price_in_cents !== 'number') {
+        logger.fatal({ plan }, 'missing price on plan')
+        process.exit(1)
+      }
+      if (plan.price) {
+        logger.fatal({ plan }, 'unclear price attribute on plan')
+        process.exit(1)
+      }
+      if (plan.price_in_unit) {
+        logger.fatal({ plan }, 'deprecated price_in_unit attribute on plan')
+        process.exit(1)
+      }
     }
-    if (plan.price) {
-      logger.fatal({ plan }, 'unclear price attribute on plan')
-      process.exit(1)
-    }
-    if (plan.price_in_unit) {
-      logger.fatal({ plan }, 'deprecated price_in_unit attribute on plan')
-      process.exit(1)
-    }
-  })
+  )
 }
 
 /**
@@ -56,7 +58,7 @@ const recurlyCodeToStripeBaseLookupKey = {
 }
 
 // Keep in sync with StripeLookupKeyVersion in types/subscription/plan.ts
-const LATEST_STRIPE_LOOKUP_KEY_VERSION = 'nov2025'
+const LATEST_STRIPE_LOOKUP_KEY_VERSION = 'feb2026'
 
 /**
  * Build the Stripe lookup key, will be in this format:
@@ -118,10 +120,19 @@ const recurlyPlanCodeToPlanTypeAndPeriod = {
 }
 
 /**
- * @param {RecurlyPlanCode} recurlyPlanCode
+ * @param {string} key
+ * @returns {key is RecurlyPlanCode}
+ */
+function isRecurlyPlanCode(key) {
+  return Object.hasOwn(recurlyPlanCodeToPlanTypeAndPeriod, key)
+}
+
+/**
+ * @param {string} recurlyPlanCode
  * @returns {PlanTypeAndPeriod | undefined}
  */
 function getPlanTypeAndPeriodFromRecurlyPlanCode(recurlyPlanCode) {
+  if (!isRecurlyPlanCode(recurlyPlanCode)) return undefined
   return recurlyPlanCodeToPlanTypeAndPeriod[recurlyPlanCode]
 }
 

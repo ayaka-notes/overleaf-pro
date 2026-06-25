@@ -22,7 +22,14 @@ async function getDoc(req, res) {
 async function peekDoc(req, res) {
   const { doc_id: docId, project_id: projectId } = req.params
   logger.debug({ projectId, docId }, 'peeking doc')
-  const doc = await DocManager.peekDoc(projectId, docId)
+  const doc = await DocManager.peekDoc(projectId, docId, {
+    deleted: true,
+    inS3: true,
+    lines: true,
+    ranges: true,
+    rev: 1,
+    version: true,
+  })
   res.setHeader('x-doc-status', doc.inS3 ? 'archived' : 'active')
   res.json(_buildDocView(doc))
 }
@@ -56,6 +63,30 @@ async function getAllDocs(req, res) {
     }
   }
   res.json(docViews)
+}
+
+async function getAllDocsWithRanges(req, res) {
+  const { project_id: projectId } = req.params
+  logger.debug({ projectId }, 'getting all docs with ranges')
+  const docs = await DocManager.getAllNonDeletedDocs(projectId, {
+    lines: true,
+    rev: true,
+    ranges: true,
+  })
+  const docViews = _buildDocsArrayView(projectId, docs)
+  for (const docView of docViews) {
+    if (!docView.lines) {
+      logger.warn({ projectId, docId: docView._id }, 'missing doc lines')
+      docView.lines = []
+    }
+  }
+  res.json(docViews)
+}
+
+async function getAllDocVersions(req, res) {
+  const { project_id: projectId } = req.params
+  const docs = await DocManager.getAllDocVersions(projectId)
+  res.json(docs)
 }
 
 async function getAllDeletedDocs(req, res) {
@@ -97,7 +128,11 @@ async function getTrackedChangesUserIds(req, res) {
 
 async function projectHasRanges(req, res) {
   const { project_id: projectId } = req.params
-  const projectHasRanges = await DocManager.projectHasRanges(projectId)
+  const useSecondary = req.query.useSecondary === 'true'
+  const projectHasRanges = await DocManager.projectHasRanges(
+    projectId,
+    useSecondary
+  )
   res.json({ projectHasRanges })
 }
 
@@ -242,8 +277,10 @@ export default {
   isDocDeleted: expressify(isDocDeleted),
   getRawDoc: expressify(getRawDoc),
   getAllDocs: expressify(getAllDocs),
+  getAllDocsWithRanges: expressify(getAllDocsWithRanges),
   getAllDeletedDocs: expressify(getAllDeletedDocs),
   getAllRanges: expressify(getAllRanges),
+  getAllDocVersions: expressify(getAllDocVersions),
   getTrackedChangesUserIds: expressify(getTrackedChangesUserIds),
   getCommentThreadIds: expressify(getCommentThreadIds),
   projectHasRanges: expressify(projectHasRanges),

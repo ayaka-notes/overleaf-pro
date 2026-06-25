@@ -21,12 +21,6 @@ const {
 const HTTP_PORT = 30001
 const HTTPS_PORT = 30002
 
-const attrs = [{ name: 'commonName', value: 'example.com' }]
-const pems = selfsigned.generate(attrs, { days: 365 })
-
-const PRIVATE_KEY = pems.private
-const PUBLIC_CERT = pems.cert
-
 const dns = require('node:dns')
 const _originalLookup = dns.lookup
 // Custom DNS resolver function
@@ -45,8 +39,15 @@ dns.lookup = (hostname, options, callback) => {
 }
 
 describe('fetch-utils', function () {
+  let PUBLIC_CERT
+
   before(async function () {
     this.server = new TestServer()
+    const attrs = [{ name: 'commonName', value: 'example.com' }]
+    const pems = await selfsigned.generate(attrs, { days: 365, keySize: 2048 })
+
+    const PRIVATE_KEY = pems.private
+    PUBLIC_CERT = pems.cert
     await this.server.start(HTTP_PORT, HTTPS_PORT, {
       key: PRIVATE_KEY,
       cert: PUBLIC_CERT,

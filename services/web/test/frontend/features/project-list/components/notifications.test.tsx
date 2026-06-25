@@ -273,7 +273,7 @@ describe('<UserNotifications />', function () {
       screen.getByText(/it looks like you’re at/i)
       screen.getByText(/did you know that/i)
       screen.getByText(
-        /add an institutional email address to claim your features/i
+        /add your university email address to see if you qualify/i
       )
 
       const addAffiliation = screen.getByRole('link', {
@@ -627,6 +627,31 @@ describe('<UserNotifications />', function () {
 
       expect(screen.queryByRole('alert')).to.be.null
     })
+
+    it('shows reconfirmation unable-to-find-user error content', function () {
+      const institution: DeepPartial<InstitutionType> = {
+        templateKey: 'notification_institution_sso_error',
+        error: {
+          name: 'SAMLCommonsReconfirmationUnableToFindUserError',
+        },
+      }
+      window.metaAttributesCache.set('ol-notificationsInstitution', [
+        { ...notificationsInstitution, ...institution },
+      ])
+      render(<Institution />)
+
+      screen.getByRole('alert')
+      screen.getByText(/unable to confirm your affiliation/i)
+
+      const contactLink = screen.getByRole('link', { name: /contact us/i })
+      expect(contactLink.getAttribute('href')).to.equal('/contact')
+      expect(contactLink.getAttribute('target')).to.equal('_blank')
+
+      const closeBtn = screen.getByRole('button', { name: /close/i })
+      fireEvent.click(closeBtn)
+
+      expect(screen.queryByRole('alert')).to.be.null
+    })
   })
 
   describe('getEmailDeletionDate', function () {
@@ -790,6 +815,7 @@ describe('<UserNotifications />', function () {
       })
       const resendButton = resendButtons[0]
       fireEvent.click(resendButton)
+      await fetchMock.callHistory.flush(true)
 
       await screen.findByRole('dialog')
 
@@ -810,10 +836,10 @@ describe('<UserNotifications />', function () {
         const alert = await screen.findByRole('alert')
         const email = unconfirmedCommonsUserData.email
         expect(alert.textContent).to.contain(
-          'You are one step away from accessing Overleaf Professional features'
+          'You are one step away from accessing Overleaf premium features'
         )
         expect(alert.textContent).to.contain(
-          `Overleaf has an Overleaf subscription. Click the confirmation link sent to ${email} to upgrade to Overleaf Professional`
+          `Overleaf has an Overleaf subscription. Click the confirmation link sent to ${email} to upgrade to Overleaf Commons`
         )
       })
     }

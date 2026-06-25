@@ -20,8 +20,12 @@ function ReactivateSubscription() {
     location.reload()
   }
 
-  // Don't show the button to reactivate the subscription for managed users
-  if (getMeta('ol-cannot-reactivate-subscription')) {
+  // Don't show the button to reactivate the subscription for managed users,
+  // unless they are a managed group admin (who should be able to reactivate their own subscription)
+  if (
+    getMeta('ol-cannot-reactivate-subscription') &&
+    !getMeta('ol-isManagedGroupAdmin')
+  ) {
     return null
   }
 

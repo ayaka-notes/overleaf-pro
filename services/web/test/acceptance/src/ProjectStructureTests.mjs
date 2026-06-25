@@ -250,6 +250,24 @@ describe('ProjectStructureChanges', function () {
     })
   })
 
+  describe('uploading a project containing a filename that is too long', function () {
+    let res
+
+    beforeEach(async function () {
+      const { response } = await uploadExampleProject(
+        owner,
+        'test_project_with_too_long_filename.zip',
+        { allowBadStatus: true }
+      )
+
+      res = response
+    })
+
+    it('should fail with 422 error', function () {
+      expect(res.statusCode).to.equal(422)
+    })
+  })
+
   describe('deleting folders', function () {
     beforeEach(async function () {
       const { projectId } = await createExampleProject(owner)

@@ -17,6 +17,7 @@ import LimitationsManager from '../Subscription/LimitationsManager.mjs'
 import PrivilegeLevels from '../Authorization/PrivilegeLevels.mjs'
 import { z, zz, parseReq } from '../../infrastructure/Validation.mjs'
 import Features from '../../infrastructure/Features.mjs'
+import UserGetter from '../User/UserGetter.mjs'
 
 const { hasAdminAccess } = AdminAuthorizationHelper
 const ObjectId = mongodb.ObjectId
@@ -39,12 +40,20 @@ async function removeUserFromProject(req, res, next) {
     members: true,
   })
 
+  const removedUser = await UserGetter.promises.getUser(
+    { _id: userId },
+    { email: 1 }
+  )
+
   ProjectAuditLogHandler.addEntryInBackground(
     projectId,
     'remove-collaborator',
     sessionUserId,
     req.ip,
-    { userId }
+    {
+      userId,
+      collaboratorEmail: removedUser?.email,
+    }
   )
 
   res.sendStatus(204)
@@ -54,6 +63,9 @@ async function removeSelfFromProject(req, res, next) {
   const projectId = req.params.Project_id
   const userId = SessionManager.getLoggedInUserId(req.session)
   await _removeUserIdFromProject(projectId, userId)
+  EditorRealTimeController.emitToRoom(projectId, 'project:membership:changed', {
+    members: true,
+  })
 
   ProjectAuditLogHandler.addEntryInBackground(
     projectId,
@@ -112,10 +124,17 @@ async function setCollaboratorInfo(req, res, next) {
       )
     }
 
+    const auditInfo = {
+      ipAddress: req.ip,
+      initiatorId: SessionManager.getLoggedInUserId(req.session),
+    }
+
     await CollaboratorsHandler.promises.setCollaboratorPrivilegeLevel(
       projectId,
       userId,
-      privilegeLevel
+      privilegeLevel,
+      {},
+      auditInfo
     )
     EditorRealTimeController.emitToRoom(
       projectId,

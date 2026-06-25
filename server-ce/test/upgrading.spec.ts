@@ -1,6 +1,6 @@
 import { ensureUserExists, login } from './helpers/login'
 import { isExcludedBySharding, startWith } from './helpers/config'
-import { dockerCompose, runScript } from './helpers/hostAdminClient'
+import { runScript } from './helpers/hostAdminClient'
 import { createProject, openProjectByName } from './helpers/project'
 import { prepareWaitForNextCompileSlot } from './helpers/compile'
 import { v4 as uuid } from 'uuid'
@@ -186,75 +186,6 @@ describe('Upgrading', function () {
       { version: '5.0' },
       optionsBinaryFilesMigration,
       { version: 'latest' },
-    ])
-  })
-  describe('doc version recovery', function () {
-    testUpgrade([
-      optionsFourDotTwo,
-      {
-        version: '5.0.1-RC1',
-        hook() {
-          before(function () {
-            login(USER)
-            waitForCompile(() => {
-              openProjectByName(PROJECT_NAME)
-            })
-
-            cy.log('Make a change')
-            cy.findByText('\\maketitle').parent().click()
-            cy.findByText('\\maketitle')
-              .parent()
-              .type('\n\\section{{}FiveOOne Section}')
-
-            cy.log('Trigger flush')
-            recompile()
-            cy.findByLabelText(/Page.*1/i).findByText('FiveOOne Section')
-
-            cy.log('Check for broken history, i.e. not synced with latest edit')
-            cy.findByRole('button', { name: 'History' }).click()
-            cy.findByText(/\\section\{Old Section 2}/) // wait for lazy loading
-            cy.findByText(/\\section\{FiveOOne Section}/).should('not.exist')
-          })
-        },
-      },
-      optionsBinaryFilesMigration,
-      {
-        version: 'latest',
-        hook() {
-          before(async function () {
-            this.timeout(20_000)
-            const needle = 'Finished resyncing history for all projects.'
-            for (let i = 0; i < 30; i++) {
-              const { stdout } = await dockerCompose('logs', 'sharelatex')
-              if (stdout.includes(needle)) {
-                return
-              }
-              await new Promise(resolve => setTimeout(resolve, 500))
-            }
-            const { stdout } = await dockerCompose('logs', 'sharelatex')
-            expect(stdout).to.contain(
-              needle,
-              'Doc version recovery did not finish yet.'
-            )
-          })
-
-          before(function () {
-            login(USER)
-            cy.visit('/')
-            cy.findByText(PROJECT_NAME).click()
-
-            cy.log(
-              'The edit that was made while the history was broken should be there now.'
-            )
-            cy.findByRole('button', { name: 'History' }).click()
-            cy.findByText(/\\section\{FiveOOne Section}/)
-
-            // TODO(das7pad): restore after https://github.com/overleaf/internal/issues/19588 is fixed.
-            // cy.log('Check indicator of force resync')
-            // cy.findByText('Overleaf History System')
-          })
-        },
-      },
     ])
   })
 })

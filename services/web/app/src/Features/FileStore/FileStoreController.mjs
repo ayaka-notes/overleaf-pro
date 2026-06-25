@@ -9,6 +9,10 @@ import HistoryManager from '../History/HistoryManager.mjs'
 import Errors from '../Errors/Errors.js'
 import { preparePlainTextResponse } from '../../infrastructure/Response.mjs'
 
+/**
+ * @param {any} req
+ * @param {any} res
+ */
 async function getFile(req, res) {
   const projectId = req.params.Project_id
   const fileId = req.params.File_id
@@ -91,7 +95,8 @@ async function getFile(req, res) {
     if (
       err instanceof Error &&
       'code' in err &&
-      err.code === 'ERR_STREAM_PREMATURE_CLOSE'
+      (err.code === 'ERR_STREAM_PREMATURE_CLOSE' ||
+        err.code === 'ERR_STREAM_UNABLE_TO_PIPE')
     ) {
       // Ignore clients closing the connection prematurely
       return
@@ -100,6 +105,10 @@ async function getFile(req, res) {
   }
 }
 
+/**
+ * @param {any} req
+ * @param {any} res
+ */
 async function getFileHead(req, res) {
   const projectId = req.params.Project_id
   const fileId = req.params.File_id
@@ -158,6 +167,9 @@ async function getFileHead(req, res) {
   res.status(200).end()
 }
 
+/**
+ * @param {any} file
+ */
 function isHtml(file) {
   return (
     fileEndsWith(file, '.html') ||
@@ -166,6 +178,10 @@ function isHtml(file) {
   )
 }
 
+/**
+ * @param {any} file
+ * @param {any} ext
+ */
 function fileEndsWith(file, ext) {
   return (
     file.name != null &&
@@ -174,6 +190,9 @@ function fileEndsWith(file, ext) {
   )
 }
 
+/**
+ * @param {any} userAgent
+ */
 function isMobileSafari(userAgent) {
   return (
     userAgent &&

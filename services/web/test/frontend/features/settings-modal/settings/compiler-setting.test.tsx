@@ -1,12 +1,12 @@
 import { screen, within, render } from '@testing-library/react'
 import { expect } from 'chai'
 import fetchMock from 'fetch-mock'
-import { SettingsModalProvider } from '@/features/ide-redesign/contexts/settings-modal-context'
+import { SettingsModalProvider } from '@/features/settings/context/settings-modal-context'
 import {
   EditorProviders,
   projectDefaults,
 } from '../../../helpers/editor-providers'
-import CompilerSetting from '@/features/ide-redesign/components/settings/compiler-settings/compiler-setting'
+import CompilerSetting from '@/features/settings/components/compiler-settings/compiler-setting'
 import userEvent from '@testing-library/user-event'
 
 const OPTIONS = [

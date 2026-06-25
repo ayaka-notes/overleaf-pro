@@ -1,14 +1,28 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import WelcomeMessage from '../../../../../frontend/js/features/project-list/components/welcome-message'
+import WelcomeMessageComponent from '../../../../../frontend/js/features/project-list/components/welcome-message'
 import { expect } from 'chai'
 import getMeta from '@/utils/meta'
+import { SplitTestProvider } from '@/shared/context/split-test-context'
+
+const WelcomeMessage = () => {
+  return (
+    <SplitTestProvider>
+      <WelcomeMessageComponent />
+    </SplitTestProvider>
+  )
+}
 
 describe('<WelcomeMessage />', function () {
   beforeEach(function () {
+    window.metaAttributesCache.set('ol-splitTestVariants', {
+      'import-docx': 'enabled',
+    })
+
     Object.assign(getMeta('ol-ExposedSettings'), {
       isOverleaf: true,
       wikiEnabled: true,
       templatesEnabled: true,
+      enablePandocConversions: true,
     })
   })
 
@@ -33,7 +47,22 @@ describe('<WelcomeMessage />', function () {
     screen.getByText('Blank project')
     screen.getByText('Example project')
     screen.getByText('Upload project')
+    screen.getByText('Import Word document')
     screen.getByText('Import from GitHub')
+  })
+
+  it('does not show the import from Word document when the feature is disabled', function () {
+    getMeta('ol-ExposedSettings').enablePandocConversions = false
+    render(<WelcomeMessage />)
+
+    const button = screen.getByRole('button', {
+      name: 'Create a new project',
+    })
+
+    fireEvent.click(button)
+
+    screen.getByText('Blank project')
+    expect(screen.queryByText('Import Word document')).to.not.exist
   })
 
   it('show the correct dropdown menu for affiliated users', function () {

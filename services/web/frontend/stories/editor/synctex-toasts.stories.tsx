@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/react'
+import { Meta, StoryObj } from '@storybook/react-webpack5'
 import { OLToast } from '@/shared/components/ol/ol-toast'
 import { SynctexFileErrorToast } from '@/features/pdf-preview/components/synctex-toasts'
 

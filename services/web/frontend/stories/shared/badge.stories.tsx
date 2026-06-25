@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import classnames from 'classnames'
 import { figmaDesignUrl } from '../../../.storybook/utils/figma-design-url'
 import Badge from '@/shared/components/badge/badge'

@@ -8,7 +8,7 @@ import RangesTracker from '@overleaf/ranges-tracker'
 import useExposedState from '@/shared/hooks/use-exposed-state'
 import { EditorOpenDocContext } from '@/features/ide-react/context/editor-open-doc-context'
 import { DocId } from '../../../types/project-settings'
-import { StoryObj } from '@storybook/react'
+import { StoryObj } from '@storybook/react-webpack5'
 import { DocumentContainer } from '@/features/ide-react/editor/document-container'
 import { EditorPropertiesContext } from '@/features/ide-react/context/editor-properties-context'
 
@@ -92,6 +92,7 @@ const VisualEditorPropertiesProvider: FC<React.PropsWithChildren> = ({
   const value = {
     showVisual,
     setShowVisual,
+    showVisualForFile: () => showVisual,
     showSymbolPalette: true,
     setShowSymbolPalette: () => undefined,
     toggleSymbolPalette: () => undefined,
@@ -262,7 +263,7 @@ export const Visual: Story = {
       })
 
       useMeta({
-        'ol-mathJaxPath': 'https://unpkg.com/mathjax@3.2.2/es5/tex-svg-full.js',
+        'ol-mathJaxPath': 'https://unpkg.com/mathjax@4.1.2/tex-svg.js',
         'ol-project_id': '63e21c07946dd8c76505f85a',
       })
 
@@ -330,7 +331,7 @@ const mockDoc = (content: string, changes: Array<Record<string, any>> = []) => {
       // Do nothing
     },
     getType: () => {
-      return 'history-ot'
+      return 'sharejs-text-ot'
     },
     on: () => {
       // Do nothing

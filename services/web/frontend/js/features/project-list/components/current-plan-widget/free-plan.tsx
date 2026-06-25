@@ -4,10 +4,12 @@ import OLTooltip from '@/shared/components/ol/ol-tooltip'
 import MaterialIcon from '@/shared/components/material-icon'
 import { FreePlanSubscription } from '../../../../../../types/project/dashboard/subscription'
 import * as eventTracking from '../../../../infrastructure/event-tracking'
+import { isSplitTestEnabled } from '@/utils/splitTestUtils'
 
 type FreePlanProps = Pick<FreePlanSubscription, 'featuresPageURL'>
 
 function FreePlan({ featuresPageURL }: FreePlanProps) {
+  const isLibraryEnabled = isSplitTestEnabled('overleaf-library')
   const { t } = useTranslation()
   const currentPlanLabel = (
     <Trans
@@ -43,7 +45,8 @@ function FreePlan({ featuresPageURL }: FreePlanProps) {
       </OLTooltip>{' '}
       <span className="d-none d-md-inline-block">
         <OLButton
-          variant="primary"
+          variant={isLibraryEnabled ? 'premium' : 'primary'}
+          size={isLibraryEnabled ? 'sm' : undefined}
           href="/user/subscription/plans"
           onClick={handleClick}
         >

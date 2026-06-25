@@ -1,4 +1,4 @@
-import { Meta, type StoryObj } from '@storybook/react'
+import { Meta, type StoryObj } from '@storybook/react-webpack5'
 import { figmaDesignUrl } from '../../../../.storybook/utils/figma-design-url'
 import DSSelectionGroup from '@/shared/components/ds/ds-selection-group'
 import DSSelectionGroupItem from '@/shared/components/ds/ds-selection-group-item'

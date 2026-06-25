@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import FileWriter from '../../infrastructure/FileWriter.mjs'
 import EditorController from '../Editor/EditorController.mjs'
 import ProjectLocator from '../Project/ProjectLocator.mjs'
@@ -59,19 +60,23 @@ const LinkedFilesHandler = {
     userId
   ) {
     const fsPath = await FileWriter.promises.writeStreamToDisk(
-      projectId,
+      projectId + '_linked-files-handler-stream',
       readStream
     )
 
-    return await EditorController.promises.upsertFile(
-      projectId,
-      parentFolderId,
-      name,
-      fsPath,
-      linkedFileData,
-      'upload',
-      userId
-    )
+    try {
+      return await EditorController.promises.upsertFile(
+        projectId,
+        parentFolderId,
+        name,
+        fsPath,
+        linkedFileData,
+        'upload',
+        userId
+      )
+    } finally {
+      await fs.promises.unlink(fsPath).catch(() => {})
+    }
   },
 
   async importContent(
@@ -83,19 +88,23 @@ const LinkedFilesHandler = {
     userId
   ) {
     const fsPath = await FileWriter.promises.writeContentToDisk(
-      projectId,
+      projectId + '_linked-files-handler-content',
       content
     )
 
-    return await EditorController.promises.upsertFile(
-      projectId,
-      parentFolderId,
-      name,
-      fsPath,
-      linkedFileData,
-      'upload',
-      userId
-    )
+    try {
+      return await EditorController.promises.upsertFile(
+        projectId,
+        parentFolderId,
+        name,
+        fsPath,
+        linkedFileData,
+        'upload',
+        userId
+      )
+    } finally {
+      await fs.promises.unlink(fsPath).catch(() => {})
+    }
   },
 }
 

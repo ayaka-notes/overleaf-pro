@@ -160,18 +160,28 @@ function ActionsDropdown({ project }: ActionDropdownProps) {
           )}
         </UntrashProjectButton>
         <LeaveProjectButton project={project}>
-          {text => (
+          {(text, handleOpenModal) => (
             <li role="none">
-              <DropdownItem as="button" tabIndex={-1} leadingIcon="logout">
+              <DropdownItem
+                as="button"
+                tabIndex={-1}
+                onClick={handleOpenModal}
+                leadingIcon="logout"
+              >
                 {text}
               </DropdownItem>
             </li>
           )}
         </LeaveProjectButton>
         <DeleteProjectButton project={project}>
-          {text => (
+          {(text, handleOpenModal) => (
             <li role="none">
-              <DropdownItem as="button" tabIndex={-1} leadingIcon="block">
+              <DropdownItem
+                as="button"
+                tabIndex={-1}
+                onClick={handleOpenModal}
+                leadingIcon="block"
+              >
                 {text}
               </DropdownItem>
             </li>

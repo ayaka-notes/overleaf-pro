@@ -27,6 +27,7 @@ describe('UserMembershipController', () => {
     recurlySubscriptionId = 'mock-recurly-subscription-id'
     ctx.req = new MockRequest(vi)
     ctx.req.params.id = 'mock-entity-id'
+    ctx.req.ip = '1.2.3.4'
     ctx.user = { _id: 'mock-user-id' }
     ctx.newUser = { _id: 'mock-new-user-id', email: 'new-user-email@foo.bar' }
     ctx.subscription = {
@@ -378,7 +379,7 @@ describe('UserMembershipController', () => {
         })
       })
 
-      it('should be false when recurly subscription has pending changes', async ({
+      it('should be true when recurly subscription has pending changes', async ({
         UserMembershipController,
         req,
         RecurlyClient,
@@ -390,7 +391,7 @@ describe('UserMembershipController', () => {
         })
         await UserMembershipController.manageGroupMembers(req, {
           render: (viewPath, viewParams) => {
-            expect(viewParams.canUseAddSeatsFeature).to.equal(false)
+            expect(viewParams.canUseAddSeatsFeature).to.equal(true)
           },
         })
       })
@@ -495,7 +496,8 @@ describe('UserMembershipController', () => {
                 write: 'manager_ids',
               },
             },
-            newUser.email
+            newUser.email,
+            { initiatorId: 'mock-user-id', ipAddress: '1.2.3.4' }
           )
         },
       })
@@ -613,7 +615,8 @@ describe('UserMembershipController', () => {
                 write: 'manager_ids',
               },
             },
-            newUser._id
+            newUser._id,
+            { initiatorId: 'mock-user-id', ipAddress: '1.2.3.4' }
           )
         },
       })

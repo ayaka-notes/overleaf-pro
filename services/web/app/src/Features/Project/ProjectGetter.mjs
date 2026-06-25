@@ -11,25 +11,6 @@ import CollaboratorsGetter from '../Collaborators/CollaboratorsGetter.mjs'
 const { normalizeQuery } = Mongo
 
 const ProjectGetter = {
-  EXCLUDE_DEPTH: 8,
-
-  async getProjectWithoutDocLines(projectId) {
-    const excludes = {}
-    for (let i = 1; i <= ProjectGetter.EXCLUDE_DEPTH; i++) {
-      excludes[`rootFolder${Array(i).join('.folders')}.docs.lines`] = 0
-    }
-    return await ProjectGetter.getProject(projectId, excludes)
-  },
-
-  async getProjectWithOnlyFolders(projectId) {
-    const excludes = {}
-    for (let i = 1; i <= ProjectGetter.EXCLUDE_DEPTH; i++) {
-      excludes[`rootFolder${Array(i).join('.folders')}.docs`] = 0
-      excludes[`rootFolder${Array(i).join('.folders')}.fileRefs`] = 0
-    }
-    return await ProjectGetter.getProject(projectId, excludes)
-  },
-
   async getProject(projectId, projection = {}) {
     if (projectId == null) {
       throw new Error('no project id provided')
@@ -130,6 +111,30 @@ const ProjectGetter = {
     }, {})
 
     return filteredProjects
+  },
+
+  async existUsersDebugProjectsOlderThan(userId, days) {
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+
+    const exists = await Project.exists({
+      owner_ref: userId,
+      'overleaf.isDebugCopyOf': { $type: 'objectId' },
+      lastUpdated: { $lt: cutoffDate },
+    })
+
+    return Boolean(exists)
+  },
+
+  async findAllDebugProjects(fields) {
+    return Project.find(
+      {
+        'overleaf.isDebugCopyOf': { $type: 'objectId' },
+      },
+      fields
+    )
+      .limit(500)
+      .populate('owner_ref', ['email', 'name'])
+      .exec()
   },
 
   /**

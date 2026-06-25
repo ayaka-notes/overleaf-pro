@@ -1,6 +1,9 @@
 import { StripeCurrencyCode } from './currency'
 
-type Features = {
+export type Features = {
+  aiUsageQuota: 'free' | 'basic' | 'standard' | 'unlimited'
+  // todo: quota clean-up: remove aiErrorAssistant once migration finishes
+  aiErrorAssistant?: boolean
   collaborators: number
   compileGroup: string
   compileTimeout: number
@@ -109,7 +112,13 @@ export type StripeBaseLookupKey =
   | 'group_professional_educational'
 
 // Keep in sync with LATEST_STRIPE_LOOKUP_KEY_VERSION in PlansLocator.mjs
-export type StripeLookupKeyVersion = 'nov2025'
+export type StripeLookupKeyVersion = 'feb2026'
 
 export type StripeLookupKey =
   `${StripeBaseLookupKey}_${StripeLookupKeyVersion}_${StripeCurrencyCode}`
+
+export type IndividualPlanKey = 'collaborator' | 'professional' | 'student'
+export type LocalIndividualPlans = Record<
+  IndividualPlanKey | 'free',
+  { monthly: number; annual: number }
+>

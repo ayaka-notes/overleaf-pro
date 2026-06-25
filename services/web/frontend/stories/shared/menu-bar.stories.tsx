@@ -2,7 +2,7 @@ import { DropdownDivider } from '@/shared/components/dropdown/dropdown-menu'
 import { MenuBar } from '@/shared/components/menu-bar/menu-bar'
 import { MenuBarDropdown } from '@/shared/components/menu-bar/menu-bar-dropdown'
 import { MenuBarOption } from '@/shared/components/menu-bar/menu-bar-option'
-import { Meta } from '@storybook/react/*'
+import { Meta } from '@storybook/react-webpack5'
 
 export const Default = () => {
   return (

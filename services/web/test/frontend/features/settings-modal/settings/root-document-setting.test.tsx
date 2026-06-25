@@ -2,12 +2,12 @@ import { screen, within, render } from '@testing-library/react'
 import { expect } from 'chai'
 import fetchMock from 'fetch-mock'
 import { Folder } from '../../../../../types/folder'
-import { SettingsModalProvider } from '@/features/ide-redesign/contexts/settings-modal-context'
+import { SettingsModalProvider } from '@/features/settings/context/settings-modal-context'
 import {
   EditorProviders,
   projectDefaults,
 } from '../../../helpers/editor-providers'
-import RootDocumentSetting from '@/features/ide-redesign/components/settings/compiler-settings/root-document-setting'
+import RootDocumentSetting from '@/features/settings/components/compiler-settings/root-document-setting'
 import userEvent from '@testing-library/user-event'
 
 const OPTIONS = [

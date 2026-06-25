@@ -12,6 +12,8 @@ import {
   DropdownToggle,
 } from '@/shared/components/dropdown/dropdown-menu'
 import createNewProjectImage from '../../images/create-a-new-project.svg'
+import { useFeatureFlag } from '@/shared/context/split-test-context'
+import MaterialIcon from '@/shared/components/material-icon'
 
 const CustomDropdownToggle = forwardRef<
   HTMLButtonElement,
@@ -59,6 +61,12 @@ function WelcomeMessageCreateNewProjectDropdown({
 }: WelcomeMessageCreateNewProjectDropdownProps) {
   const { t } = useTranslation()
   const portalTemplates = getMeta('ol-portalTemplates') || []
+  const docxImportEnabled =
+    useFeatureFlag('import-docx') &&
+    getMeta('ol-ExposedSettings').enablePandocConversions
+  const markdownImportEnabled =
+    useFeatureFlag('import-markdown') &&
+    getMeta('ol-ExposedSettings').enablePandocConversions
 
   const { isOverleaf } = getMeta('ol-ExposedSettings')
 
@@ -95,7 +103,7 @@ function WelcomeMessageCreateNewProjectDropdown({
   )
 
   return (
-    <Dropdown>
+    <Dropdown className="welcome-message-card-item">
       <DropdownToggle
         as={CustomDropdownToggle}
         id="create-new-project-dropdown-toggle-btn"
@@ -134,6 +142,34 @@ function WelcomeMessageCreateNewProjectDropdown({
             {t('upload_project')}
           </DropdownItem>
         </li>
+        {docxImportEnabled && (
+          <li role="none">
+            <DropdownItem
+              as="button"
+              onClick={e =>
+                handleDropdownItemClick(e, 'import_docx', 'import-docx')
+              }
+              tabIndex={-1}
+              trailingIcon={<MaterialIcon type="fiber_new" />}
+            >
+              {t('import_word_document')}
+            </DropdownItem>
+          </li>
+        )}
+        {markdownImportEnabled && (
+          <li role="none">
+            <DropdownItem
+              as="button"
+              onClick={e =>
+                handleDropdownItemClick(e, 'import_markdown', 'import-markdown')
+              }
+              tabIndex={-1}
+              trailingIcon={<MaterialIcon type="fiber_new" />}
+            >
+              {t('import_markdown_file')}
+            </DropdownItem>
+          </li>
+        )}
         {isOverleaf && (
           <li role="none">
             <DropdownItem

@@ -4,7 +4,7 @@ import { callbackify } from 'node:util'
 import { db, ObjectId } from '../../infrastructure/mongodb.mjs'
 import Errors from '../Errors/Errors.js'
 import mongodb from 'mongodb-legacy'
-const safeCompilers = ['xelatex', 'pdflatex', 'latex', 'lualatex']
+import OError from '@overleaf/o-error'
 
 const { ReturnDocument } = mongodb
 
@@ -15,8 +15,8 @@ const ProjectOptionsHandler = {
    */
   normalizeCompiler(compiler) {
     compiler = compiler.toLowerCase()
-    if (!safeCompilers.includes(compiler)) {
-      throw new Error(`invalid compiler: ${compiler}`)
+    if (!settings.safeCompilers.includes(compiler)) {
+      throw new OError('invalid compiler', { compiler })
     }
     return compiler
   },
@@ -44,7 +44,7 @@ const ProjectOptionsHandler = {
       allowed => imageName === allowed.imageName
     )
     if (!isAllowed) {
-      throw new Error(`invalid imageName: ${imageName}`)
+      throw new OError('invalid imageName', { imageName })
     }
     return settings.imageRoot + '/' + imageName
   },
@@ -67,7 +67,7 @@ const ProjectOptionsHandler = {
       language => language.code === languageCode
     )
     if (languageCode && !language) {
-      throw new Error(`invalid languageCode: ${languageCode}`)
+      throw new OError('invalid languageCode', { languageCode })
     }
     const conditions = { _id: projectId }
     const update = { spellCheckLanguage: languageCode }

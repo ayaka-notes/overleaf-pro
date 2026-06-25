@@ -5,6 +5,9 @@ import Errors from '../Errors/Errors.js'
 import OError from '@overleaf/o-error'
 
 export class RecurlyTransactionError extends Errors.BackwardCompatibleError {
+  /**
+   * @param {any} options
+   */
   constructor(options) {
     super({
       message: 'Unknown transaction error',
@@ -21,7 +24,7 @@ export class MissingBillingInfoError extends OError {}
 
 export class ManuallyCollectedError extends OError {}
 
-export class PendingChangeError extends OError {}
+export class MultiplePendingChangesError extends OError {}
 
 export class InactiveError extends OError {}
 
@@ -76,7 +79,7 @@ export default {
   PaymentFailedError,
   MissingBillingInfoError,
   ManuallyCollectedError,
-  PendingChangeError,
+  MultiplePendingChangesError,
   InactiveError,
   SubtotalLimitExceededError,
   HasPastDueInvoiceError,

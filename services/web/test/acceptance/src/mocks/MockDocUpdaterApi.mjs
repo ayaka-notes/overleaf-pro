@@ -47,7 +47,10 @@ class MockDocUpdaterApi extends AbstractMockApi {
     this.app.post(
       '/project/:projectId/doc/:docId/change/accept',
       (req, res) => {
-        res.sendStatus(204)
+        res.status(200).json({
+          // todo: return a list of change contributors based on doc ranges accepted similar to DocumentManager, and require tests to set real changes onto a doc before calling accept
+          changeContributors: [],
+        })
       }
     )
 

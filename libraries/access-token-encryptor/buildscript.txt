@@ -4,6 +4,7 @@ access-token-encryptor
 --env-pass-through=
 --esmock-loader=False
 --is-library=True
---node-version=22.18.0
---pipeline-owner=🚉 Platform
+--node-version=24.14.1
+--package-name=@overleaf/access-token-encryptor
+--pipeline-owner=32
 --public-repo=False

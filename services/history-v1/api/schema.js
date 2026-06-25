@@ -5,19 +5,29 @@ const Blob = require('overleaf-editor-core').Blob
 
 const hexHashPattern = new RegExp(Blob.HEX_HASH_RX_STRING)
 
-const fileSchema = z.object({
-  hash: z.string().optional(),
-  byteLength: z.number().int().nullable().optional(),
-  stringLength: z.number().int().nullable().optional(),
-})
-
-const snapshotSchema = z.object({
-  files: z.record(z.string(), fileSchema),
-})
+const fileSchema = z
+  .object({
+    hash: z.string().optional(),
+    rangesHash: z.string().optional(),
+    byteLength: z.number().int().nullable().optional(),
+    stringLength: z.number().int().nullable().optional(),
+    metadata: z.object({}).passthrough().optional(),
+  })
+  .passthrough()
 
 const v2DocVersionsSchema = z.object({
   pathname: z.string().optional(),
   v: z.number().int().optional(),
+})
+
+const snapshotSchema = z.object({
+  files: z.record(z.string(), fileSchema),
+  projectVersion: z.string().optional(),
+  v2DocVersions: z
+    .record(z.string(), v2DocVersionsSchema)
+    .nullable()
+    .optional(),
+  timestamp: z.string().optional(),
 })
 
 const operationSchema = z
@@ -67,6 +77,16 @@ const schemas = {
         projectId: z.string().optional(),
       })
       .optional(),
+  }),
+
+  cloneProject: z.object({
+    body: z.object({
+      targetProjectId: z.string(),
+    }),
+
+    params: z.object({
+      project_id: z.string(),
+    }),
   }),
 
   getProjectBlobsStats: z.object({
@@ -178,6 +198,12 @@ const schemas = {
     params: z.object({
       project_id: z.string(),
       timestamp: zz.datetime(),
+    }),
+  }),
+
+  getLatestZip: z.object({
+    params: z.object({
+      project_id: z.string(),
     }),
   }),
 

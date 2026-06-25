@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import StartFreeTrialButton from '../../js/shared/components/start-free-trial-button'
 import type { ButtonProps } from '../../js/shared/components/types/button-props'
 
@@ -80,6 +80,7 @@ const meta: Meta<Args> = {
     source: 'storybook',
     variant: 'secondary',
     size: undefined,
+    children: 'Start free trial',
   },
 }
 

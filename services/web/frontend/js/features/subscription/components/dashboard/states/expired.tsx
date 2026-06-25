@@ -22,7 +22,12 @@ export function ExpiredSubscription({
         >
           {t('view_your_invoices')}
         </OLButton>
-        <OLButton href="/user/subscription/plans" variant="primary">
+        <OLButton
+          // We need to send users to the public plans page because the
+          // choose-your-plan still redirects them away in this expired state
+          href="/user/subscription/plans"
+          variant="primary"
+        >
           {t('create_new_subscription')}
         </OLButton>
       </p>
