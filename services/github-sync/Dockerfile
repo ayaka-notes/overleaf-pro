@@ -4,6 +4,12 @@
 
 FROM node:22.18.0 AS base
 
+# Corepack setup, shared between all the images.
+ENV PATH="/overleaf/node_modules/.bin:$PATH"
+ENV COREPACK_HOME=/opt/corepack
+RUN corepack enable && corepack install -g yarn@4.14.1
+ENV COREPACK_ENABLE_NETWORK=0
+
 WORKDIR /overleaf/services/github-sync
 
 # Google Cloud Storage needs a writable $HOME/.config for resumable uploads
@@ -12,8 +18,9 @@ RUN mkdir /home/node/.config && chown node:node /home/node/.config
 
 FROM base AS app
 
-COPY package.json package-lock.json /overleaf/
+COPY package.json yarn.lock .yarnrc.yml /overleaf/
 COPY libraries/access-token-encryptor/package.json /overleaf/libraries/access-token-encryptor/package.json
+COPY libraries/eslint-plugin/package.json /overleaf/libraries/eslint-plugin/package.json
 COPY libraries/fetch-utils/package.json /overleaf/libraries/fetch-utils/package.json
 COPY libraries/logger/package.json /overleaf/libraries/logger/package.json
 COPY libraries/metrics/package.json /overleaf/libraries/metrics/package.json
@@ -24,10 +31,11 @@ COPY libraries/settings/package.json /overleaf/libraries/settings/package.json
 COPY libraries/stream-utils/package.json /overleaf/libraries/stream-utils/package.json
 COPY services/github-sync/package.json /overleaf/services/github-sync/package.json
 COPY tools/migrations/package.json /overleaf/tools/migrations/package.json
-COPY patches/ /overleaf/patches/
+COPY .yarn/patches/ /overleaf/.yarn/patches/
 COPY tools/migrations/ /overleaf/tools/migrations/
 
-RUN cd /overleaf && npm ci --quiet
+RUN cd /overleaf && yarn workspaces focus @overleaf/github-sync overleaf
+
 COPY libraries/access-token-encryptor/ /overleaf/libraries/access-token-encryptor/
 COPY libraries/fetch-utils/ /overleaf/libraries/fetch-utils/
 COPY libraries/logger/ /overleaf/libraries/logger/
