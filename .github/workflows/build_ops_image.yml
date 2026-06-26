@@ -77,7 +77,7 @@ jobs:
           push: false
           pull: true
           tags: |
-            sharelatex/sharelatex-base:latest
+            overleaf-pro-base:ci
           no-cache: ${{ inputs.no_cache || false }}
           cache-from: type=gha,scope=base-${{ hashFiles('server-ce/Dockerfile-base') }}
           cache-to: type=gha,mode=max,scope=base-${{ hashFiles('server-ce/Dockerfile-base') }}
@@ -97,6 +97,8 @@ jobs:
           load: true
           push: false
           pull: false
+          build-args: |
+            OVERLEAF_BASE_TAG=overleaf-pro-base:ci
           tags: |
             sharelatex/sharelatex:latest
           annotations: |
