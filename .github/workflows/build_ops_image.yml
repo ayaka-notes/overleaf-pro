@@ -15,6 +15,11 @@ on:
     branches:
       - server-pro
   workflow_dispatch:
+    inputs:
+      no_cache:
+        description: "Build without cache"
+        type: boolean
+        default: false
 
 env:
   DOCKER_REGISTRY: ghcr.io
@@ -73,6 +78,7 @@ jobs:
           pull: true
           tags: |
             sharelatex/sharelatex-base:latest
+          no-cache: ${{ inputs.no_cache || false }}
           cache-from: type=gha,scope=base-${{ hashFiles('server-ce/Dockerfile-base') }}
           cache-to: type=gha,mode=max,scope=base-${{ hashFiles('server-ce/Dockerfile-base') }}
           provenance: false
@@ -96,6 +102,7 @@ jobs:
           annotations: |
             space.ayaka.overleaf-pro.ops.revision=${{ steps.vars.outputs.MONOREPO_REVISION }}
           # We don't want -${{ github.ref_name }} limit, just more cache hit
+          no-cache: ${{ inputs.no_cache || false }}
           cache-from: type=gha,scope=ops
           cache-to: type=gha,mode=max,scope=ops
           provenance: false
