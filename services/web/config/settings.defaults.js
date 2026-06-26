@@ -1227,7 +1227,8 @@ module.exports.splitTestOverrides = {
   'history-ranges-support': 'enabled',
   'revert-file': 'enabled',
   'revert-project': 'enabled',
-  'overleaf-code': 'enabled'
+  'overleaf-code': 'enabled',
+  'editor-tabs': 'enabled'
 }
 
 module.exports.oauthProviders = {
