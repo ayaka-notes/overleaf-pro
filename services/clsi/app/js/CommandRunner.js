@@ -10,7 +10,7 @@ import logger from '@overleaf/logger'
 let commandRunnerPath
 
 if ((Settings.clsi != null ? Settings.clsi.dockerRunner : undefined) === true) {
-  commandRunnerPath = './DockerRunner.js'
+  commandRunnerPath = './DockerRunner.mjs'
 } else {
   commandRunnerPath = './LocalCommandRunner.js'
 }

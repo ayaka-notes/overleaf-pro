@@ -124,7 +124,7 @@ if (process.env.ALLOWED_COMPILE_GROUPS) {
 
 if ((process.env.DOCKER_RUNNER || process.env.SANDBOXED_COMPILES) === 'true') {
   if (
-    !fs.existsSync(Path.join(__dirname, '..', 'app', 'js', 'DockerRunner.js'))
+    !fs.existsSync(Path.join(__dirname, '..', 'app', 'js', 'DockerRunner.mjs'))
   ) {
     console.error(
       'Sandboxed compiles are only available with Overleaf Server Pro. Compare Server Pro with Community Edition here: https://docs.overleaf.com/on-premises/welcome/server-pro-vs.-community-edition'

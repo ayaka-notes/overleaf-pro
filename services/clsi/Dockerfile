@@ -51,9 +51,10 @@ COPY services/clsi/ /overleaf/services/clsi/
 
 FROM app AS with-texlive
 
-RUN apt-get update \
-    && apt-cache depends texlive-full | grep "Depends: " | grep -v -- "-doc" | grep -v -- "-lang-" | sed 's/Depends: //' | xargs apt-get install -y --no-install-recommends \
-    && apt-get install -y --no-install-recommends fontconfig inkscape python3-pygments qpdf \
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt-get update \
+    && apt-cache depends texlive-full | grep "Depends: " | grep -v -- "-doc" | grep -v -- "-lang-" | sed 's/Depends: //' | xargs apt-get install -y --no-install-recommends -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+    && apt-get install -y --no-install-recommends -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" fontconfig inkscape python3-pygments qpdf \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p cache compiles output \
