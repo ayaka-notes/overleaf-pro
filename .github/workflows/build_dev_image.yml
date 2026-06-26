@@ -34,7 +34,6 @@ jobs:
             filestore,
             document-updater,
             docstore,
-            contacts,
             chat,
             clsi,
             github-sync
@@ -97,7 +96,6 @@ jobs:
           filestore,
           document-updater,
           docstore,
-          contacts,
           chat,
           clsi,
           github-sync
