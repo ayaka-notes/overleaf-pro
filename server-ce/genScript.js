@@ -23,6 +23,8 @@ switch (process.argv.pop()) {
           console.log('yarn install')
           // run webpack
           console.log('yarn run webpack:production')
+          // fetch Pyodide wheel bundle (numpy/matplotlib/etc.) for the python-runner module
+          console.log('yarn run pyodide:fetch')
           // uninstall webpack and frontend dependencies
           console.log('yarn workspaces focus --all --production')
 

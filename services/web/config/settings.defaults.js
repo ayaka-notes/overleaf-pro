@@ -1058,7 +1058,12 @@ module.exports = {
     rootContextProviders: [],
     mainEditorLayoutModals: [],
     mainEditorLayoutPanels: [],
-    pythonRunner: [],
+    pythonRunner: [
+      Path.resolve(
+        __dirname,
+        '../modules/python-runner/frontend/js/components/layout/python-editor-split'
+      ),
+    ],
     langFeedbackLinkingWidgets: [],
     labsExperiments: [],
     integrationLinkingWidgets: [
@@ -1121,6 +1126,10 @@ module.exports = {
       Path.resolve(
         __dirname,
         '../frontend/js/features/pdf-preview/components/synctex-toasts'
+      ),
+      Path.resolve(
+        __dirname,
+        '../modules/python-runner/frontend/js/components/editor/python/python-output-toasts'
       ),
     ],
     editorSidebarComponents: [
@@ -1217,7 +1226,8 @@ module.exports.mergeWith = function (overrides) {
 module.exports.splitTestOverrides = {
   'history-ranges-support': 'enabled',
   'revert-file': 'enabled',
-  'revert-project': 'enabled'
+  'revert-project': 'enabled',
+  'overleaf-code': 'enabled'
 }
 
 module.exports.oauthProviders = {
