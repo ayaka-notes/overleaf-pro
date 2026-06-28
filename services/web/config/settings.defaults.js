@@ -1228,7 +1228,12 @@ module.exports.splitTestOverrides = {
   'revert-file': 'enabled',
   'revert-project': 'enabled',
   'overleaf-code': 'enabled',
-  'editor-tabs': 'enabled'
+  'editor-tabs': 'enabled',
+  'import-docx': 'enabled',
+  'import-markdown': 'enabled',
+  'export-docx': 'enabled',
+  'export-markdown': 'enabled',
+  'export-html': 'enabled'
 }
 
 module.exports.oauthProviders = {
