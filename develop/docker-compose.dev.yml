@@ -9,6 +9,7 @@ services:
       - ../services/clsi/app:/overleaf/services/clsi/app
       - ../services/clsi/app.js:/overleaf/services/clsi/app.js
       - ../services/clsi/config:/overleaf/services/clsi/config
+      - ../services/clsi/seccomp:/overleaf/services/clsi/seccomp
 
   chat:
     command: ["node", "--watch", "app.js"]
