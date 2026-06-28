@@ -27,6 +27,7 @@ services:
       - dev.env
     environment:
       - SANDBOXED_COMPILES=true
+      - DOWNLOAD_HOST=http://clsi-nginx:8080
     user: root
     volumes:
       - ${PWD}/compiles:/overleaf/services/clsi/compiles
