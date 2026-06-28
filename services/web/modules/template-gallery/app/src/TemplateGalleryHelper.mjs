@@ -8,7 +8,6 @@ import ProjectLocator from '../../../../app/src/Features/Project/ProjectLocator.
 import ProjectZipStreamManager from '../../../../app/src/Features/Downloads/ProjectZipStreamManager.mjs'
 import DocumentUpdaterHandler from '../../../../app/src/Features/DocumentUpdater/DocumentUpdaterHandler.mjs'
 import ClsiManager from '../../../../app/src/Features/Compile/ClsiManager.mjs'
-import CompileManager from '../../../../app/src/Features/Compile/CompileManager.mjs'
 import UserGetter from '../../../../app/src/Features/User/UserGetter.mjs'
 import { fetchStreamWithResponse } from '@overleaf/fetch-utils'
 import { Template } from './models/Template.mjs'
@@ -37,7 +36,7 @@ marked.use({
 
 function _createZipStreamForProjectAsync(projectId) {
   return new Promise((resolve, reject) => {
-    ProjectZipStreamManager.createZipStreamForProject(projectId, (err, archive) => {
+    ProjectZipStreamManager.createZipStreamForProject(projectId, false, null, (err, archive) => {
       if (err) {
         return reject(err)
       }
@@ -139,11 +138,7 @@ export async function uploadTemplateAssets(projectId, userId, build, template) {
   try {
     [zipStream, pdfStream] = await Promise.all([
       _createZipStreamForProjectAsync(projectId),
-      CompileManager.promises
-        .getProjectCompileLimits(projectId)
-        .then((limits) =>
-          ClsiManager.promises.getOutputFileStream(projectId, userId, limits, undefined, build, 'output.pdf')
-        )
+      ClsiManager.promises.getOutputFileStream(projectId, userId, undefined, build, 'output.pdf')
     ])
   } catch (error) {
     logger.error({ error, projectId }, 'No output.pdf?')
