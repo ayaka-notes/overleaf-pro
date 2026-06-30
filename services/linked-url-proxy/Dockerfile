@@ -2,7 +2,7 @@
 # Instead run bin/update_build_scripts from
 # https://github.com/overleaf/internal/
 
-FROM node:22.18.0 AS base
+FROM node:24.14.1 AS base
 
 # Corepack setup, shared between all the images.
 ENV PATH="/overleaf/node_modules/.bin:$PATH"
