@@ -7,7 +7,6 @@ import { usePersistedResize } from '@/shared/hooks/use-resize'
 import getMeta from '@/utils/meta'
 import OLTooltip from '@/shared/components/ol/ol-tooltip'
 import { AccountMenuItems } from '@/shared/components/navbar/account-menu-items'
-import { useFeatureFlag } from '@/shared/context/split-test-context'
 import SidebarFilters from './sidebar-filters'
 import CreateAccountButton from '../create-account-button'
 import { useSendUserListMB } from '../user-list-events'
@@ -22,7 +21,6 @@ function SidebarDsNav() {
   const sendMB = useSendUserListMB()
   const { sessionUser } = getMeta('ol-navbar')
   const { containerRef, scrolledUp, scrolledDown } = useScrolled()
-  const themedDsNav = useFeatureFlag('themed-project-dashboard')
   return (
     <div
       className="user-list-sidebar-wrapper-react d-none d-md-flex"
@@ -100,7 +98,7 @@ function SidebarDsNav() {
                   <AccountMenuItems
                     sessionUser={sessionUser}
                     showSubscriptionLink={false}
-                    showThemeToggle={themedDsNav}
+                    showThemeToggle={true}
                   />
                 </Dropdown.Menu>
               </Dropdown>

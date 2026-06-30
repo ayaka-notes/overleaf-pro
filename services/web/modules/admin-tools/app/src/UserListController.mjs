@@ -16,6 +16,7 @@ import OneTimeTokenHandler from '../../../../app/src/Features/Security/OneTimeTo
 import UserGetter from '../../../../app/src/Features/User/UserGetter.mjs'
 import UserUpdater from '../../../../app/src/Features/User/UserUpdater.mjs'
 import UserDeleter from '../../../../app/src/Features/User/UserDeleter.mjs'
+import UserSettingsHelper from '../../../../app/src/Features/Project/UserSettingsHelper.mjs'
 import ProjectDeleter from '../../../../app/src/Features/Project/ProjectDeleter.mjs'
 import OwnershipTransferHandler from '../../../../app/src/Features/Collaborators/OwnershipTransferHandler.mjs'
 import HttpErrorHandler from '../../../../app/src/Features/Errors/HttpErrorHandler.mjs'
@@ -89,8 +90,12 @@ async function manageUsersPage(req, res, next) {
     status: prefetchedUsersBlob ? 'success' : 'error',
   })
 
+  const user = await User.findById(userId, 'ace')
+  const userSettings = await UserSettingsHelper.buildUserSettings(req, res, user)
+
   res.render(Path.resolve(__dirname, '../views/manage-users-react'), {
     title: 'Manage Users',
+    userSettings,
     prefetchedUsersBlob,
     availableAuthMethods,
     userDetailsUpdatedOnLogin,

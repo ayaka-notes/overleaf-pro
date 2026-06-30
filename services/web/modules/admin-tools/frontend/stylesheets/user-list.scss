@@ -61,7 +61,7 @@
   .user-list-title {
     @include heading-sm;
 
-    color: $content-secondary;
+    color: var(--content-secondary-themed);
     font-weight: bold;
     min-width: 0;
     font-size: var(--font-size-03);
@@ -259,7 +259,7 @@ ul.user-list-filters {
 
   @include media-breakpoint-down(md) {
     tr:not(:last-child) {
-      border-bottom: 1px solid $table-border-color;
+      border-bottom: 1px solid var(--border-divider-themed);
     }
 
     td {
@@ -278,7 +278,7 @@ ul.user-list-filters {
   .table-header-sort-btn {
     border: 0;
     text-align: left;
-    color: var(--content-secondary);
+    color: var(--content-secondary-themed);
     background-color: transparent;
     padding: 0;
     font-weight: bold;
@@ -289,7 +289,7 @@ ul.user-list-filters {
 
     &:hover,
     &:focus {
-      color: var(--content-secondary);
+      color: var(--content-secondary-themed);
       text-decoration: none;
     }
 
@@ -301,11 +301,8 @@ ul.user-list-filters {
 
   .dash-row-admin {
     font-weight: bold;
-    td {
-      a {
-        color: darkred !important;
-        --bs-link-color: darkred !important;
-      }
+    a {
+      color: var(--content-danger-themed) !important;
     }
   }
 
@@ -612,11 +609,40 @@ form.user-search {
     border-top: none;
   }
 
-  tr {
+  // row separators only; last row has no bottom line.
+  tr:not(:last-child) {
     border-bottom: 1px solid var(--bs-border-divider);
   }
 }
 
 .tab-content {
   margin-top: var(--spacing-05) !important;
+}
+
+// dark-theme colour overrides for content unreadable on the dark bg.
+@include theme('default') {
+  .user-ds-nav-page {
+    .user-dash-table {
+      .dash-cell-email a,
+      .dash-cell-email-date a {
+        color: var(--green-40);
+      }
+    }
+
+    .card {
+      color: var(--content-secondary-dark);
+    }
+
+    .ol-tabs .nav-tabs {
+      li a,
+      li button {
+        color: var(--content-secondary-dark);
+      }
+
+      li > a.active,
+      li > button.active {
+        color: var(--content-primary-dark);
+      }
+    }
+  }
 }

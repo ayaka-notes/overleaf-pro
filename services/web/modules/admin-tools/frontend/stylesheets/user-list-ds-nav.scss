@@ -8,12 +8,62 @@
 @import '../../../../frontend/stylesheets/helpers/all.scss';
 @import '../../../../frontend/stylesheets/components/all.scss';
 
+// ds-nav variables and theme toggle styles are provided by main-style.
+
+// navbar-dark is scoped to project/library roots upstream; apply to admin roots too.
+@include theme('default') {
+  #manage-users-root,
+  #manage-projects-root {
+    .website-redesign-navbar,
+    .website-redesign .navbar-default {
+      @include navbar-dark;
+    }
+  }
+}
+
+// thin footer is hardcoded light upstream; theme it for dark (Server Pro only).
+@include theme('default') {
+  .user-ds-nav-page footer.site-footer,
+  .project-ds-nav-page footer.site-footer {
+    --link-color: var(--link-web-dark);
+    --link-hover-color: var(--link-web-hover-dark);
+    --link-visited-color: var(--link-web-visited-dark);
+
+    background-color: var(--bg-dark-primary);
+    color: var(--content-secondary-dark);
+  }
+
+  .user-ds-nav-page {
+    @include dark-dropdown-menu;
+    @include form-check-dark;
+
+    .btn {
+      @include dark-buttons;
+    }
+
+    .table,
+    .table-container {
+      @include dark-table;
+    }
+
+    .form-control,
+    .form-control-wrapper {
+      @include dark-input;
+    }
+
+    .cookie-banner {
+      @include cookie-banner-dark;
+    }
+  }
+}
+
 .user-ds-nav-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  color: var(--content-secondary);
+  color-scheme: var(--ds-nav-color-scheme);
+  color: var(--content-secondary-themed);
 
   // NOTE-AC: This code can be eliminated when we remove sidebar-navigation-ui-update
   --navbar-btn-padding-h: var(--spacing-06);
@@ -26,7 +76,7 @@
     position: relative;
 
     --navbar-toggler-expanded-bg: none;
-    --navbar-toggler-expanded-color: var(--content-secondary);
+    --navbar-toggler-expanded-color: var(--content-secondary-themed);
 
     .navbar-header .navbar-logo {
       @include media-breakpoint-up(md) {
@@ -47,18 +97,18 @@
     }
 
     @include media-breakpoint-down(lg) {
-      --navbar-hamburger-submenu-item-hover-color: var(--content-primary);
-      --navbar-hamburger-submenu-item-hover-bg: var(--bg-light-secondary);
-      --navbar-subdued-hover-color: var(--content-primary);
-      --navbar-link-hover-color: var(--content-primary);
-      --navbar-link-hover-bg: var(--bg-light-secondary);
-      --navbar-subdued-hover-bg: var(--bg-light-secondary);
+      --navbar-hamburger-submenu-item-hover-color: var(--content-primary-themed);
+      --navbar-hamburger-submenu-item-hover-bg: var(--bg-secondary-themed);
+      --navbar-subdued-hover-color: var(--content-primary-themed);
+      --navbar-link-hover-color: var(--content-primary-themed);
+      --navbar-link-hover-bg: var(--bg-secondary-themed);
+      --navbar-subdued-hover-bg: var(--bg-secondary-themed);
       --navbar-hamburger-submenu-bg: none;
 
       .nav-item-help::before {
         content: '';
         display: block;
-        border-top: 1px solid var(--border-divider);
+        border-top: 1px solid var(--border-divider-themed);
         margin: var(--spacing-07) var(--spacing-06);
       }
 
@@ -73,8 +123,8 @@
               border-radius: var(--border-radius-medium);
 
               &.show {
-                background-color: var(--bg-accent-03);
-                color: var(--green-60);
+                background-color: var(--ds-nav-active-bg);
+                color: var(--ds-nav-active-color);
               }
             }
           }
@@ -88,6 +138,7 @@
   }
 
   .user-list-wrapper {
+    background-color: var(--ds-nav-bg-color);
     flex-grow: 1;
     display: flex;
     overflow-y: hidden;
@@ -127,17 +178,17 @@
         border-top: solid 1px transparent;
 
         &.show-shadow {
-          border-top-color: var(--border-divider);
+          border-top-color: var(--border-divider-themed);
         }
       }
 
       .user-list-sidebar-survey-link {
-        color: var(--content-secondary) !important;
+        color: var(--content-secondary-themed) !important;
       }
 
       .survey-notification {
-        background-color: var(--bg-light-secondary);
-        color: var(--content-secondary);
+        background-color: var(--bg-secondary-themed);
+        color: var(--content-secondary-themed);
         box-shadow: none;
         border-radius: var(--border-radius-large);
         position: relative;
@@ -173,7 +224,7 @@
         > button {
           width: 100%;
           text-align: left;
-          color: var(--content-secondary);
+          color: var(--content-secondary-themed);
           background: none;
           border-radius: var(--border-radius-medium);
           border: none;
@@ -181,12 +232,12 @@
         }
 
         &:hover button {
-          background-color: var(--bg-light-secondary);
+          background-color: var(--bg-secondary-themed);
         }
 
         &.active button {
-          background-color: var(--bg-accent-03);
-          color: var(--green-60);
+          background-color: var(--ds-nav-active-bg);
+          color: var(--ds-nav-active-color);
           font-weight: bold;
         }
       }
@@ -205,7 +256,7 @@
         button.dropdown-toggle {
           border-radius: var(--border-radius-full);
           border: none;
-          color: var(--content-secondary);
+          color: var(--content-secondary-themed);
           height: 20px;
           width: 20px;
           padding: 0;
@@ -234,7 +285,7 @@
 
     .user-dash-table {
       .btn-link {
-        color: var(--content-secondary);
+        color: var(--content-secondary-themed);
         height: var(--spacing-08);
         width: var(--spacing-08);
         border-radius: 100%;
@@ -243,12 +294,12 @@
 
         &:hover,
         &:focus {
-          background-color: #d9d9d9 !important;
+          background-color: rgb(var(--table-icon-bg-hover) / 8%) !important;
         }
       }
 
       .dash-cell-name a {
-        color: var(--content-secondary) !important;
+        color: var(--content-secondary-themed) !important;
       }
     }
 
@@ -259,7 +310,7 @@
 
       > * {
         @include media-breakpoint-up(md) {
-          border-left: 1px solid var(--border-divider);
+          border-left: 1px solid var(--border-divider-themed);
         }
       }
 
@@ -267,17 +318,17 @@
         flex-grow: 1;
         overflow-y: auto;
         position: relative;
-        background-color: var(--bg-light-secondary);
+        background-color: var(--ds-nav-content-bg-secondary);
 
         @include media-breakpoint-up(md) {
           border-top-left-radius: var(--border-radius-large);
-          border-top: 1px solid var(--border-divider);
+          border-top: 1px solid var(--border-divider-themed);
         }
       }
 
       .cookie-banner {
         position: static;
-        background-color: var(--bg-light-primary);
+        background-color: var(--bg-primary-themed);
 
         // Remove the parts of the shadow that stick out of the sides
         clip-path: inset(-13px 0 0 0);
@@ -290,7 +341,7 @@
 
   .ds-nav-icon-dropdown {
     .dropdown-toggle {
-      color: var(--content-secondary);
+      color: var(--content-secondary-themed);
       background: none;
       height: 44px;
       width: 44px;
@@ -298,12 +349,12 @@
       overflow: hidden;
 
       &:hover {
-        background-color: var(--bg-light-secondary);
+        background-color: var(--bg-secondary-themed);
       }
 
       &.show {
-        background-color: var(--bg-accent-03);
-        color: var(--green-60);
+        background-color: var(--ds-nav-active-bg);
+        color: var(--ds-nav-active-color);
       }
 
       &::after {

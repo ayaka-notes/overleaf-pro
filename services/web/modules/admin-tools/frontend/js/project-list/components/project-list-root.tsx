@@ -12,7 +12,7 @@ import useThemedPage from '@/shared/hooks/use-themed-page'
 
 export default function ProjectListRoot() {
 
-  useThemedPage('themed-project-dashboard')
+  useThemedPage()
   const { isLoading, loadProgress } = useProjectListContext()
 
   const { t } = useTranslation()

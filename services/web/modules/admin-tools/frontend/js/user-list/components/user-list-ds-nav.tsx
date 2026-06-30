@@ -160,7 +160,7 @@ export function UserListDsNav() {
               {error ? <DashApiError /> : ''}
               <main aria-labelledby="main-content">
                 <div className="card"
-                  style={{ backgroundColor: '#FFF' }}
+                  style={{ backgroundColor: 'var(--bg-primary-themed)' }}
                 >
                   <div className="card-body">
                     <div className="ol-tabs">
@@ -176,7 +176,7 @@ export function UserListDsNav() {
                                 setActiveTab('users')
                               }}
                             >
-                              {"Users"}
+                              {t('user_administration')}
                             </a>
                           </li>
                           <li className="nav-item" role="presentation">

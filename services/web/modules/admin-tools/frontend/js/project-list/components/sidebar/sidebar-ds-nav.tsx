@@ -7,7 +7,6 @@ import { usePersistedResize } from '@/shared/hooks/use-resize'
 import getMeta from '@/utils/meta'
 import OLTooltip from '@/shared/components/ol/ol-tooltip'
 import { AccountMenuItems } from '@/shared/components/navbar/account-menu-items'
-import { useFeatureFlag } from '@/shared/context/split-test-context'
 import SidebarFilters from './sidebar-filters'
 import { getUserName } from '../../util/user'
 import { useUserIdentityContext } from '../../../user-list/context/user-identity-context'
@@ -26,7 +25,6 @@ function SidebarDsNav() {
   const sendMB = useSendProjectListMB()
   const { sessionUser } = getMeta('ol-navbar')
   const { containerRef, scrolledUp } = useScrolled()
-  const themedDsNav = useFeatureFlag('themed-project-dashboard')
   
   const { getUserNameById } = useUserIdentityContext()
   const { projectsOwnerId } = useProjectListContext() 
@@ -128,7 +126,7 @@ function SidebarDsNav() {
                   <AccountMenuItems
                     sessionUser={sessionUser}
                     showSubscriptionLink={false}
-                    showThemeToggle={themedDsNav}
+                    showThemeToggle={true}
                   />
                 </Dropdown.Menu>
               </Dropdown>

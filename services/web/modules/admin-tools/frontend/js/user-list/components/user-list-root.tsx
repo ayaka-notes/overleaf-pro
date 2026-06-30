@@ -10,7 +10,7 @@ import useThemedPage from '@/shared/hooks/use-themed-page'
 import { UserListDsNav } from './user-list-ds-nav'
 
 export default function UserListRoot() {
-  useThemedPage('themed-project-dashboard')
+  useThemedPage()
   const { isLoading, loadProgress } = useUserListContext()
 
   useEffect(() => {
