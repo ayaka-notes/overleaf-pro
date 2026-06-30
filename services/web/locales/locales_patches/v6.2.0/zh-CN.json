@@ -1239,7 +1239,7 @@
   "in_order_to_have_a_secure_account_make_sure_your_password": "为了确保您的帐户安全，请确保您的新密码：",
   "in_order_to_match_institutional_metadata_2": "为了匹配您的机构元数据，我们使用 <0>__email__</0> 关联您的帐户。",
   "in_order_to_match_institutional_metadata_associated": "为了匹配您的机构元数据，您的帐户与电子邮件 <b>__email__</b> 相关联。",
-  "inactive": "无效",
+  "inactive": "不活跃",
   "include_caption": "添加 caption",
   "include_label": "添加 label",
   "include_results_from_your_reference_manager": "包括参考文献管理器的结果",
