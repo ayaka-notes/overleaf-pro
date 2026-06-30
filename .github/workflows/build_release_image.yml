@@ -68,7 +68,7 @@ jobs:
       # --- We need to sync yarn.lock/i18 to ensure consistency ---
       - name: "Sync yarn.lock And Prepare .dockerignore"
         run: |
-          docker run --rm -v "$(pwd)":/workspace -w /workspace node:22.18.0 sh -c "corepack enable && yarn install --mode=update-lockfile"
+          docker run --rm -v "$(pwd)":/workspace -w /workspace node:24.14.1 sh -c "corepack enable && yarn install --mode=update-lockfile"
           # Apply the highest-versioned locale patch over the base locales before extracting
           patch_dir=$(printf '%s\n' services/web/locales/locales_patches/v*/ | sort -V | tail -n1)
           if [ -d "$patch_dir" ]; then
