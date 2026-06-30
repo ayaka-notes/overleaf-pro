@@ -74,13 +74,6 @@ services:
       - filestore-uploads:/overleaf/services/filestore/uploads
       - history-v1-buckets:/buckets
 
-  github-sync:
-    build:
-      context: ..
-      dockerfile: services/github-sync/Dockerfile
-    env_file:
-      - dev.env
-
   history-v1:
     build:
       context: ..

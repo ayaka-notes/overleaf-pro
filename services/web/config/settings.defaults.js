@@ -314,9 +314,6 @@ module.exports = {
     v1: {},
     recurly: {},
 
-    github_sync: {
-      url: `http://${process.env.GITHUB_SYNC_HOST || '127.0.0.1'}:${process.env.GITHUB_SYNC_PORT || 3022}`,
-    },
   },
 
   // Defines which features are allowed in the
@@ -1066,25 +1063,10 @@ module.exports = {
     ],
     langFeedbackLinkingWidgets: [],
     labsExperiments: [],
-    integrationLinkingWidgets: [
-      Path.resolve(
-        __dirname,
-        '../modules/github-sync/frontend/js/components/github-sync-widget.tsx'
-      ),
-    ],
+    integrationLinkingWidgets: [],
     referenceLinkingWidgets: [],
-    importProjectFromGithubModalWrapper: [
-      Path.resolve(
-        __dirname,
-        '../modules/github-sync/frontend/js/components/import-from-github-modal-wrapper.tsx'
-      ),
-    ],
-    importProjectFromGithubMenu: [
-      Path.resolve(
-        __dirname,
-        '../modules/github-sync/frontend/js/components/import-from-github-menu.tsx'
-      ),
-    ],
+    importProjectFromGithubModalWrapper: [],
+    importProjectFromGithubMenu: [],
     editorLeftMenuSync: [
       Path.resolve(
         __dirname,
@@ -1155,10 +1137,6 @@ module.exports = {
         __dirname,
         '../modules/git-bridge/frontend/js/components/git-bridge-integration-card.tsx'
       ),
-      Path.resolve(
-        __dirname,
-        '../modules/github-sync/frontend/js/components/github-integration-card.tsx'
-      ),
     ],
     referenceSearchSetting: [],
     settingsModalEditorTabSections: [],
@@ -1187,8 +1165,7 @@ module.exports = {
     'template-gallery',
     'login-register',
     'oauth2-server',
-    'git-bridge',
-    'github-sync'
+    'git-bridge'
   ],
   viewIncludes: {},
 

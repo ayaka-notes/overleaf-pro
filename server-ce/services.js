@@ -31,9 +31,6 @@ module.exports = [
   },
   {
     name: 'linked-url-proxy',
-  },
-  {
-    name: 'github-sync',
   }
 ]
 
