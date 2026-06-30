@@ -47,6 +47,14 @@ jobs:
       - name: "Sync yarn.lock And Prepare .dockerignore"
         run: |
           docker run --rm -v "$(pwd)":/workspace -w /workspace node:22.18.0 sh -c "corepack enable && yarn install --mode=update-lockfile"
+          # Apply the highest-versioned locale patch over the base locales before extracting
+          patch_dir=$(printf '%s\n' services/web/locales/locales_patches/v*/ | sort -V | tail -n1)
+          if [ -d "$patch_dir" ]; then
+            echo "Applying locale patch: $patch_dir"
+            cp "$patch_dir"*.json services/web/locales/
+          else
+            echo "No locale patch directory found; skipping"
+          fi
           docker run --rm -v "$(pwd)/services/web/":/overleaf/services/web -w /overleaf/services/web ghcr.io/ayaka-notes/overleaf-pro/dev:webpack yarn run extract-translations
           cd ./server-ce/
           cp .dockerignore ../
