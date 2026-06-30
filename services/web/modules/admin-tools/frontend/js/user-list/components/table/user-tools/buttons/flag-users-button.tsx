@@ -12,7 +12,7 @@ function FlagUsersButton({ action }: { action: string }) {
   const { selectedUsers, toggleSelectedUser, updateUserViewData } =
     useUserListContext()
   const { t } = useTranslation()
-  const text = t(action)
+  const text = action === 'suspend' ? t('disable') : action === 'resume' ? t('enable') : t(action)
 
   const [showModal, setShowModal] = useState(false)
   const isMounted = useIsMounted()

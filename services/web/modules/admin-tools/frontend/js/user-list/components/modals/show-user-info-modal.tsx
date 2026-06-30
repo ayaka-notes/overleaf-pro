@@ -147,7 +147,7 @@ function ShowUserInfoModal({
                 value={
                   user.lastLoggedIn
                     ? formatDate(user.lastLoggedIn)
-                    : t('never')
+                    : t('unknown')
                 }
               />
               <InfoRow
@@ -155,7 +155,7 @@ function ShowUserInfoModal({
                 value={
                   user.lastActive
                     ? formatDate(user.lastActive)
-                    : t('never')
+                    : t('unknown')
                 }
               />
               <InfoRow
