@@ -1063,10 +1063,25 @@ module.exports = {
     ],
     langFeedbackLinkingWidgets: [],
     labsExperiments: [],
-    integrationLinkingWidgets: [],
+    integrationLinkingWidgets: [
+      Path.resolve(
+        __dirname,
+        '../modules/github-sync/frontend/js/components/github-sync-widget.tsx'
+      ),
+    ],
     referenceLinkingWidgets: [],
-    importProjectFromGithubModalWrapper: [],
-    importProjectFromGithubMenu: [],
+    importProjectFromGithubModalWrapper: [
+      Path.resolve(
+        __dirname,
+        '../modules/github-sync/frontend/js/components/import-from-github-modal-wrapper.tsx'
+      ),
+    ],
+    importProjectFromGithubMenu: [
+      Path.resolve(
+        __dirname,
+        '../modules/github-sync/frontend/js/components/import-from-github-menu.tsx'
+      ),
+    ],
     editorLeftMenuSync: [
       Path.resolve(
         __dirname,
@@ -1137,6 +1152,10 @@ module.exports = {
         __dirname,
         '../modules/git-bridge/frontend/js/components/git-bridge-integration-card.tsx'
       ),
+      Path.resolve(
+        __dirname,
+        '../modules/github-sync/frontend/js/components/github-integration-card.tsx'
+      ),
     ],
     referenceSearchSetting: [],
     settingsModalEditorTabSections: [],
@@ -1165,7 +1184,8 @@ module.exports = {
     'template-gallery',
     'login-register',
     'oauth2-server',
-    'git-bridge'
+    'git-bridge',
+    'github-sync'
   ],
   viewIncludes: {},
 
@@ -1180,6 +1200,7 @@ module.exports = {
     },
   },
   enableGitBridge: process.env.GIT_BRIDGE_ENABLED === 'true',
+  enableGithubSync: process.env.GITHUB_SYNC_ENABLED === 'true',
   unsupportedBrowsers: {
     ie: '<=11',
     safari: '<15',
