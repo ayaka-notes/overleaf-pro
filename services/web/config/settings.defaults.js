@@ -1053,7 +1053,12 @@ module.exports = {
     sourceEditorToolbarComponents: [],
     sourceEditorToolbarEndButtons: [],
     rootContextProviders: [],
-    mainEditorLayoutModals: [],
+    mainEditorLayoutModals: [
+      Path.resolve(
+        __dirname,
+        '../modules/reference-picker/frontend/js/components/reference-picker-controller.tsx'
+      ),
+    ],
     mainEditorLayoutPanels: [],
     pythonRunner: [
       Path.resolve(
@@ -1117,7 +1122,16 @@ module.exports = {
     rollingBuildsUpdatedAlert: [],
     offlineModeToolbarButtons: [],
     settingsEntries: [],
-    autoCompleteExtensions: [],
+    autoCompleteExtensions: [
+      Path.resolve(
+        __dirname,
+        '../modules/reference-picker/frontend/js/extensions/reference-picker-keybinding.ts'
+      ),
+      Path.resolve(
+        __dirname,
+        '../modules/reference-picker/frontend/js/extensions/reference-search-hint.ts'
+      ),
+    ],
     sectionTitleGenerators: [],
     toastGenerators: [
       Path.resolve(
@@ -1161,7 +1175,12 @@ module.exports = {
     settingsModalEditorTabSections: [],
     settingsModalSpellcheckSections: [],
     errorLogsComponents: [],
-    referenceIndices: [],
+    referenceIndices: [
+      Path.resolve(
+        __dirname,
+        '../modules/reference-picker/frontend/js/reference-index/advanced-reference-index.ts'
+      ),
+    ],
     railEntries: [],
     railPopovers: [],
     railActions: [],
@@ -1184,6 +1203,7 @@ module.exports = {
     'template-gallery',
     'login-register',
     'oauth2-server',
+    'reference-picker',
     'git-bridge',
     'github-sync'
   ],
