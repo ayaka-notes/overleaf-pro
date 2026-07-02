@@ -154,9 +154,11 @@ const DockerRunner = {
     let streamEnded = false
     let containerReturned = false
     let output = {}
+    let containerExitCode
 
     function callbackIfFinished() {
       if (streamEnded && containerReturned) {
+        output.exitCode = containerExitCode
         callback(null, output)
       }
     }
@@ -199,6 +201,7 @@ const DockerRunner = {
               err.code = exitCode
               return callback(err)
             }
+            containerExitCode = exitCode
             containerReturned = true
             logger.debug(
               // The seccomp policy is very large. Avoid logging it. _.omit deep clones.
